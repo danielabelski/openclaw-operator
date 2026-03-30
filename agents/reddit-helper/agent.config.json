@@ -1,0 +1,38 @@
+{
+  "name": "reddit-helper",
+  "id": "reddit-helper",
+  "orchestratorTask": "reddit-response",
+  "model": {
+    "primary": "gpt-4o-mini",
+    "fallback": "gpt-4o-mini",
+    "tier": "balanced",
+    "temperature": 0.55,
+    "maxTokens": 320
+  },
+  "knowledgePackDir": "../../logs/knowledge-packs",
+  "draftLogPath": "../../logs/reddit-drafts.jsonl",
+  "devvitQueuePath": "../../logs/devvit-submissions.jsonl",
+  "orchestratorStatePath": "mongo:orchestrator-runtime-state",
+  "serviceStatePath": "../../logs/reddit-helper-service.json",
+  "telemetryStream": "http://localhost:8700/telemetry",
+  "permissions": {
+    "skills": {
+      "documentParser": {
+        "allowed": true,
+        "maxCalls": 12,
+        "reason": "Inspect the latest knowledge pack before drafting public replies"
+      }
+    },
+    "fileSystem": {
+      "readPaths": ["workspace"]
+    },
+    "network": {
+      "allowed": false
+    }
+  },
+  "redditAuth": {
+    "clientId": "${REDDIT_CLIENT_ID}",
+    "clientSecret": "${REDDIT_CLIENT_SECRET}",
+    "refreshToken": "${REDDIT_REFRESH_TOKEN}"
+  }
+}

@@ -1,0 +1,1188 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import OverviewPage from "@/pages/OverviewPage";
+import AgentsPage from "@/pages/AgentsPage";
+import IncidentsPage from "@/pages/IncidentsPage";
+import KnowledgePage from "@/pages/KnowledgePage";
+import PublicProofPage from "@/pages/PublicProofPage";
+import SystemHealthPage from "@/pages/SystemHealthPage";
+import TasksPage from "@/pages/TasksPage";
+import { TaskRunDetailContent } from "@/components/console/TaskRunDetailContent";
+import * as consoleHooks from "@/hooks/use-console-api";
+import * as publicSurfaceHooks from "@/hooks/use-public-surface-api";
+import * as diagnosticsContext from "@/contexts/DiagnosticsContext";
+import * as authContext from "@/contexts/AuthContext";
+
+const navigateMock = vi.fn();
+const acknowledgeMutate = vi.fn();
+const ownerMutate = vi.fn();
+const remediateMutate = vi.fn();
+const triggerTaskMutate = vi.fn();
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
+
+vi.mock("@/hooks/use-console-api");
+vi.mock("@/hooks/use-public-surface-api");
+vi.mock("@/contexts/DiagnosticsContext");
+vi.mock("@/contexts/AuthContext");
+
+describe("operator contract surfaces", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+
+    vi.mocked(authContext.useAuth).mockReturnValue({
+      user: {
+        actor: "AyobamiH",
+        role: "operator",
+        roles: ["operator"],
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      apiKeyExpires: null,
+      login: vi.fn(),
+      testConnection: vi.fn(),
+      logout: vi.fn(),
+      hasRole: vi.fn(() => true),
+    });
+
+    vi.mocked(diagnosticsContext.useDiagSummary).mockReturnValue({
+      summary: {
+        pass: 5,
+        fail: 1,
+        lastRunAt: "2026-03-11T10:00:00.000Z",
+      },
+    } as unknown as ReturnType<typeof diagnosticsContext.useDiagSummary>);
+
+    vi.mocked(consoleHooks.useIncidentAcknowledge).mockReturnValue({
+      mutate: acknowledgeMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof consoleHooks.useIncidentAcknowledge>);
+
+    vi.mocked(consoleHooks.useIncidentOwner).mockReturnValue({
+      mutate: ownerMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof consoleHooks.useIncidentOwner>);
+
+    vi.mocked(consoleHooks.useIncidentRemediate).mockReturnValue({
+      mutate: remediateMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof consoleHooks.useIncidentRemediate>);
+
+    vi.mocked(consoleHooks.useTriggerTask).mockReturnValue({
+      mutate: triggerTaskMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof consoleHooks.useTriggerTask>);
+
+    vi.mocked(consoleHooks.useTaskCatalog).mockReturnValue({
+      data: { generatedAt: "2026-03-11T10:00:00.000Z", tasks: [] },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useTaskCatalog>);
+  });
+
+  it("renders the new overview attention rail and safe next actions", () => {
+    vi.mocked(consoleHooks.useDashboardOverview).mockReturnValue({
+      data: {
+        health: { status: "warning", fastStartMode: true },
+        persistence: { status: "warning", database: "mongo" },
+        accounting: {
+          totalCostUsd: 1.25,
+          currentBudget: {
+            status: "healthy",
+            remainingLlmCalls: 12,
+          },
+        },
+        queue: { queued: 2, processing: 1 },
+        approvals: { pendingCount: 1, pending: [] },
+        governance: {
+          approvals: 1,
+          taskRetryRecoveries: 2,
+        },
+        incidents: {
+          overallStatus: "warning",
+          openCount: 1,
+          activeCount: 1,
+          watchingCount: 0,
+          bySeverity: { critical: 0, warning: 1, info: 0 },
+        },
+        recentTasks: [
+          {
+            id: "task-heartbeat",
+            taskId: "task-heartbeat",
+            type: "heartbeat",
+            message: "Heartbeat completed",
+            status: "success",
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useDashboardOverview>);
+
+    vi.mocked(consoleHooks.useAgentsOverview).mockReturnValue({
+      data: { count: 1, agents: [{ id: "doc-specialist", serviceAvailable: true, serviceRunning: true }] },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useAgentsOverview>);
+
+    vi.mocked(consoleHooks.useTaskCatalog).mockReturnValue({
+      data: {
+        generatedAt: "2026-03-11T10:00:00.000Z",
+        tasks: [
+          {
+            type: "heartbeat",
+            label: "Heartbeat",
+            purpose: "Run a bounded health pulse through the control plane.",
+            operationalStatus: "active",
+            approvalGated: false,
+            exposeInV1: true,
+            telemetryOverlay: { totalRuns: 3, successRate: 1 },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useTaskCatalog>);
+
+    vi.mocked(publicSurfaceHooks.useCommandCenterOverview).mockReturnValue({
+      data: {
+        riskCounts: { onTrack: 1, atRisk: 1, blocked: 0, completed: 1 },
+        latest: {
+          claim: "Proof transport active",
+          scope: "orchestrator-public-proof",
+          timestampUtc: "2026-03-11T10:10:00.000Z",
+        },
+        stale: true,
+        evidenceCount: 3,
+        activeLaneCount: 1,
+      },
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useCommandCenterOverview>);
+
+    render(
+      <MemoryRouter>
+        <OverviewPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Operator Overview")).toBeInTheDocument();
+    expect(screen.getByText("Needs Attention")).toBeInTheDocument();
+    expect(screen.getByText("Safe Next Actions")).toBeInTheDocument();
+    expect(screen.getByText("Fast-start mode is active")).toBeInTheDocument();
+    expect(screen.getByText("Heartbeat")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Heartbeat"));
+    expect(navigateMock).toHaveBeenCalledWith({
+      pathname: "/tasks",
+      search: "?openTask=heartbeat",
+    });
+  }, 15000);
+
+  it("renders agent capability readiness and gap evidence", () => {
+    vi.mocked(consoleHooks.useAgentsOverview).mockReturnValue({
+      data: {
+        count: 1,
+        agents: [
+          {
+            id: "doc-specialist",
+            name: "Doc Specialist",
+            description: "Repo intelligence engine",
+            orchestratorTask: "drift-repair",
+            modelTier: "high",
+            allowedSkills: ["documentParser", "sourceFetch"],
+            workerValidationStatus: "confirmed-worker",
+            spawnedWorkerCapable: true,
+            serviceAvailable: true,
+            serviceExpected: true,
+            serviceInstalled: true,
+            serviceRunning: true,
+            lifecycleMode: "service-expected",
+            hostServiceStatus: "running",
+            evidenceSources: ["memory", "toolgate"],
+            capability: {
+              role: "repository intelligence",
+              spine: "truth",
+              currentReadiness: "operational",
+              evidence: ["successful run evidence", "tool execution evidence"],
+              presentCapabilities: ["knowledge synthesis", "successful runtime evidence"],
+              missingCapabilities: ["contradiction graphing"],
+              ultraGapSummary:
+                "1 capability gap remains before this agent can be treated as ultra-capable in-role.",
+            },
+          },
+        ],
+        topology: {
+          status: "stable",
+          counts: {
+            totalNodes: 5,
+            totalEdges: 4,
+            routeEdges: 2,
+            skillEdges: 1,
+            proofEdges: 1,
+          },
+          hotspots: [],
+        },
+        relationshipHistory: {
+          totalObservations: 6,
+          lastObservedAt: "2026-03-11T10:20:00.000Z",
+          byRelationship: {
+            "feeds-agent": 2,
+            "verifies-agent": 1,
+          },
+          byStatus: {
+            observed: 5,
+            warning: 1,
+          },
+          timeline: [
+            { bucketStart: "2026-03-11T09:00:00.000Z", total: 2 },
+            { bucketStart: "2026-03-11T10:00:00.000Z", total: 4 },
+          ],
+          recent: [
+            {
+              observationId: "obs-1",
+              relationship: "feeds-agent",
+              from: "agent:doc-specialist",
+              to: "agent:reddit-helper",
+              status: "observed",
+              source: "doc-specialist",
+              detail: "doc-specialist fed reddit-helper with a knowledge pack.",
+              timestamp: "2026-03-11T10:20:00.000Z",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useAgentsOverview>);
+
+    render(
+      <MemoryRouter>
+        <AgentsPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Capability Readiness")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "1 capability gap remains before this agent can be treated as ultra-capable in-role.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Service-expected").length).toBeGreaterThan(0);
+    expect(screen.getByText("Service Entry")).toBeInTheDocument();
+    expect(screen.getAllByText("Host Running").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Resident posture: keep the host service installed and running for this lane."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Operator action: trigger a narrow bounded canary through Tasks to promote fresh task-path proof for this lane.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("contradiction graphing")).toBeInTheDocument();
+    expect(screen.getByText("knowledge synthesis")).toBeInTheDocument();
+    expect(screen.getByText("Relationship History")).toBeInTheDocument();
+    expect(screen.getByText("doc-specialist fed reddit-helper with a knowledge pack.")).toBeInTheDocument();
+  });
+
+  it("renders worker-first agent action guidance without host-service debt language", () => {
+    vi.mocked(consoleHooks.useAgentsOverview).mockReturnValue({
+      data: {
+        count: 1,
+        agents: [
+          {
+            id: "integration-agent",
+            name: "Integration Agent",
+            description: "Workflow conductor",
+            orchestratorTask: "integration-workflow",
+            modelTier: "balanced",
+            allowedSkills: ["documentParser", "normalizer"],
+            workerValidationStatus: "partial-worker",
+            spawnedWorkerCapable: true,
+            serviceAvailable: true,
+            serviceExpected: false,
+            serviceInstalled: false,
+            serviceRunning: false,
+            lifecycleMode: "worker-first",
+            hostServiceStatus: "not-applicable",
+            evidenceSources: ["runtime"],
+            capability: {
+              role: "workflow conductor",
+              spine: "execution",
+              currentReadiness: "foundation",
+              evidence: [],
+              presentCapabilities: ["governed skill access", "spawned worker path"],
+              missingCapabilities: ["successful runtime evidence"],
+              ultraGapSummary:
+                "1 capability gap remains before this agent can be treated as ultra-capable in-role.",
+            },
+            runtimeProof: {
+              distinctions: {
+                taskObserved: false,
+                taskSucceeded: false,
+              },
+            },
+          },
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useAgentsOverview>);
+
+    render(
+      <MemoryRouter>
+        <AgentsPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(
+        "Worker-first posture: trigger it on demand through orchestrator task paths; host service install is not required.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Operator action: run Integration Workflow with blank/default steps or shorthand workflow lines to promote a real coordination canary.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Host N/A").length).toBeGreaterThan(0);
+  });
+
+  it("renders workflow graph and proof links in run detail", () => {
+    render(
+      <TaskRunDetailContent
+        isLoading={false}
+        run={{
+          runId: "run-1",
+          type: "heartbeat",
+          status: "success",
+          createdAt: "2026-03-11T10:00:00.000Z",
+          startedAt: "2026-03-11T10:00:01.000Z",
+          completedAt: "2026-03-11T10:00:02.000Z",
+          model: "gpt-4.1-mini",
+          cost: 0.0123,
+          latency: 1000,
+          usage: {
+            promptTokens: 120,
+            completionTokens: 45,
+            totalTokens: 165,
+          },
+          budget: {
+            dailyCallLimit: 20,
+            callsUsed: 4,
+            callsRemaining: 16,
+            exhausted: false,
+          },
+          accounting: {
+            metered: true,
+            priced: true,
+            note: "Accounted against the bounded reply budget.",
+          },
+          error: null,
+          lastHandledAt: "2026-03-11T10:00:02.000Z",
+          repair: null,
+          history: [],
+          attempt: 1,
+          maxRetries: 2,
+          workflow: {
+            stage: "completed",
+            graphStatus: "completed",
+            currentStage: "proof",
+            blockedStage: null,
+            stopReason: null,
+            stopClassification: "completed",
+            awaitingApproval: false,
+            retryScheduled: false,
+            nextRetryAt: null,
+            repairStatus: null,
+            eventCount: 4,
+            latestEventAt: "2026-03-11T10:00:02.000Z",
+            stageDurations: { ingress: 10, queue: 15, agent: 120 },
+            timingBreakdown: {
+              ingress: { startedAt: "2026-03-11T10:00:00.000Z", completedAt: "2026-03-11T10:00:00.010Z", durationMs: 10, eventCount: 1 },
+              queue: { startedAt: "2026-03-11T10:00:00.010Z", completedAt: "2026-03-11T10:00:00.025Z", durationMs: 15, eventCount: 1 },
+              agent: { startedAt: "2026-03-11T10:00:00.025Z", completedAt: "2026-03-11T10:00:00.145Z", durationMs: 120, eventCount: 1 },
+            },
+            nodeCount: 5,
+            edgeCount: 4,
+          },
+          approval: {
+            required: false,
+            status: null,
+            requestedAt: null,
+            decidedAt: null,
+            decidedBy: null,
+            note: null,
+          },
+          events: [
+            {
+              id: "evt-1",
+              stage: "queue",
+              state: "queued",
+              timestamp: "2026-03-11T10:00:00.000Z",
+              message: "Queued",
+            },
+          ],
+          workflowGraph: {
+            graphStatus: "completed",
+            stopClassification: "completed",
+            nodes: [
+              { id: "n-ingress", kind: "stage", stage: "ingress", label: "Ingress", status: "completed", detail: "Accepted." },
+              { id: "n-proof", kind: "proof", stage: "proof", label: "Proof", status: "completed", detail: "Delivered." },
+              { id: "e-proof", kind: "event", stage: "proof", label: "delivered", status: "completed", detail: "Proof delivered.", timestamp: "2026-03-11T10:00:02.000Z" },
+            ],
+            edges: [
+              { id: "e-1", from: "n-ingress", to: "n-proof", status: "completed", detail: "Ingress -> Proof" },
+            ],
+            events: [
+              { eventId: "evt-proof", stage: "proof", state: "delivered", timestamp: "2026-03-11T10:00:02.000Z", detail: "Proof delivered." },
+            ],
+          },
+          proofLinks: [
+            {
+              id: "proof-1",
+              type: "milestone",
+              status: "delivered",
+              summary: "Heartbeat proof published.",
+              target: "orchestrator-public-proof",
+              lastAttemptAt: "2026-03-11T10:00:02.000Z",
+            },
+          ],
+        }}
+        runResult={{
+          operatorSummary: "Prepared a local-only reddit draft with review posture because the knowledge pack is behind the docs mirror.",
+          recommendedNextActions: [
+            "Run drift-repair before broad reuse.",
+          ],
+          specialistContract: {
+            role: "Reddit Community Builder",
+            workflowStage: "community-review",
+            status: "watching",
+            operatorSummary: "Prepared a local-only reddit draft with review posture because the knowledge pack is behind the docs mirror.",
+            recommendedNextActions: [
+              "Run drift-repair before broad reuse.",
+            ],
+          },
+          knowledgeFreshness: {
+            status: "docs-ahead-of-pack",
+            reviewRecommended: true,
+            packGeneratedAt: "2026-03-11T08:00:00.000Z",
+            packAgeHours: 2,
+            docsLatestModifiedAt: "2026-03-11T09:30:00.000Z",
+            warnings: [
+              "The docs mirror changed after the latest knowledge pack was generated. Run drift-repair so reddit-helper drafts against the refreshed pack.",
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Operator Summary")).toBeInTheDocument();
+    expect(screen.getByText("Knowledge Freshness")).toBeInTheDocument();
+    expect(screen.getByText("docs-ahead-of-pack")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Run drift-repair so reddit-helper drafts against the refreshed pack/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Workflow Graph")).toBeInTheDocument();
+    expect(screen.getByText("Proof Links")).toBeInTheDocument();
+    expect(screen.getByText("Heartbeat proof published.")).toBeInTheDocument();
+    expect(screen.getByText("Ingress")).toBeInTheDocument();
+    expect(screen.getByText("Stop Classification")).toBeInTheDocument();
+  });
+
+  it("renders build-refactor as an operator-usable bounded surgery lane", () => {
+    vi.mocked(consoleHooks.useTaskCatalog).mockReturnValue({
+      data: {
+        generatedAt: "2026-03-11T10:00:00.000Z",
+        tasks: [
+          {
+            type: "build-refactor",
+            label: "Build Refactor",
+            purpose: "Run bounded refactor/build workflow through the spawned worker path.",
+            operationalStatus: "confirmed-working",
+            approvalGated: true,
+            exposeInV1: true,
+            dependencyClass: "worker",
+            dependencyRequirements: ["spawned worker", "tool permissions", "approval gate"],
+            baselineConfidence: "medium",
+            caveats: ["Approval required before execution."],
+            telemetryOverlay: { totalRuns: 4, successRate: 0.75 },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useTaskCatalog>);
+
+    render(
+      <MemoryRouter>
+        <TasksPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText("Build Refactor"));
+
+    expect(
+      screen.getByText(/Autonomous mode synthesizes bounded repo patches from real scope evidence/i),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("orchestrator/src")).toBeInTheDocument();
+    expect(screen.getByText("What To Do Next")).toBeInTheDocument();
+    expect(
+      screen.getByText(/worker scans the declared scope for supported repository transforms/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue(/Repair the bounded runtime\/operator issue inside this scope/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders integration-workflow as a bounded default-or-shorthand workflow lane", () => {
+    vi.mocked(consoleHooks.useTaskCatalog).mockReturnValue({
+      data: {
+        generatedAt: "2026-03-11T10:00:00.000Z",
+        tasks: [
+          {
+            type: "integration-workflow",
+            label: "Integration Workflow",
+            purpose: "Run multi-step workflow orchestration through the integration agent.",
+            operationalStatus: "confirmed-working",
+            approvalGated: false,
+            exposeInV1: true,
+            dependencyClass: "worker",
+            dependencyRequirements: ["integration-agent worker", "step payload"],
+            baselineConfidence: "medium",
+            caveats: [
+              "Blank submissions fall back to a bounded default workflow plan.",
+              "Shorthand steps like `market-research: operator console trends` are normalized automatically.",
+            ],
+            telemetryOverlay: { totalRuns: 3, successRate: 1 },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useTaskCatalog>);
+
+    render(
+      <MemoryRouter>
+        <TasksPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText("Integration Workflow"));
+
+    expect(
+      screen.getByText(/Leave steps blank to run the bounded default research - extract - normalize - verify plan/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/normalizes shorthand or empty step payloads into a bounded workflow plan/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Leave steps blank for the bounded default plan, or provide shorthand lines/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/market-research: operator console trends/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders reddit-response as a freshness-aware knowledge-pack lane", () => {
+    vi.mocked(consoleHooks.useTaskCatalog).mockReturnValue({
+      data: {
+        generatedAt: "2026-03-11T10:00:00.000Z",
+        tasks: [
+          {
+            type: "reddit-response",
+            label: "Reddit Response",
+            purpose: "Draft community-safe responses with doctrine checks, provider posture, and downstream follow-up guidance.",
+            operationalStatus: "confirmed-working",
+            approvalGated: false,
+            exposeInV1: true,
+            dependencyClass: "worker",
+            dependencyRequirements: ["reddit-helper pipeline", "knowledge pack", "optional model provider"],
+            baselineConfidence: "medium",
+            caveats: [
+              "Grounding depends on the managed openclaw-docs mirror and the latest generated knowledge pack, not the raw docs tree directly.",
+              "If the docs mirror changed after the latest pack was generated, refresh drift-repair before treating the draft as current or broadly reusable.",
+            ],
+            telemetryOverlay: { totalRuns: 3, successRate: 1 },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useTaskCatalog>);
+
+    render(
+      <MemoryRouter>
+        <TasksPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText("Reddit Response"));
+
+    expect(
+      screen.getByText(/pulls the latest knowledge pack plus runtime doctrine/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/If the resulting run says the docs mirror is ahead of the latest pack, run Drift Repair before you reuse the reply broadly/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/managed openclaw-docs mirror and the latest generated knowledge pack/i).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("renders incidents as the dedicated remediation command deck", () => {
+    vi.mocked(consoleHooks.useHealth).mockReturnValue({
+      data: {
+        status: "healthy",
+        timestamp: "2026-03-11T10:15:00.000Z",
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.useHealth>);
+
+    vi.mocked(consoleHooks.usePersistenceHealth).mockReturnValue({
+      data: {
+        status: "healthy",
+        database: "mongo",
+        collections: 5,
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.usePersistenceHealth>);
+
+    vi.mocked(consoleHooks.usePersistenceSummary).mockReturnValue({
+      data: {
+        generatedAt: "2026-03-11T10:15:00.000Z",
+        status: "healthy",
+        persistenceAvailable: true,
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.usePersistenceSummary>);
+
+    vi.mocked(consoleHooks.useExtendedHealth).mockReturnValue({
+      data: {
+        status: "warning",
+        controlPlane: { routing: "healthy", queue: { queued: 1, processing: 1 } },
+        workers: {
+          declaredAgents: 3,
+          spawnedWorkerCapableCount: 2,
+          serviceAvailableCount: 2,
+          serviceInstalledCount: 1,
+          serviceRunningCount: 1,
+          serviceOperationalCount: 1,
+        },
+        repairs: { activeCount: 1, verifiedCount: 1, failedCount: 0 },
+        dependencies: {
+          persistence: { status: "healthy", database: true, collections: 5 },
+          knowledge: { indexedEntries: 12, conceptCount: 7 },
+        },
+        truthLayers: {
+          claimed: { status: "stable", summary: "claimed", evidence: [{ label: "Control Plane", detail: "orchestrator", status: "declared" }], signals: [] },
+          configured: { status: "warning", summary: "configured", evidence: [], signals: [{ severity: "warning", message: "cookbook optional" }] },
+          observed: { status: "warning", summary: "observed", evidence: [{ label: "Queue", detail: "1 queued", status: "live" }], signals: [] },
+          public: { status: "warning", summary: "public", evidence: [], signals: [{ severity: "warning", message: "demand transport degraded" }] },
+        },
+        incidents: {
+          overallStatus: "warning",
+          openCount: 1,
+          activeCount: 1,
+          watchingCount: 0,
+          bySeverity: { critical: 0, warning: 1, info: 0 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.useExtendedHealth>);
+
+    vi.mocked(consoleHooks.useDashboardOverview).mockReturnValue({
+      data: {
+        health: { status: "warning", fastStartMode: false },
+        approvals: { pendingCount: 1, pending: [] },
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.useDashboardOverview>);
+
+    vi.mocked(consoleHooks.useIncidents).mockReturnValue({
+      data: {
+        incidents: [
+          {
+            id: "inc-1",
+            title: "Demand summary degraded",
+            severity: "warning",
+            status: "active",
+            truthLayer: "public",
+            summary: "Demand proof is retrying.",
+            owner: null,
+            acknowledgedAt: null,
+            lastSeenAt: "2026-03-11T10:15:00.000Z",
+            remediation: { status: "ready" },
+          },
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useIncidents>);
+
+    vi.mocked(consoleHooks.useIncidentDetail).mockReturnValue({
+      data: {
+        incident: {
+          id: "inc-1",
+          title: "Demand summary degraded",
+          severity: "warning",
+          status: "active",
+          truthLayer: "public",
+          summary: "Demand proof is retrying.",
+          owner: null,
+          acknowledgedAt: null,
+          acknowledgedBy: null,
+          acknowledgementNote: null,
+          firstSeenAt: "2026-03-11T10:00:00.000Z",
+          lastSeenAt: "2026-03-11T10:15:00.000Z",
+          affectedSurfaces: ["proof", "public-proof"],
+          linkedProofDeliveries: ["demand:delivery-1"],
+          linkedTaskIds: ["task-1"],
+          linkedRunIds: ["run-1"],
+          linkedServiceIds: ["orchestrator"],
+          linkedRepairIds: [],
+          evidence: ["demand transport retrying"],
+          recommendedSteps: ["Inspect demand delivery ledger"],
+          policy: {
+            policyId: "policy-build-refactor",
+            preferredOwner: "operator",
+            remediationTaskType: "build-refactor",
+            verifierTaskType: "qa-verification",
+            targetSlaMinutes: 30,
+            escalationMinutes: 15,
+          },
+          remediation: {
+            owner: "operator",
+            status: "ready",
+            nextAction: "Queue a remediation task.",
+            blockers: ["transport retry backlog"],
+          },
+          history: [{ eventId: "h-1", type: "detected", summary: "Detected", detail: "Incident created." }],
+          acknowledgements: [],
+          ownershipHistory: [],
+          remediationTasks: [
+            {
+              remediationId: "rem-1",
+              taskType: "system-monitor",
+              taskId: "task-1",
+              runId: "run-1",
+              status: "verifying",
+              reason: "Validate the degraded demand transport.",
+              assignedTo: "AyobamiH",
+              assignedAt: "2026-03-11T10:16:00.000Z",
+              executionStartedAt: "2026-03-11T10:17:00.000Z",
+              verificationStartedAt: "2026-03-11T10:18:00.000Z",
+              verificationSummary: "Runtime health check completed; waiting for proof retry outcome.",
+              blockers: ["public proof retry backlog"],
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useIncidentDetail>);
+
+    render(
+      <MemoryRouter>
+        <IncidentsPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Incident Posture")).toBeInTheDocument();
+    expect(screen.getByText("Incident Command Deck")).toBeInTheDocument();
+    expect(screen.getAllByText("Demand summary degraded").length).toBeGreaterThan(0);
+    expect(screen.getByText("Inspect demand delivery ledger")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Runtime health check completed; waiting for proof retry outcome\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/public proof retry backlog/i)).toBeInTheDocument();
+    expect(screen.getByText(/approval-gated code surgery/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /create remediation/i }));
+    expect(remediateMutate).toHaveBeenCalledWith({
+      id: "inc-1",
+      actor: "AyobamiH",
+      note: undefined,
+      taskType: undefined,
+    });
+  });
+
+  it("keeps system health technical after the incident split", () => {
+    vi.mocked(consoleHooks.useHealth).mockReturnValue({
+      data: { status: "healthy", timestamp: "2026-03-11T10:00:00.000Z" },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.useHealth>);
+
+    vi.mocked(consoleHooks.usePersistenceHealth).mockReturnValue({
+      data: {
+        status: "healthy",
+        database: "mongo",
+        collections: 5,
+        coordination: { status: "healthy", store: "redis" },
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.usePersistenceHealth>);
+
+    vi.mocked(consoleHooks.usePersistenceSummary).mockReturnValue({
+      data: {
+        status: "healthy",
+        persistenceAvailable: true,
+        indicators: { writes: "ok" },
+        retention: { logs: "14d" },
+        storage: { driver: "mongo" },
+        collections: { incidents: 1 },
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.usePersistenceSummary>);
+
+    vi.mocked(consoleHooks.useExtendedHealth).mockReturnValue({
+      data: {
+        status: "warning",
+        controlPlane: { routing: "healthy", queue: { queued: 1, processing: 1 } },
+        workers: {
+          declaredAgents: 3,
+          spawnedWorkerCapableCount: 2,
+          serviceAvailableCount: 2,
+          serviceInstalledCount: 1,
+          serviceRunningCount: 1,
+          serviceOperationalCount: 1,
+        },
+        repairs: { activeCount: 1, verifiedCount: 1, failedCount: 0 },
+        dependencies: {
+          persistence: { status: "healthy", database: true, collections: 5 },
+          knowledge: { indexedEntries: 12, conceptCount: 7 },
+        },
+        truthLayers: {
+          claimed: { status: "stable", summary: "claimed", evidence: [], signals: [] },
+          configured: { status: "warning", summary: "configured", evidence: [], signals: [] },
+          observed: { status: "warning", summary: "observed", evidence: [], signals: [] },
+          public: { status: "warning", summary: "public", evidence: [], signals: [] },
+        },
+        incidents: {
+          overallStatus: "warning",
+          openCount: 1,
+          activeCount: 1,
+          watchingCount: 0,
+          bySeverity: { critical: 0, warning: 1, info: 0 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.useExtendedHealth>);
+
+    vi.mocked(consoleHooks.useDashboardOverview).mockReturnValue({
+      data: {
+        health: { status: "warning", fastStartMode: false },
+        approvals: { pendingCount: 1, pending: [] },
+        selfHealing: {
+          summary: { totalCount: 2, activeCount: 1, verifiedCount: 1, failedCount: 0 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof consoleHooks.useDashboardOverview>);
+
+    render(
+      <MemoryRouter>
+        <SystemHealthPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Runtime Surfaces")).toBeInTheDocument();
+    expect(screen.getByText("Truth Layers")).toBeInTheDocument();
+    expect(screen.getByText("Control Plane Status")).toBeInTheDocument();
+    expect(screen.getByText("Dependencies")).toBeInTheDocument();
+    expect(screen.queryByText("Incident Command Deck")).not.toBeInTheDocument();
+  });
+
+  it("renders knowledge surfaces safely when sources contain objects", () => {
+    vi.mocked(consoleHooks.useKnowledgeSummary).mockReturnValue({
+      data: {
+        lastUpdated: "2026-03-11T10:00:00.000Z",
+        stats: {
+          total: 4,
+          criticalEntries: [],
+          recentUpdates: [{ id: "recent-1" }],
+        },
+        networkStats: {
+          totalConcepts: 7,
+          totalLinks: 3,
+          avgConnectivity: 1.5,
+        },
+        diagnostics: {
+          provenance: {
+            unknownProvenanceCount: 1,
+            bySourceType: {
+              markdown: 3,
+              runtime: 1,
+            },
+          },
+          contradictionSignals: [],
+          graphs: {
+            provenance: {
+              totalNodes: 3,
+              totalEdges: 2,
+              hotspots: [],
+              nodes: [{ id: "n1", label: "markdown", kind: "source-type" }],
+              edges: [],
+            },
+            contradictions: {
+              contradictionCount: 0,
+              hotspots: [],
+              nodes: [],
+              edges: [],
+            },
+            freshness: {
+              score: 92,
+              status: "fresh",
+              hotspots: [],
+              bands: { fresh: 3, aging: 1, stale: 0 },
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        runtime: {
+          freshness: {
+            status: "fresh",
+            staleAfterHours: 24,
+            latestEntryUpdatedAt: "2026-03-11T09:00:00.000Z",
+          },
+          index: {
+            indexedDocs: 12,
+            docIndexVersion: 3,
+          },
+          coverage: {
+            entryToDocRatio: 0.25,
+          },
+          signals: {
+            coverage: [],
+            staleness: [],
+            contradictions: [],
+          },
+          graphs: {
+            provenance: {
+              totalNodes: 3,
+              totalEdges: 2,
+              hotspots: [],
+              nodes: [{ id: "n1", label: "markdown", kind: "source-type" }],
+              edges: [],
+            },
+            contradictions: {
+              contradictionCount: 0,
+              hotspots: [],
+              nodes: [],
+              edges: [],
+            },
+            freshness: {
+              score: 92,
+              status: "fresh",
+              hotspots: [],
+              bands: { fresh: 3, aging: 1, stale: 0 },
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        topIssues: [],
+        recentLearnings: [],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useKnowledgeSummary>);
+
+    vi.mocked(consoleHooks.useKnowledgeQuery).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      data: {
+        success: true,
+        sources: [
+          { id: "kb:proof-pipeline", label: "proof-pipeline" },
+          { sourceType: "runtime", path: "orchestrator_state.json" },
+        ],
+        meta: {
+          matchedEntries: 2,
+          freshness: { status: "fresh" },
+          contradictionSignals: [],
+        },
+        results: [{ id: "entry-1", title: "Proof pipeline" }],
+      },
+    } as unknown as ReturnType<typeof consoleHooks.useKnowledgeQuery>);
+
+    vi.mocked(consoleHooks.useMemoryRecall).mockReturnValue({
+      data: {
+        totalAgents: 1,
+        totalRuns: 3,
+        items: [
+          {
+            agentId: "doc-specialist",
+            lastRunAt: "2026-03-11T09:45:00.000Z",
+            lastStatus: "success",
+            totalRuns: 3,
+            errorCount: 0,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useMemoryRecall>);
+
+    vi.mocked(consoleHooks.useAgentsOverview).mockReturnValue({
+      data: {
+        agents: [{ id: "doc-specialist", name: "Doc Specialist" }],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useAgentsOverview>);
+
+    render(
+      <MemoryRouter>
+        <KnowledgePage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("proof-pipeline")).toBeInTheDocument();
+    expect(screen.getAllByText("runtime").length).toBeGreaterThan(0);
+    expect(screen.getByText("markdown")).toBeInTheDocument();
+    expect(screen.getByText("Knowledge Graphs")).toBeInTheDocument();
+    expect(screen.getAllByText("Freshness").length).toBeGreaterThan(0);
+  });
+
+  it("renders public proof through orchestrator-owned public endpoints", () => {
+    vi.mocked(publicSurfaceHooks.useCommandCenterOverview).mockReturnValue({
+      data: {
+        evidenceCount: 4,
+        visibleFeedCount: 2,
+        activeLaneCount: 1,
+        activeLanes: ["proof"],
+        deadLetterCount: 0,
+        stale: false,
+        lastPollAt: "2026-03-11T10:15:00.000Z",
+        riskCounts: { onTrack: 2, atRisk: 1, blocked: 0, completed: 1 },
+        proofNodes: [
+          { id: "emit", label: "Emit", state: "live", detail: "Proof emission healthy." },
+        ],
+        latest: {
+          milestoneId: "ms-1",
+          timestampUtc: "2026-03-11T10:15:00.000Z",
+          scope: "orchestrator-public-proof",
+          claim: "Public proof transport active",
+          riskStatus: "on-track",
+          nextAction: "Keep monitoring demand freshness.",
+          source: "orchestrator",
+          evidence: [{ type: "log", path: "logs/proof.jsonl", summary: "Published milestone" }],
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useCommandCenterOverview>);
+
+    vi.mocked(publicSurfaceHooks.useCommandCenterControl).mockReturnValue({
+      data: {
+        clusters: [
+          {
+            id: "cluster-1",
+            label: "Control Plane",
+            engines: [{ id: "engine-1", name: "orchestrator", tier: "balanced", approvalClass: "bounded" }],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useCommandCenterControl>);
+
+    vi.mocked(publicSurfaceHooks.useCommandCenterDemand).mockReturnValue({
+      data: {
+        segments: [{ id: "seg-1", label: "Operator demand", state: "warm", staticWeight: 3, liveSignalCount: 2 }],
+        summary: {
+          totalSegments: 1,
+          hotSegments: 0,
+          queueTotal: 2,
+          stale: false,
+          demandNarrative: "Demand pulse healthy.",
+          source: "live",
+          snapshotGeneratedAt: "2026-03-11T10:10:00.000Z",
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useCommandCenterDemand>);
+
+    vi.mocked(publicSurfaceHooks.useCommandCenterDemandLive).mockReturnValue({
+      data: {
+        segments: [{ id: "seg-live-1", label: "Live operator demand", state: "warm", staticWeight: 2, liveSignalCount: 1 }],
+        summary: {
+          totalSegments: 1,
+          hotSegments: 0,
+          queueTotal: 1,
+          stale: false,
+          demandNarrative: "Live signal steady.",
+          source: "live",
+          snapshotGeneratedAt: "2026-03-11T10:12:00.000Z",
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useCommandCenterDemandLive>);
+
+    vi.mocked(publicSurfaceHooks.useMilestonesLatest).mockReturnValue({
+      data: {
+        items: [
+          {
+            milestoneId: "ms-1",
+            timestampUtc: "2026-03-11T10:15:00.000Z",
+            scope: "orchestrator-public-proof",
+            claim: "Public proof transport active",
+            riskStatus: "on-track",
+            nextAction: "Keep monitoring demand freshness.",
+            source: "orchestrator",
+            evidence: [{ type: "log", path: "logs/proof.jsonl", summary: "Published milestone" }],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useMilestonesLatest>);
+
+    vi.mocked(publicSurfaceHooks.useMilestonesDeadLetter).mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof publicSurfaceHooks.useMilestonesDeadLetter>);
+
+    render(
+      <MemoryRouter>
+        <PublicProofPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Public Proof")).toBeInTheDocument();
+    expect(screen.getByText(/community confidence layer/i)).toBeInTheDocument();
+    expect(screen.getByText("Proof Pipeline")).toBeInTheDocument();
+    expect(screen.getByText("Recent Milestones")).toBeInTheDocument();
+    expect(screen.getByText("Demand pulse healthy.")).toBeInTheDocument();
+    expect(screen.getByText("No dead-letter milestones")).toBeInTheDocument();
+  });
+});

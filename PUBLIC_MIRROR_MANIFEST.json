@@ -1,0 +1,16 @@
+{
+  "exportedAt": "2026-03-30T06:59:58.902Z",
+  "sourceBranch": "master",
+  "sourceHead": "1583d0594840f8e340ae29de0b8dafe2c1058173",
+  "includesUncommittedChanges": true,
+  "exportedFileCount": 3336,
+  "excludedPaths": [
+    "MEMORY.md",
+    ".openclaw/workspace-state.json",
+    ".codex"
+  ],
+  "notes": [
+    "This mirror is a fresh export of the current working tree, not a history rewrite.",
+    "Initialize and publish it as a separate repository if you want a public release."
+  ]
+}

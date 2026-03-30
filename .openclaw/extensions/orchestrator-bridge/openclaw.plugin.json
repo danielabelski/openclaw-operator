@@ -1,0 +1,53 @@
+{
+  "id": "orchestrator-bridge",
+  "name": "Orchestrator Bridge",
+  "description": "Adds a guarded /orch command that forwards a narrow allowlisted task set to the local orchestrator.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["allowedTasks"],
+    "properties": {
+      "baseUrl": {
+        "type": "string"
+      },
+      "allowedTasks": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "apiKey": {
+        "type": "string"
+      },
+      "apiKeyEnv": {
+        "type": "string"
+      },
+      "envFilePath": {
+        "type": "string"
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 1000
+      }
+    }
+  },
+  "uiHints": {
+    "apiKey": {
+      "label": "Operator API key",
+      "help": "Optional explicit bearer token. Prefer env or orchestrator/.env discovery.",
+      "sensitive": true
+    },
+    "apiKeyEnv": {
+      "label": "API key env var",
+      "help": "Optional environment variable name checked before orchestrator/.env fallback."
+    },
+    "envFilePath": {
+      "label": "Orchestrator env file",
+      "help": "Optional path to the env file used for automatic operator-key discovery."
+    },
+    "allowedTasks": {
+      "label": "Allowed tasks",
+      "help": "Exact orchestrator task types this command may trigger."
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "system-monitor-agent",
+  "orchestratorTask": "system-monitor",
+  "orchestratorStatePath": "mongo:orchestrator-runtime-state",
+  "serviceStatePath": "../../logs/system-monitor-agent-service.json",
+  "name": "System Monitor & Observability Agent",
+  "description": "Monitors system health, collects metrics, analyzes logs, detects anomalies, reports on agent performance and resource usage",
+  "model": {
+    "primary": "gpt-4o-mini",
+    "fallback": "gpt-4o-mini",
+    "tier": "cheap",
+    "temperature": 0.2,
+    "maxTokens": 2048
+  },
+  "maxConcurrentTasks": 1,
+  "permissions": {
+    "skills": {
+      "documentParser": { "allowed": true, "maxCalls": 100, "reason": "Parse logs and metrics" }
+    },
+    "network": { "allowed": false }
+  },
+  "constraints": { "timeoutSec": 30, "maxRetries": 0, "continuous": true },
+  "heartbeat": { "interval": "1m", "checks": ["all_agents_healthy", "resource_usage", "error_rate"] }
+}

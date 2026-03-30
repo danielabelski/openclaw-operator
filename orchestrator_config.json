@@ -1,0 +1,46 @@
+{
+  "docsPath": "./openclaw-docs",
+  "cookbookPath": "./openai-cookbook",
+  "logsDir": "./logs",
+  "stateFile": "mongo:orchestrator-runtime-state",
+  "strictPersistence": false,
+  "approvalRequiredTaskTypes": [
+    "agent-deploy",
+    "build-refactor"
+  ],
+  "deployBaseDir": "./agents-deployed",
+  "rssConfigPath": "./rss_filter_config.json",
+  "redditDraftsPath": "./logs/reddit-drafts.jsonl",
+  "knowledgePackDir": "./logs/knowledge-packs",
+  "runtimeEngagementOsPath": "./RUNTIME_ENGAGEMENT_OS.md",
+  "digestDir": "./logs/digests",
+  "openaiModel": "gpt-4",
+  "openaiMaxTokens": 300,
+  "openaiTemperature": 0.7,
+  "nightlyBatchSchedule": "0 23 * * *",
+  "morningNotificationSchedule": "0 6 * * *",
+  "digestTimeZone": "UTC",
+  "corsAllowedOrigins": [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000"
+  ],
+  "corsAllowedMethods": [
+    "GET",
+    "POST"
+  ],
+  "corsAllowedHeaders": [
+    "Authorization",
+    "Content-Type"
+  ],
+  "corsExposedHeaders": [
+    "X-Request-Id",
+    "X-API-Key-Expires",
+    "ratelimit-limit",
+    "ratelimit-remaining",
+    "ratelimit-reset",
+    "Retry-After"
+  ],
+  "corsAllowCredentials": false,
+  "corsMaxAgeSeconds": 600,
+  "notes": "Relative paths resolve from the config file location. The orchestrator reads local OpenClaw docs from docsPath and may read a local OpenAI Cookbook mirror from cookbookPath. sync_docs_sources.sh now defaults to a curated text-and-clues cookbook sync; use --mode=full only when you intentionally want the broader upstream mirror with notebooks and media. LLM settings for reddit-helper: openaiModel (gpt-4), openaiMaxTokens (300), openaiTemperature (0.7). Digest delivery is optional and usually supplied through environment-specific config. Nightly batch runs at 11pm UTC; morning notification runs at 6am UTC. The retired public proof/openclawdbot delivery lane has been removed from the local runtime."
+}

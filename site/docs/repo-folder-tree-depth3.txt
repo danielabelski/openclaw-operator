@@ -1,0 +1,2500 @@
+.
+├── .dockerignore
+├── .git
+│   ├── COMMIT_EDITMSG
+│   ├── FETCH_HEAD
+│   ├── HEAD
+│   ├── branches
+│   ├── config
+│   ├── description
+│   ├── hooks
+│   │   ├── applypatch-msg.sample
+│   │   ├── commit-msg.sample
+│   │   ├── fsmonitor-watchman.sample
+│   │   ├── post-update.sample
+│   │   ├── pre-applypatch.sample
+│   │   ├── pre-commit.sample
+│   │   ├── pre-merge-commit.sample
+│   │   ├── pre-push.sample
+│   │   ├── pre-rebase.sample
+│   │   ├── pre-receive.sample
+│   │   ├── prepare-commit-msg.sample
+│   │   ├── push-to-checkout.sample
+│   │   ├── sendemail-validate.sample
+│   │   └── update.sample
+│   ├── index
+│   ├── info
+│   │   └── exclude
+│   ├── logs
+│   │   ├── HEAD
+│   │   └── refs
+│   ├── objects
+│   │   ├── 00
+│   │   ├── 01
+│   │   ├── 02
+│   │   ├── 03
+│   │   ├── 04
+│   │   ├── 05
+│   │   ├── 06
+│   │   ├── 07
+│   │   ├── 08
+│   │   ├── 09
+│   │   ├── 0a
+│   │   ├── 0b
+│   │   ├── 0c
+│   │   ├── 0d
+│   │   ├── 0e
+│   │   ├── 0f
+│   │   ├── 10
+│   │   ├── 11
+│   │   ├── 12
+│   │   ├── 13
+│   │   ├── 14
+│   │   ├── 15
+│   │   ├── 16
+│   │   ├── 17
+│   │   ├── 18
+│   │   ├── 19
+│   │   ├── 1a
+│   │   ├── 1b
+│   │   ├── 1c
+│   │   ├── 1d
+│   │   ├── 1e
+│   │   ├── 1f
+│   │   ├── 20
+│   │   ├── 21
+│   │   ├── 22
+│   │   ├── 23
+│   │   ├── 24
+│   │   ├── 25
+│   │   ├── 26
+│   │   ├── 27
+│   │   ├── 28
+│   │   ├── 29
+│   │   ├── 2a
+│   │   ├── 2b
+│   │   ├── 2c
+│   │   ├── 2d
+│   │   ├── 2e
+│   │   ├── 2f
+│   │   ├── 30
+│   │   ├── 31
+│   │   ├── 32
+│   │   ├── 33
+│   │   ├── 34
+│   │   ├── 35
+│   │   ├── 36
+│   │   ├── 37
+│   │   ├── 38
+│   │   ├── 39
+│   │   ├── 3a
+│   │   ├── 3b
+│   │   ├── 3c
+│   │   ├── 3d
+│   │   ├── 3e
+│   │   ├── 3f
+│   │   ├── 40
+│   │   ├── 41
+│   │   ├── 42
+│   │   ├── 43
+│   │   ├── 44
+│   │   ├── 45
+│   │   ├── 46
+│   │   ├── 47
+│   │   ├── 48
+│   │   ├── 49
+│   │   ├── 4a
+│   │   ├── 4b
+│   │   ├── 4c
+│   │   ├── 4d
+│   │   ├── 4e
+│   │   ├── 4f
+│   │   ├── 50
+│   │   ├── 51
+│   │   ├── 52
+│   │   ├── 53
+│   │   ├── 54
+│   │   ├── 55
+│   │   ├── 56
+│   │   ├── 57
+│   │   ├── 58
+│   │   ├── 59
+│   │   ├── 5a
+│   │   ├── 5b
+│   │   ├── 5c
+│   │   ├── 5d
+│   │   ├── 5e
+│   │   ├── 5f
+│   │   ├── 60
+│   │   ├── 61
+│   │   ├── 62
+│   │   ├── 63
+│   │   ├── 64
+│   │   ├── 65
+│   │   ├── 66
+│   │   ├── 67
+│   │   ├── 68
+│   │   ├── 69
+│   │   ├── 6a
+│   │   ├── 6b
+│   │   ├── 6c
+│   │   ├── 6d
+│   │   ├── 6e
+│   │   ├── 6f
+│   │   ├── 70
+│   │   ├── 71
+│   │   ├── 72
+│   │   ├── 73
+│   │   ├── 74
+│   │   ├── 75
+│   │   ├── 76
+│   │   ├── 77
+│   │   ├── 78
+│   │   ├── 79
+│   │   ├── 7a
+│   │   ├── 7b
+│   │   ├── 7c
+│   │   ├── 7d
+│   │   ├── 7e
+│   │   ├── 7f
+│   │   ├── 80
+│   │   ├── 81
+│   │   ├── 82
+│   │   ├── 83
+│   │   ├── 84
+│   │   ├── 85
+│   │   ├── 86
+│   │   ├── 87
+│   │   ├── 88
+│   │   ├── 89
+│   │   ├── 8a
+│   │   ├── 8b
+│   │   ├── 8c
+│   │   ├── 8d
+│   │   ├── 8e
+│   │   ├── 8f
+│   │   ├── 90
+│   │   ├── 91
+│   │   ├── 92
+│   │   ├── 93
+│   │   ├── 94
+│   │   ├── 95
+│   │   ├── 96
+│   │   ├── 97
+│   │   ├── 98
+│   │   ├── 99
+│   │   ├── 9a
+│   │   ├── 9b
+│   │   ├── 9c
+│   │   ├── 9d
+│   │   ├── 9e
+│   │   ├── 9f
+│   │   ├── a0
+│   │   ├── a1
+│   │   ├── a2
+│   │   ├── a3
+│   │   ├── a4
+│   │   ├── a5
+│   │   ├── a6
+│   │   ├── a7
+│   │   ├── a8
+│   │   ├── a9
+│   │   ├── aa
+│   │   ├── ab
+│   │   ├── ac
+│   │   ├── ad
+│   │   ├── ae
+│   │   ├── af
+│   │   ├── b0
+│   │   ├── b1
+│   │   ├── b2
+│   │   ├── b3
+│   │   ├── b4
+│   │   ├── b5
+│   │   ├── b6
+│   │   ├── b7
+│   │   ├── b8
+│   │   ├── b9
+│   │   ├── ba
+│   │   ├── bb
+│   │   ├── bc
+│   │   ├── bd
+│   │   ├── be
+│   │   ├── bf
+│   │   ├── c0
+│   │   ├── c1
+│   │   ├── c2
+│   │   ├── c3
+│   │   ├── c4
+│   │   ├── c5
+│   │   ├── c6
+│   │   ├── c7
+│   │   ├── c8
+│   │   ├── c9
+│   │   ├── ca
+│   │   ├── cb
+│   │   ├── cc
+│   │   ├── cd
+│   │   ├── ce
+│   │   ├── cf
+│   │   ├── d0
+│   │   ├── d1
+│   │   ├── d2
+│   │   ├── d3
+│   │   ├── d4
+│   │   ├── d5
+│   │   ├── d6
+│   │   ├── d7
+│   │   ├── d8
+│   │   ├── d9
+│   │   ├── da
+│   │   ├── db
+│   │   ├── dc
+│   │   ├── dd
+│   │   ├── de
+│   │   ├── df
+│   │   ├── e0
+│   │   ├── e1
+│   │   ├── e2
+│   │   ├── e3
+│   │   ├── e4
+│   │   ├── e5
+│   │   ├── e6
+│   │   ├── e7
+│   │   ├── e8
+│   │   ├── e9
+│   │   ├── ea
+│   │   ├── eb
+│   │   ├── ec
+│   │   ├── ed
+│   │   ├── ee
+│   │   ├── ef
+│   │   ├── f0
+│   │   ├── f1
+│   │   ├── f2
+│   │   ├── f3
+│   │   ├── f4
+│   │   ├── f5
+│   │   ├── f6
+│   │   ├── f7
+│   │   ├── f8
+│   │   ├── f9
+│   │   ├── fa
+│   │   ├── fb
+│   │   ├── fc
+│   │   ├── fd
+│   │   ├── fe
+│   │   ├── ff
+│   │   ├── info
+│   │   └── pack
+│   ├── packed-refs
+│   ├── refs
+│   │   ├── heads
+│   │   ├── remotes
+│   │   └── tags
+│   └── worktrees
+│       └── openclaw-push
+├── .github
+│   ├── copilot-instructions.md
+│   └── workflows
+│       ├── deploy.yml
+│       └── test.yml
+├── .gitignore
+├── .openclaw
+│   └── workspace-state.json
+├── .pi
+├── AGENTS.md
+├── BOOTSTRAP.md
+├── CHANGELOG.md
+├── DEPLOYMENT.md
+├── Dockerfile
+├── ENGAGEMENT_OS.md
+├── HEARTBEAT.md
+├── IDENTITY.md
+├── MEMORY.md
+├── OPENCLAW-FLOW.png
+├── OPENCLAW_CONTEXT_ANCHOR.md
+├── QUICKSTART.md
+├── RADAR.md
+├── README.md
+├── RUNTIME_ENGAGEMENT_OS.md
+├── SOUL.md
+├── TOOLS.md
+├── USER.md
+├── agents
+│   ├── AGENT_TEMPLATE
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── README.md
+│   ├── build-refactor-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── content-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── data-extraction-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── doc-specialist
+│   │   ├── .env
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   └── src
+│   ├── integration-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── market-research-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── normalization-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── qa-verification-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── reddit-helper
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── src
+│   │   └── test-real-cookbook.ts
+│   ├── security-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── shared
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   └── telemetry.ts
+│   ├── skill-audit-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   ├── summarization-agent
+│   │   ├── HEARTBEAT.md
+│   │   ├── IDENTITY.md
+│   │   ├── POLICY.md
+│   │   ├── README.md
+│   │   ├── ROLE.md
+│   │   ├── SCOPE.md
+│   │   ├── SOUL.md
+│   │   ├── TOOLS.md
+│   │   ├── USER.md
+│   │   ├── agent.config.json
+│   │   ├── package.json
+│   │   └── src
+│   └── system-monitor-agent
+│       ├── HEARTBEAT.md
+│       ├── IDENTITY.md
+│       ├── POLICY.md
+│       ├── README.md
+│       ├── ROLE.md
+│       ├── SCOPE.md
+│       ├── SOUL.md
+│       ├── TOOLS.md
+│       ├── USER.md
+│       ├── agent.config.json
+│       ├── package.json
+│       └── src
+├── docker-compose.yml
+├── docs
+│   ├── CLAWDBOT_MILESTONES.md
+│   ├── GOVERNANCE_REPO_HYGIENE.md
+│   ├── INDEX.md
+│   ├── MEMORY_SYSTEM_GUIDE.md
+│   ├── NAVIGATION.md
+│   ├── OPENCLAW_KB
+│   │   ├── 00_SYSTEM_TRUTH.md
+│   │   ├── 01_CONTROL_PLANE.md
+│   │   ├── 02_GATEWAY_AND_POLICY.md
+│   │   ├── 03_AGENT_ISOLATION.md
+│   │   ├── 04_SKILLS_AND_SUPPLY_CHAIN.md
+│   │   ├── 05_MEMORY_CONTEXT_PERSISTENCE.md
+│   │   ├── 06_LIFECYCLE_AND_SCHEDULING.md
+│   │   ├── 07_INVARIANTS_AND_RISKS.md
+│   │   ├── 08_CLAIMS_VS_REALITY.md
+│   │   ├── AGENT_ROLES.md
+│   │   ├── ARCHITECTURE.md
+│   │   ├── CLASSIFICATION.md
+│   │   ├── QA_VERIFICATION_MATRIX.md
+│   │   ├── README.md
+│   │   ├── governance
+│   │   ├── operations
+│   │   └── security
+│   ├── OPERATOR_GUIDE.md
+│   ├── OPTION_A_IMPLEMENTATION_ROADMAP.md
+│   ├── README.md
+│   ├── SUMMARY.md
+│   ├── SYSTEM_ARCHITECTURE.mmd
+│   ├── SYSTEM_DIAGRAM_PROMPT.md
+│   ├── WEBHOOK_SIGNING_CONTRACT.md
+│   ├── concepts
+│   │   └── architecture.md
+│   ├── guides
+│   │   ├── adding-tasks.md
+│   │   ├── configuration.md
+│   │   ├── monitoring.md
+│   │   └── running-agents.md
+│   ├── operations
+│   │   ├── DOCUMENTATION_COMPLETE.md
+│   │   ├── DOCUMENT_AUDIT.md
+│   │   ├── IMPLEMENTATION_COMPLETE.md
+│   │   ├── MILESTONE_INGEST_CONTRACT.md
+│   │   ├── MILESTONE_PIPELINE_RUNBOOK.md
+│   │   ├── PRD_GOVERNANCE_REMEDIATION.md
+│   │   ├── SPRINT_TO_COMPLETION.md
+│   │   ├── backup-recovery.md
+│   │   ├── clawdbot-milestone-delivery-plan.md
+│   │   ├── deployment.md
+│   │   ├── orchestrator-status.md
+│   │   ├── orchestrator_documentation.md
+│   │   └── orchestrator_workflow_plan.md
+│   ├── reference
+│   │   ├── api.md
+│   │   ├── state-schema.md
+│   │   └── task-types.md
+│   ├── repo-folder-tree-depth3.txt
+│   ├── start
+│   │   ├── architecture-overview.md
+│   │   ├── getting-started.md
+│   │   └── quickstart.md
+│   └── troubleshooting
+│       ├── common-issues.md
+│       └── debugging.md
+├── governance
+│   ├── INVARIANT_MATRIX.md
+│   └── RUNTIME_GOVERNANCE.md
+├── logs
+│   ├── archive
+│   │   ├── devvit-submissions.1771598480.jsonl
+│   │   └── reddit-drafts.1771598480.jsonl
+│   ├── audits
+│   │   └── context-anchor
+│   ├── build-refactor-agent-service.json
+│   ├── content-agent-service.json
+│   ├── data-extraction-agent-service.json
+│   ├── devvit-submissions.jsonl
+│   ├── doc-specialist-service.json
+│   ├── draft-approvals.json
+│   ├── draft-digest-state.json
+│   ├── integration-agent-service.json
+│   ├── knowledge-packs
+│   │   ├── knowledge-pack-1771590702482.json
+│   │   ├── knowledge-pack-1771711710790.json
+│   │   ├── knowledge-pack-1771713121652.json
+│   │   ├── knowledge-pack-1771713278550.json
+│   │   ├── knowledge-pack-1771714226637.json
+│   │   ├── knowledge-pack-1771868930635.json
+│   │   ├── knowledge-pack-1771868950267.json
+│   │   ├── knowledge-pack-1771868962083.json
+│   │   ├── knowledge-pack-1771870126099.json
+│   │   └── knowledge-pack-1771871250791.json
+│   ├── live-dispatch-runs.jsonl
+│   ├── manual-post-queue.jsonl
+│   ├── market-research-agent-service.json
+│   ├── milestones.jsonl
+│   ├── normalization-agent-service.json
+│   ├── qa-verification-agent-service.json
+│   ├── reddit-drafts.jsonl
+│   ├── reddit-helper-service.json
+│   ├── security-agent-service.json
+│   ├── skill-audit-agent-service.json
+│   ├── summarization-agent-service.json
+│   ├── sync_openai_cookbook.log
+│   ├── sync_openclaw_docs.log
+│   ├── system-monitor-agent-service.json
+│   └── template-agent-service.json
+├── memory
+│   ├── 2026-02-19.md
+│   ├── 2026-02-21-0601.md
+│   ├── 2026-02-21.md
+│   ├── 2026-02-22.md
+│   └── 2026-02-23.md
+├── node_modules
+│   ├── .bin
+│   │   ├── esbuild -> ../esbuild/bin/esbuild
+│   │   └── tsx -> ../tsx/dist/cli.mjs
+│   ├── .package-lock.json
+│   ├── @esbuild
+│   │   └── linux-x64
+│   ├── esbuild
+│   │   ├── LICENSE.md
+│   │   ├── README.md
+│   │   ├── bin
+│   │   ├── install.js
+│   │   ├── lib
+│   │   └── package.json
+│   ├── get-tsconfig
+│   │   ├── LICENSE
+│   │   ├── README.md
+│   │   ├── dist
+│   │   └── package.json
+│   ├── resolve-pkg-maps
+│   │   ├── LICENSE
+│   │   ├── README.md
+│   │   ├── dist
+│   │   └── package.json
+│   └── tsx
+│       ├── LICENSE
+│       ├── README.md
+│       ├── dist
+│       └── package.json
+├── openai-cookbook
+│   ├── .git
+│   │   ├── HEAD
+│   │   ├── branches
+│   │   ├── config
+│   │   ├── description
+│   │   ├── hooks
+│   │   ├── index
+│   │   ├── info
+│   │   ├── logs
+│   │   ├── objects
+│   │   ├── packed-refs
+│   │   ├── refs
+│   │   └── shallow
+│   ├── .gitignore
+│   ├── AGENTS.md
+│   ├── CONTRIBUTING.md
+│   ├── LICENSE
+│   ├── README.md
+│   ├── articles
+│   │   ├── codex_exec_plans.md
+│   │   ├── gpt-oss
+│   │   ├── gpt-oss-safeguard-guide.md
+│   │   ├── how_to_work_with_large_language_models.md
+│   │   ├── openai-harmony.md
+│   │   ├── related_resources.md
+│   │   ├── techniques_to_improve_reliability.md
+│   │   ├── text_comparison_examples.md
+│   │   ├── what_is_new_with_dalle_3.mdx
+│   │   └── what_makes_documentation_good.md
+│   ├── authors.yaml
+│   ├── examples
+│   │   ├── Assistants_API_overview_python.ipynb
+│   │   ├── Build_a_coding_agent_with_GPT-5.1.ipynb
+│   │   ├── Chat_finetuning_data_prep.ipynb
+│   │   ├── Classification_using_embeddings.ipynb
+│   │   ├── Clustering.ipynb
+│   │   ├── Clustering_for_transaction_classification.ipynb
+│   │   ├── Code_search_using_embeddings.ipynb
+│   │   ├── Context_summarization_with_realtime_api.ipynb
+│   │   ├── Creating_slides_with_Assistants_API_and_DALL-E3.ipynb
+│   │   ├── Custom-LLM-as-a-Judge.ipynb
+│   │   ├── Customizing_embeddings.ipynb
+│   │   ├── Data-intensive-Realtime-apps.ipynb
+│   │   ├── Data_extraction_transformation.ipynb
+│   │   ├── Developing_hallucination_guardrails.ipynb
+│   │   ├── Embedding_Wikipedia_articles_for_search.ipynb
+│   │   ├── Embedding_long_inputs.ipynb
+│   │   ├── Enhance_your_prompts_with_meta_prompting.ipynb
+│   │   ├── Entity_extraction_for_long_documents.ipynb
+│   │   ├── File_Search_Responses.ipynb
+│   │   ├── Fine-tuned_classification.ipynb
+│   │   ├── Fine_tuning_direct_preference_optimization_guide.ipynb
+│   │   ├── Fine_tuning_for_function_calling.ipynb
+│   │   ├── Function_calling_finding_nearby_places.ipynb
+│   │   ├── Function_calling_with_an_OpenAPI_spec.ipynb
+│   │   ├── GPT_with_vision_for_video_understanding.ipynb
+│   │   ├── Generate_Images_With_GPT_Image.ipynb
+│   │   ├── Generate_Images_With_High_Input_Fidelity.ipynb
+│   │   ├── Get_embeddings_from_dataset.ipynb
+│   │   ├── How_to_build_a_tool-using_agent_with_Langchain.ipynb
+│   │   ├── How_to_build_an_agent_with_the_node_sdk.mdx
+│   │   ├── How_to_call_functions_for_knowledge_retrieval.ipynb
+│   │   ├── How_to_call_functions_with_chat_models.ipynb
+│   │   ├── How_to_combine_GPT4o_with_RAG_Outfit_Assistant.ipynb
+│   │   ├── How_to_count_tokens_with_tiktoken.ipynb
+│   │   ├── How_to_finetune_chat_models.ipynb
+│   │   ├── How_to_format_inputs_to_ChatGPT_models.ipynb
+│   │   ├── How_to_handle_rate_limits.ipynb
+│   │   ├── How_to_stream_completions.ipynb
+│   │   ├── How_to_use_guardrails.ipynb
+│   │   ├── How_to_use_moderation.ipynb
+│   │   ├── Leveraging_model_distillation_to_fine-tune_a_model.ipynb
+│   │   ├── Multiclass_classification_for_transactions.ipynb
+│   │   ├── Named_Entity_Recognition_to_enrich_text.ipynb
+│   │   ├── Optimize_Prompts.ipynb
+│   │   ├── Orchestrating_agents.ipynb
+│   │   ├── Parse_PDF_docs_for_RAG.ipynb
+│   │   ├── Prompt_Caching101.ipynb
+│   │   ├── Prompt_Caching_201.ipynb
+│   │   ├── Prompt_migration_guide.ipynb
+│   │   ├── Question_answering_using_a_search_API.ipynb
+│   │   ├── Question_answering_using_embeddings.ipynb
+│   │   ├── RAG_with_graph_db.ipynb
+│   │   ├── Realtime_eval_guide.ipynb
+│   │   ├── Realtime_out_of_band_transcription.ipynb
+│   │   ├── Realtime_prompting_guide.ipynb
+│   │   ├── Recommendation_using_embeddings.ipynb
+│   │   ├── Regression_using_embeddings.ipynb
+│   │   ├── Reinforcement_Fine_Tuning.ipynb
+│   │   ├── Reproducible_outputs_with_the_seed_parameter.ipynb
+│   │   ├── SDG1.ipynb
+│   │   ├── Search_reranking_with_cross-encoders.ipynb
+│   │   ├── Semantic_text_search_using_embeddings.ipynb
+│   │   ├── Speech_transcription_methods.ipynb
+│   │   ├── Structured_Outputs_Intro.ipynb
+│   │   ├── Structured_outputs_multi_agent.ipynb
+│   │   ├── Summarizing_long_documents.ipynb
+│   │   ├── Tag_caption_images_with_GPT4V.ipynb
+│   │   ├── Unit_test_writing_using_a_multi-step_prompt.ipynb
+│   │   ├── Unit_test_writing_using_a_multi-step_prompt_with_older_completions_API.ipynb
+│   │   ├── User_and_product_embeddings.ipynb
+│   │   ├── Using_embeddings.ipynb
+│   │   ├── Using_logprobs.ipynb
+│   │   ├── Using_tool_required_for_customer_service.ipynb
+│   │   ├── Visualizing_embeddings_in_2D.ipynb
+│   │   ├── Visualizing_embeddings_in_3D.ipynb
+│   │   ├── Whisper_correct_misspelling.ipynb
+│   │   ├── Whisper_processing_guide.ipynb
+│   │   ├── Whisper_prompting_guide.ipynb
+│   │   ├── Zero-shot_classification_with_embeddings.ipynb
+│   │   ├── agentkit
+│   │   ├── agents_sdk
+│   │   ├── api_request_parallel_processor.py
+│   │   ├── azure
+│   │   ├── batch_processing.ipynb
+│   │   ├── book_translation
+│   │   ├── building_w_rt_mini
+│   │   ├── chatgpt
+│   │   ├── codex
+│   │   ├── completions_usage_api.ipynb
+│   │   ├── custom_image_embedding_search.ipynb
+│   │   ├── dalle
+│   │   ├── data
+│   │   ├── deep_research_api
+│   │   ├── evals
+│   │   ├── evaluation
+│   │   ├── fine-tuned_qa
+│   │   ├── gpt-5
+│   │   ├── gpt4-1_prompting_guide.ipynb
+│   │   ├── gpt4o
+│   │   ├── imgs
+│   │   ├── mcp
+│   │   ├── mermaid
+│   │   ├── multimodal
+│   │   ├── o-series
+│   │   ├── o1
+│   │   ├── object_oriented_agentic_approach
+│   │   ├── partners
+│   │   ├── reasoning_function_calls.ipynb
+│   │   ├── responses_api
+│   │   ├── skills_in_api.ipynb
+│   │   ├── sora
+│   │   ├── stripe_model_eval
+│   │   ├── third_party
+│   │   ├── utils
+│   │   ├── vector_databases
+│   │   └── voice_solutions
+│   ├── images
+│   │   ├── 01_alti_agent_governance.png
+│   │   ├── 01_benefit_of_temporal_kb.jpg
+│   │   ├── 02_alti_stack.png
+│   │   ├── 02_question_types_for_temporal_kbs.jpg
+│   │   ├── 03_alti_promptfoo_dash.png
+│   │   ├── 03_statement_invalidation.png
+│   │   ├── 04_temporal_agent.png
+│   │   ├── 05_temporal_agent_arch.png
+│   │   ├── 06_temporal_agent_chunker.png
+│   │   ├── 07_temporal_agent_class.png
+│   │   ├── 08_invalidation_agent.png
+│   │   ├── 09_full_pipeline.png
+│   │   ├── 10_multi_step_retrieval.png
+│   │   ├── 11_retrieval_agent.png
+│   │   ├── 12_spectrum_of_tools.png
+│   │   ├── 2.2_model_evolution.png
+│   │   ├── 3A_rag_hierarchical_router.png
+│   │   ├── 3A_rag_task_card.png
+│   │   ├── 3B_coscientist_architecture.png
+│   │   ├── 3B_reasoning_task_card.png
+│   │   ├── 3C_insurance_architecture.png
+│   │   ├── 3C_insurance_form.png
+│   │   ├── 3C_insurance_task_card.png
+│   │   ├── 3D_model_selection_flowchart.png
+│   │   ├── Custom-LLM-as-a-Judge-Output.png
+│   │   ├── Custom-LLM-as-a-Judge-Partial-Credit.gif
+│   │   ├── Custom-LLM-as-a-Judge-Reasoning.png
+│   │   ├── ELT_table.png
+│   │   ├── NotRealCorp_chart.png
+│   │   ├── Supplies_20240322_220858_Raven_Scan_3_jpeg.rf.50852940734939c8838819d7795e1756.jpg
+│   │   ├── System_flow_partner_mcp.png
+│   │   ├── Traces-1_partner.png
+│   │   ├── Traces-2_partner.png
+│   │   ├── add_label.png
+│   │   ├── agent_dr.png
+│   │   ├── agent_log_traces.png
+│   │   ├── agent_trace_details.png
+│   │   ├── agents_sdk_transcription.png
+│   │   ├── app_assistant_voice_agents.png
+│   │   ├── app_assistant_voice_agents_arch.png
+│   │   ├── app_assistant_voice_agents_arch_2.png
+│   │   ├── app_assistant_voice_agents_trace.png
+│   │   ├── assistants_overview_assistants_dashboard.png
+│   │   ├── assistants_overview_assistants_playground.png
+│   │   ├── assistants_overview_diagram.png
+│   │   ├── assistants_overview_enable_code_interpreter.png
+│   │   ├── assistants_overview_enable_function.png
+│   │   ├── assistants_overview_enable_retrieval.png
+│   │   ├── assistants_overview_new_assistant.png
+│   │   ├── aws_lambda_1.png
+│   │   ├── aws_lambda_10.png
+│   │   ├── aws_lambda_11.png
+│   │   ├── aws_lambda_12.png
+│   │   ├── aws_lambda_13.png
+│   │   ├── aws_lambda_14.png
+│   │   ├── aws_lambda_15.png
+│   │   ├── aws_lambda_16.png
+│   │   ├── aws_lambda_17.png
+│   │   ├── aws_lambda_18.png
+│   │   ├── aws_lambda_19.png
+│   │   ├── aws_lambda_20.png
+│   │   ├── aws_lambda_3.png
+│   │   ├── aws_lambda_4.png
+│   │   ├── aws_lambda_8.png
+│   │   ├── aws_lambda_9.png
+│   │   ├── axial-coding.png
+│   │   ├── azure-rag-architecture.png
+│   │   ├── azure-rag-quickstart-gpt.png
+│   │   ├── base_woman.png
+│   │   ├── baseline_agent.png
+│   │   ├── bigquery_rag_architecture.png
+│   │   ├── billboard.png
+│   │   ├── billboard_winter.png
+│   │   ├── boots copy.png
+│   │   ├── boots.png
+│   │   ├── byo_realtime_diagram.png
+│   │   ├── byo_realtime_starting.png
+│   │   ├── canvas_lms_list_of_tokens.png
+│   │   ├── canvas_lms_new_token.png
+│   │   ├── canvas_lms_sample_conversation.png
+│   │   ├── canvas_lms_settings_link.png
+│   │   ├── carbon_cycle_technical_diagram.png
+│   │   ├── chain_of_thought_fig1.png
+│   │   ├── chain_of_thought_fig11.png
+│   │   ├── chain_of_thought_fig3.png
+│   │   ├── chain_of_thought_fig5.png
+│   │   ├── chatgpt-auth-config.png
+│   │   ├── childrens_book_illustration_1.png
+│   │   ├── childrens_book_illustration_2.png
+│   │   ├── christmas_collectible_toy_airplane.png
+│   │   ├── christmas_holiday_card_teddy.png
+│   │   ├── ci-codex-workflow.png
+│   │   ├── code-modernization-phases.png
+│   │   ├── codex-pr.png
+│   │   ├── codex-workflow.png
+│   │   ├── codex_action copy.png
+│   │   ├── codex_action.png
+│   │   ├── codex_code_review.png
+│   │   ├── comic-reel.png
+│   │   ├── comparisons.png
+│   │   ├── confluence_gpt.png
+│   │   ├── create_function_app.png
+│   │   ├── creating-availability-grader.png
+│   │   ├── creating-feedback-column.png
+│   │   ├── creating-formatting-grader.png
+│   │   ├── creating_notion_integration.png
+│   │   ├── custom-report-workday-01.png
+│   │   ├── custom-report-workday-02.png
+│   │   ├── dalle_image.png
+│   │   ├── data_vis_slide.png
+│   │   ├── databricks_mcp_architecture.png
+│   │   ├── databricks_mcp_ui.png
+│   │   ├── dataset.png
+│   │   ├── distilling.png
+│   │   ├── drawings copy.png
+│   │   ├── drawings.png
+│   │   ├── edit_logo_year_edit_gpt-image-1.5-logo_1769659071403_0.png
+│   │   ├── edit_vto_jacket_tryon_gpt-image-1.5-vto_1769658750053_0.png
+│   │   ├── elbow_chart.png
+│   │   ├── elt_workflow.png
+│   │   ├── escalate_06.png
+│   │   ├── escalate_07.png
+│   │   ├── eval_dashboard.png
+│   │   ├── eval_qa_code.png
+│   │   ├── eval_qa_data_1.png
+│   │   ├── eval_qa_data_2.png
+│   │   ├── eval_run_results.png
+│   │   ├── eval_set_config.png
+│   │   ├── eval_tools_fail.png
+│   │   ├── evals_sentiment.png
+│   │   ├── evals_tool_dashboard.png
+│   │   ├── evals_websearch_dashboard.png
+│   │   ├── evaluation-flywheel.png
+│   │   ├── extract_product.png
+│   │   ├── failing-workflow.png
+│   │   ├── faithful-reasoning_fig1.png
+│   │   ├── faithful-reasoning_fig2.png
+│   │   ├── faithful-reasoning_fig3.png
+│   │   ├── faithful-reasoning_fig4.png
+│   │   ├── faithful-reasoning_fig5.png
+│   │   ├── faithful-reasoning_fig7.png
+│   │   ├── faithful-reasoning_tab2.png
+│   │   ├── faithful-reasoning_tab5.png
+│   │   ├── feedback.png
+│   │   ├── filtering-out-completions.png
+│   │   ├── final_result.png
+│   │   ├── fine-tuning-job.png
+│   │   ├── first_feedback.png
+│   │   ├── first_interaction.png
+│   │   ├── game_example_1.png
+│   │   ├── game_example_2.png
+│   │   ├── gcp-function-middleware-oauthcallback.png
+│   │   ├── gcp-function-middleware-oauthclient.png
+│   │   ├── gcp_rag_quickstart_gpt.png
+│   │   ├── gen_coffee_flyer_generation_gpt-image-1.5_1769657762450_0.png
+│   │   ├── gen_ui_checkout_mockup_gpt-image-1.5-ui_1769656414221_0.png
+│   │   ├── get_function_url.png
+│   │   ├── github-pr-settings copy.png
+│   │   ├── github-pr-settings.png
+│   │   ├── gitlab-mr-widget.png
+│   │   ├── gitlab-pipelines-success.png
+│   │   ├── google-calendar-action-config.png
+│   │   ├── google-calendar-action-endpoints.png
+│   │   ├── google-calendar-callback-settings.png
+│   │   ├── google-calendar-callback.png
+│   │   ├── google-calendar-results.png
+│   │   ├── google-signin.png
+│   │   ├── gpt-rag-result.png
+│   │   ├── gpt_actions_box_azuredataflow.png
+│   │   ├── gpt_actions_box_boxconfig1.png
+│   │   ├── gpt_actions_box_gptauth.png
+│   │   ├── gpt_actions_salesforce_credentials.png
+│   │   ├── gpt_actions_salesforce_manager.png
+│   │   ├── gpt_actions_salesforce_oauth2.png
+│   │   ├── gpt_actions_salesforce_scope.png
+│   │   ├── gpt_actions_salesforce_settings_condensed.png
+│   │   ├── gpt_actions_salesforce_setup.png
+│   │   ├── gpt_actions_salesforce_token.png
+│   │   ├── gptactions_BigQuery_auth.png
+│   │   ├── gptactions_Gmail_apikey.png
+│   │   ├── gptactions_Gmail_clientidsecret.png
+│   │   ├── gptactions_Gmail_enableAPIs.png
+│   │   ├── gptactions_Gmail_gmailApiTile.png
+│   │   ├── gptactions_adzviser_oauth.png
+│   │   ├── gptactions_canvaslms_approvedintegrations.png
+│   │   ├── gptactions_canvaslms_auth.png
+│   │   ├── gptactions_canvaslms_integrationslist.png
+│   │   ├── gptactions_canvaslms_settings.png
+│   │   ├── gptactions_canvaslms_tokencreate.png
+│   │   ├── gptactions_gd_api_services_pin.png
+│   │   ├── gptactions_gd_authorized_redirect_uris.png
+│   │   ├── gptactions_gd_callbackurl_from_gpt_action.png
+│   │   ├── gptactions_gd_go_to_create_credentials.png
+│   │   ├── gptactions_gd_nav_to_enabled_api.png
+│   │   ├── gptactions_gd_oauth_consent_screen.png
+│   │   ├── gptactions_gd_oauthcid_and_csecret.png
+│   │   ├── gptactions_gd_search_google_drive_api.png
+│   │   ├── gptactions_googleads_search_term_analysis_1.png
+│   │   ├── gptactions_googleads_search_term_analysis_2.png
+│   │   ├── gptactions_jira_callback.png
+│   │   ├── gptactions_jira_clientsecret.png
+│   │   ├── gptactions_jira_devconsole.png
+│   │   ├── gptactions_jira_newapplication.png
+│   │   ├── gptactions_jira_permissions.png
+│   │   ├── gptactions_jira_placeholder.png
+│   │   ├── gptactions_jira_redirect.png
+│   │   ├── gptactions_jira_scopes.png
+│   │   ├── gptactions_outlook_callback.png
+│   │   ├── gptactions_outlook_permissionadd.png
+│   │   ├── gptactions_outlook_permissions.png
+│   │   ├── gptactions_outlook_redirectconfig.png
+│   │   ├── gptactions_outlook_redirectinput.png
+│   │   ├── gptactions_outlook_registerapplication.png
+│   │   ├── gptactions_outlook_secrets.png
+│   │   ├── gptactions_outlook_secretvalue.png
+│   │   ├── gptactions_sql_database_middleware.png
+│   │   ├── gptactions_trayai_createclientcredential.gif
+│   │   ├── gptactions_trayai_createoperation.gif
+│   │   ├── ground-truth-columns.png
+│   │   ├── image_optimize_1.png
+│   │   ├── image_optimize_2.png
+│   │   ├── image_optimize_3.png
+│   │   ├── image_optimize_4.png
+│   │   ├── image_optimize_5.png
+│   │   ├── infographic_coffee_machine copy.png
+│   │   ├── infographic_coffee_machine.png
+│   │   ├── infographic_coffee_machine_it.png
+│   │   ├── infographic_coffee_machine_sp.png
+│   │   ├── input_image.png
+│   │   ├── input_images
+│   │   ├── intro_dr.png
+│   │   ├── jacket.png
+│   │   ├── jira_comment.png
+│   │   ├── jira_rule.png
+│   │   ├── jira_status_change.png
+│   │   ├── kitchen-chairs.png
+│   │   ├── kitchen.jpeg
+│   │   ├── landing_page.png
+│   │   ├── lang_constraint_en.png
+│   │   ├── lang_constraint_multi.png
+│   │   ├── least-to-most_fig1.png
+│   │   ├── least-to-most_tab11.png
+│   │   ├── least-to-most_tab4.png
+│   │   ├── least-to-most_tab9.png
+│   │   ├── llamaindex_rag_overview.png
+│   │   ├── lm_cascades_fig1.png
+│   │   ├── lm_cascades_fig3.png
+│   │   ├── lm_cascades_fig4.png
+│   │   ├── lm_cascades_fig5.png
+│   │   ├── lm_cascades_fig6.png
+│   │   ├── login_page.png
+│   │   ├── logo_generation_1.png
+│   │   ├── logo_generation_2.png
+│   │   ├── logo_generation_3.png
+│   │   ├── logo_generation_4.png
+│   │   ├── logo_sample.png
+│   │   ├── long_horizon_cli_session_stats.jpg
+│   │   ├── long_horizon_codex_app_main_workspace.jpg
+│   │   ├── long_horizon_codex_reads_plans_file.jpg
+│   │   ├── long_horizon_comments_pinned_threads.jpg
+│   │   ├── long_horizon_design_desk_ui.jpeg
+│   │   ├── long_horizon_documentation_status_updates.jpg
+│   │   ├── long_horizon_implement_md_runbook_prompt.jpg
+│   │   ├── long_horizon_kickoff_prompt_to_codex.jpg
+│   │   ├── long_horizon_lint_fix_iteration.jpg
+│   │   ├── long_horizon_live_collaboration_demo.jpg
+│   │   ├── long_horizon_metr_time_horizon_chart.jpg
+│   │   ├── long_horizon_milestone_verification_commands.jpg
+│   │   ├── long_horizon_quality_commands.jpg
+│   │   ├── long_horizon_replay_timeline_panel.jpg
+│   │   ├── long_horizon_session_summary_dashboard.jpg
+│   │   ├── long_horizon_snapshots_history_panel.jpg
+│   │   ├── maieutic_fig2.png
+│   │   ├── maieutic_fig6.png
+│   │   ├── maieutic_tab1.png
+│   │   ├── man_with_blue_hat.png
+│   │   ├── man_with_flower.png
+│   │   ├── man_with_flower_no_stripes.png
+│   │   ├── mcp_dr.png
+│   │   ├── mcp_eval_data.png
+│   │   ├── mcp_eval_improved_data.png
+│   │   ├── mcp_eval_improved_output.png
+│   │   ├── mcp_eval_output.png
+│   │   ├── memory_comparison.jpg
+│   │   ├── mockup_sample.png
+│   │   ├── motorcycle.png
+│   │   ├── multi-language.png
+│   │   ├── multi_agent_codex_workflow.png
+│   │   ├── multi_agent_collab_GOOGL_analyst_recommendations_trend.png
+│   │   ├── multi_agent_collab_GOOGL_quarterly_margins.png
+│   │   ├── multi_agent_collab_GOOGL_quarterly_trends.png
+│   │   ├── multi_agent_collab_agent_architecture.png
+│   │   ├── multi_agent_collab_cumulative_return_comparison.png
+│   │   ├── multi_agent_collab_googl_daily_returns.png
+│   │   ├── multi_agent_collab_googl_moving_averages.png
+│   │   ├── multi_agent_collab_googl_rolling_volatility.png
+│   │   ├── multi_agent_collab_googl_rsi.png
+│   │   ├── multi_agent_collab_rolling_corr_reg_daily_dgs10.png
+│   │   ├── multi_agent_collab_rolling_corr_reg_daily_fedfunds.png
+│   │   ├── multi_agent_collab_rolling_corr_reg_weekly_dgs10.png
+│   │   ├── multi_agent_collab_rolling_corr_reg_weekly_fedfunds.png
+│   │   ├── multi_agent_collab_rolling_volatility_comparison.png
+│   │   ├── multi_agent_trace.png
+│   │   ├── multi_agent_trace_details.png
+│   │   ├── oo_aa_image_1_code_interpreter_agents.png
+│   │   ├── oo_aa_image_2_uml_diagram.png
+│   │   ├── oob_transcription.png
+│   │   ├── open-coding.png
+│   │   ├── openai-cookbook-white.png
+│   │   ├── openai-cookbook.png
+│   │   ├── optimizepromptfig1.png
+│   │   ├── optimizepromptfig2.png
+│   │   ├── optimizepromptfig3.png
+│   │   ├── outfit.png
+│   │   ├── output_images
+│   │   ├── partner_business_logic.png
+│   │   ├── partner_details_ui.png
+│   │   ├── partner_development_flywheel.png
+│   │   ├── partner_eval_variations.png
+│   │   ├── partner_large_summary_ui.png
+│   │   ├── partner_mcp_Cookbook.svg
+│   │   ├── partner_model_improvement_waterfall.png
+│   │   ├── partner_process_flowchart.png
+│   │   ├── partner_project_lifecycle.png
+│   │   ├── partner_summary_ui.png
+│   │   ├── pharma_network.png
+│   │   ├── photorealism.png
+│   │   ├── pilot-candidate.png
+│   │   ├── pilot-flow-diagram.png
+│   │   ├── pilot-folder-structure.png
+│   │   ├── pilot-yaml.png
+│   │   ├── pinecone-dashboard-2.png
+│   │   ├── pinecone-dashboard.png
+│   │   ├── pixels copy.png
+│   │   ├── pixels.png
+│   │   ├── pr_quality_and_security_check.png
+│   │   ├── prompt-caching-201
+│   │   ├── prompt-optimizer-3-22s.gif
+│   │   ├── prompt_input.png
+│   │   ├── prompt_migrator_fig.png
+│   │   ├── pto-request.png
+│   │   ├── realistic_valley.png
+│   │   ├── realtime_api_transcription.png
+│   │   ├── realtime_eval_page_01_image_01.png
+│   │   ├── realtime_eval_page_02_image_01.png
+│   │   ├── realtime_eval_page_03_image_01.png
+│   │   ├── realtime_eval_page_04_image_01.png
+│   │   ├── realtime_eval_page_04_image_02.png
+│   │   ├── realtime_eval_page_05_image_01.png
+│   │   ├── realtime_eval_page_05_image_02.png
+│   │   ├── realtime_eval_page_07_image_01.png
+│   │   ├── realtime_eval_page_07_image_02.png
+│   │   ├── realtime_eval_page_08_image_01.png
+│   │   ├── realtime_eval_page_09_image_01.png
+│   │   ├── realtime_eval_page_10_image_01.png
+│   │   ├── realtime_eval_page_10_image_02.png
+│   │   ├── realtime_eval_page_11_image_01.png
+│   │   ├── realtime_prompting_guide.png
+│   │   ├── reasoning-turns.png
+│   │   ├── redshift_gpt.png
+│   │   ├── repeat_after.png
+│   │   ├── repeat_before.png
+│   │   ├── repository_variables.png
+│   │   ├── responses-diagram.png
+│   │   ├── responses_cache.png
+│   │   ├── responses_pinecone_rag.png
+│   │   ├── retool-new-workflow.png
+│   │   ├── retool-workflow-1.png
+│   │   ├── retool-workflow-2.png
+│   │   ├── retool-workflow-3.png
+│   │   ├── retool-workflow-4.png
+│   │   ├── retool-workflow-config.png
+│   │   ├── retool_api_key.png
+│   │   ├── retro_dark.png
+│   │   ├── retro_light.png
+│   │   ├── rft_dashboard_modelgrader2.png
+│   │   ├── rft_hacking.png
+│   │   ├── rft_string_grader.png
+│   │   ├── sample_flyer.png
+│   │   ├── sample_hotel_invoice.png
+│   │   ├── scene.png
+│   │   ├── search_rerank_answer.png
+│   │   ├── selection-inference_fig1.png
+│   │   ├── selection-inference_fig4.png
+│   │   ├── self-consistency_fig1.png
+│   │   ├── self-consistency_fig3.png
+│   │   ├── shampoo.png
+│   │   ├── sharing_notion_with_GPT.png
+│   │   ├── simplified_reg_agent.png
+│   │   ├── snake_game.png
+│   │   ├── snowflake_direct_oauth.png
+│   │   ├── solution_1.gif
+│   │   ├── solution_1_architecture.png
+│   │   ├── solution_2.gif
+│   │   ├── solution_2_architecture.png
+│   │   ├── speech-to-text-not-streaming.png
+│   │   ├── speech-to-text-streaming.png
+│   │   ├── star_fig1.png
+│   │   ├── star_tab1.png
+│   │   ├── stripe_eval_diagram.png
+│   │   ├── summarizingSession.jpg
+│   │   ├── tank_top copy.png
+│   │   ├── tank_top.png
+│   │   ├── test_woman.png
+│   │   ├── test_woman_2.png
+│   │   ├── test_woman_with_dog.png
+│   │   ├── text-vs-audio-tokens.png
+│   │   ├── title_slide.png
+│   │   ├── tool_no_confirm.png
+│   │   ├── tool_proactive.png
+│   │   ├── trace-sk1_partner.png
+│   │   ├── traces_partner_granular.png
+│   │   ├── tracing_dashboard_databricks_mcp.png
+│   │   ├── train1.jpeg
+│   │   ├── train17.jpeg
+│   │   ├── train2.jpeg
+│   │   ├── trimingSession.jpg
+│   │   ├── ui_farmers_market.png
+│   │   ├── updated_prompt.png
+│   │   ├── updated_prompt_feedback.png
+│   │   ├── verifiers_fig3.png
+│   │   ├── verifiers_fig5.png
+│   │   ├── web_search_infographic.png
+│   │   ├── woman_in_museum copy.png
+│   │   ├── woman_in_museum.png
+│   │   ├── workday-api-client.png
+│   │   ├── workday-cgpt-oauth.png
+│   │   ├── workday-gpt.png
+│   │   ├── workflow_check.png
+│   │   ├── world_knowledge.png
+│   │   ├── zapier_action_config.png
+│   │   ├── zapier_ai_actions.png
+│   │   ├── zero-shot_reasoners_fig1.png
+│   │   ├── zero-shot_reasoners_fig2.png
+│   │   ├── zero-shot_reasoners_tab1.png
+│   │   └── zero-shot_reasoners_tab5.png
+│   └── registry.yaml
+├── openclaw-docs
+│   ├── .i18n
+│   │   ├── README.md
+│   │   ├── glossary.ja-JP.json
+│   │   ├── glossary.zh-CN.json
+│   │   ├── ja-JP.tm.jsonl
+│   │   └── zh-CN.tm.jsonl
+│   ├── CNAME
+│   ├── assets
+│   │   ├── install-script.svg
+│   │   ├── macos-onboarding
+│   │   ├── openclaw-logo-text-dark.png
+│   │   ├── openclaw-logo-text.png
+│   │   ├── pixel-lobster.svg
+│   │   ├── showcase
+│   │   └── sponsors
+│   ├── automation
+│   │   ├── auth-monitoring.md
+│   │   ├── cron-jobs.md
+│   │   ├── cron-vs-heartbeat.md
+│   │   ├── gmail-pubsub.md
+│   │   ├── hooks.md
+│   │   ├── poll.md
+│   │   ├── troubleshooting.md
+│   │   └── webhook.md
+│   ├── brave-search.md
+│   ├── channels
+│   │   ├── bluebubbles.md
+│   │   ├── broadcast-groups.md
+│   │   ├── channel-routing.md
+│   │   ├── discord.md
+│   │   ├── feishu.md
+│   │   ├── googlechat.md
+│   │   ├── group-messages.md
+│   │   ├── groups.md
+│   │   ├── imessage.md
+│   │   ├── index.md
+│   │   ├── irc.md
+│   │   ├── line.md
+│   │   ├── location.md
+│   │   ├── matrix.md
+│   │   ├── mattermost.md
+│   │   ├── msteams.md
+│   │   ├── nextcloud-talk.md
+│   │   ├── nostr.md
+│   │   ├── pairing.md
+│   │   ├── signal.md
+│   │   ├── slack.md
+│   │   ├── synology-chat.md
+│   │   ├── telegram.md
+│   │   ├── tlon.md
+│   │   ├── troubleshooting.md
+│   │   ├── twitch.md
+│   │   ├── whatsapp.md
+│   │   ├── zalo.md
+│   │   └── zalouser.md
+│   ├── ci.md
+│   ├── cli
+│   │   ├── acp.md
+│   │   ├── agent.md
+│   │   ├── agents.md
+│   │   ├── approvals.md
+│   │   ├── browser.md
+│   │   ├── channels.md
+│   │   ├── clawbot.md
+│   │   ├── completion.md
+│   │   ├── config.md
+│   │   ├── configure.md
+│   │   ├── cron.md
+│   │   ├── daemon.md
+│   │   ├── dashboard.md
+│   │   ├── devices.md
+│   │   ├── directory.md
+│   │   ├── dns.md
+│   │   ├── docs.md
+│   │   ├── doctor.md
+│   │   ├── gateway.md
+│   │   ├── health.md
+│   │   ├── hooks.md
+│   │   ├── index.md
+│   │   ├── logs.md
+│   │   ├── memory.md
+│   │   ├── message.md
+│   │   ├── models.md
+│   │   ├── node.md
+│   │   ├── nodes.md
+│   │   ├── onboard.md
+│   │   ├── pairing.md
+│   │   ├── plugins.md
+│   │   ├── qr.md
+│   │   ├── reset.md
+│   │   ├── sandbox.md
+│   │   ├── secrets.md
+│   │   ├── security.md
+│   │   ├── sessions.md
+│   │   ├── setup.md
+│   │   ├── skills.md
+│   │   ├── status.md
+│   │   ├── system.md
+│   │   ├── tui.md
+│   │   ├── uninstall.md
+│   │   ├── update.md
+│   │   ├── voicecall.md
+│   │   └── webhooks.md
+│   ├── concepts
+│   │   ├── agent-loop.md
+│   │   ├── agent-workspace.md
+│   │   ├── agent.md
+│   │   ├── architecture.md
+│   │   ├── compaction.md
+│   │   ├── context.md
+│   │   ├── features.md
+│   │   ├── markdown-formatting.md
+│   │   ├── memory.md
+│   │   ├── messages.md
+│   │   ├── model-failover.md
+│   │   ├── model-providers.md
+│   │   ├── models.md
+│   │   ├── multi-agent.md
+│   │   ├── oauth.md
+│   │   ├── presence.md
+│   │   ├── queue.md
+│   │   ├── retry.md
+│   │   ├── session-pruning.md
+│   │   ├── session-tool.md
+│   │   ├── session.md
+│   │   ├── sessions.md
+│   │   ├── streaming.md
+│   │   ├── system-prompt.md
+│   │   ├── timezone.md
+│   │   ├── typebox.md
+│   │   ├── typing-indicators.md
+│   │   └── usage-tracking.md
+│   ├── date-time.md
+│   ├── debug
+│   │   └── node-issue.md
+│   ├── design
+│   │   └── kilo-gateway-integration.md
+│   ├── diagnostics
+│   │   └── flags.md
+│   ├── docs.json
+│   ├── experiments
+│   │   ├── onboarding-config-protocol.md
+│   │   ├── plans
+│   │   ├── proposals
+│   │   └── research
+│   ├── gateway
+│   │   ├── authentication.md
+│   │   ├── background-process.md
+│   │   ├── bonjour.md
+│   │   ├── bridge-protocol.md
+│   │   ├── cli-backends.md
+│   │   ├── configuration-examples.md
+│   │   ├── configuration-reference.md
+│   │   ├── configuration.md
+│   │   ├── discovery.md
+│   │   ├── doctor.md
+│   │   ├── gateway-lock.md
+│   │   ├── health.md
+│   │   ├── heartbeat.md
+│   │   ├── index.md
+│   │   ├── local-models.md
+│   │   ├── logging.md
+│   │   ├── multiple-gateways.md
+│   │   ├── network-model.md
+│   │   ├── openai-http-api.md
+│   │   ├── openresponses-http-api.md
+│   │   ├── pairing.md
+│   │   ├── protocol.md
+│   │   ├── remote-gateway-readme.md
+│   │   ├── remote.md
+│   │   ├── sandbox-vs-tool-policy-vs-elevated.md
+│   │   ├── sandboxing.md
+│   │   ├── secrets-plan-contract.md
+│   │   ├── secrets.md
+│   │   ├── security
+│   │   ├── tailscale.md
+│   │   ├── tools-invoke-http-api.md
+│   │   ├── troubleshooting.md
+│   │   └── trusted-proxy-auth.md
+│   ├── help
+│   │   ├── debugging.md
+│   │   ├── environment.md
+│   │   ├── faq.md
+│   │   ├── index.md
+│   │   ├── scripts.md
+│   │   ├── testing.md
+│   │   └── troubleshooting.md
+│   ├── images
+│   │   ├── configure-model-picker-unsearchable.png
+│   │   ├── feishu-step2-create-app.png
+│   │   ├── feishu-step3-credentials.png
+│   │   ├── feishu-step4-permissions.png
+│   │   ├── feishu-step5-bot-capability.png
+│   │   ├── feishu-step6-event-subscription.png
+│   │   ├── groups-flow.svg
+│   │   └── mobile-ui-screenshot.png
+│   ├── index.md
+│   ├── install
+│   │   ├── ansible.md
+│   │   ├── bun.md
+│   │   ├── development-channels.md
+│   │   ├── docker.md
+│   │   ├── exe-dev.md
+│   │   ├── fly.md
+│   │   ├── gcp.md
+│   │   ├── hetzner.md
+│   │   ├── index.md
+│   │   ├── installer.md
+│   │   ├── macos-vm.md
+│   │   ├── migrating.md
+│   │   ├── nix.md
+│   │   ├── node.md
+│   │   ├── northflank.mdx
+│   │   ├── podman.md
+│   │   ├── railway.mdx
+│   │   ├── render.mdx
+│   │   ├── uninstall.md
+│   │   └── updating.md
+│   ├── ja-JP
+│   │   ├── AGENTS.md
+│   │   ├── index.md
+│   │   └── start
+│   ├── logging.md
+│   ├── nav-tabs-underline.js
+│   ├── network.md
+│   ├── nodes
+│   │   ├── audio.md
+│   │   ├── camera.md
+│   │   ├── images.md
+│   │   ├── index.md
+│   │   ├── location-command.md
+│   │   ├── media-understanding.md
+│   │   ├── talk.md
+│   │   ├── troubleshooting.md
+│   │   └── voicewake.md
+│   ├── perplexity.md
+│   ├── pi-dev.md
+│   ├── pi.md
+│   ├── platforms
+│   │   ├── android.md
+│   │   ├── digitalocean.md
+│   │   ├── index.md
+│   │   ├── ios.md
+│   │   ├── linux.md
+│   │   ├── mac
+│   │   ├── macos.md
+│   │   ├── oracle.md
+│   │   ├── raspberry-pi.md
+│   │   └── windows.md
+│   ├── plugins
+│   │   ├── agent-tools.md
+│   │   ├── community.md
+│   │   ├── manifest.md
+│   │   ├── voice-call.md
+│   │   └── zalouser.md
+│   ├── prose.md
+│   ├── providers
+│   │   ├── anthropic.md
+│   │   ├── bedrock.md
+│   │   ├── claude-max-api-proxy.md
+│   │   ├── cloudflare-ai-gateway.md
+│   │   ├── deepgram.md
+│   │   ├── github-copilot.md
+│   │   ├── glm.md
+│   │   ├── huggingface.md
+│   │   ├── index.md
+│   │   ├── kilocode.md
+│   │   ├── litellm.md
+│   │   ├── minimax.md
+│   │   ├── mistral.md
+│   │   ├── models.md
+│   │   ├── moonshot.md
+│   │   ├── nvidia.md
+│   │   ├── ollama.md
+│   │   ├── openai.md
+│   │   ├── opencode.md
+│   │   ├── openrouter.md
+│   │   ├── qianfan.md
+│   │   ├── qwen.md
+│   │   ├── synthetic.md
+│   │   ├── together.md
+│   │   ├── venice.md
+│   │   ├── vercel-ai-gateway.md
+│   │   ├── vllm.md
+│   │   ├── xiaomi.md
+│   │   └── zai.md
+│   ├── refactor
+│   │   ├── clawnet.md
+│   │   ├── exec-host.md
+│   │   ├── outbound-session-mirroring.md
+│   │   ├── plugin-sdk.md
+│   │   └── strict-config.md
+│   ├── reference
+│   │   ├── AGENTS.default.md
+│   │   ├── RELEASING.md
+│   │   ├── api-usage-costs.md
+│   │   ├── credits.md
+│   │   ├── device-models.md
+│   │   ├── prompt-caching.md
+│   │   ├── rpc.md
+│   │   ├── session-management-compaction.md
+│   │   ├── templates
+│   │   ├── test.md
+│   │   ├── token-use.md
+│   │   ├── transcript-hygiene.md
+│   │   └── wizard.md
+│   ├── security
+│   │   ├── CONTRIBUTING-THREAT-MODEL.md
+│   │   ├── README.md
+│   │   ├── THREAT-MODEL-ATLAS.md
+│   │   └── formal-verification.md
+│   ├── start
+│   │   ├── bootstrapping.md
+│   │   ├── docs-directory.md
+│   │   ├── getting-started.md
+│   │   ├── hubs.md
+│   │   ├── lore.md
+│   │   ├── onboarding-overview.md
+│   │   ├── onboarding.md
+│   │   ├── openclaw.md
+│   │   ├── quickstart.md
+│   │   ├── setup.md
+│   │   ├── showcase.md
+│   │   ├── wizard-cli-automation.md
+│   │   ├── wizard-cli-reference.md
+│   │   └── wizard.md
+│   ├── style.css
+│   ├── tools
+│   │   ├── acp-agents.md
+│   │   ├── agent-send.md
+│   │   ├── apply-patch.md
+│   │   ├── browser-linux-troubleshooting.md
+│   │   ├── browser-login.md
+│   │   ├── browser.md
+│   │   ├── chrome-extension.md
+│   │   ├── clawhub.md
+│   │   ├── creating-skills.md
+│   │   ├── elevated.md
+│   │   ├── exec-approvals.md
+│   │   ├── exec.md
+│   │   ├── firecrawl.md
+│   │   ├── index.md
+│   │   ├── llm-task.md
+│   │   ├── lobster.md
+│   │   ├── loop-detection.md
+│   │   ├── multi-agent-sandbox-tools.md
+│   │   ├── plugin.md
+│   │   ├── reactions.md
+│   │   ├── skills-config.md
+│   │   ├── skills.md
+│   │   ├── slash-commands.md
+│   │   ├── subagents.md
+│   │   ├── thinking.md
+│   │   └── web.md
+│   ├── tts.md
+│   ├── vps.md
+│   ├── web
+│   │   ├── control-ui.md
+│   │   ├── dashboard.md
+│   │   ├── index.md
+│   │   ├── tui.md
+│   │   └── webchat.md
+│   ├── whatsapp-openclaw-ai-zh.jpg
+│   ├── whatsapp-openclaw.jpg
+│   └── zh-CN
+│       ├── AGENTS.md
+│       ├── automation
+│       ├── brave-search.md
+│       ├── channels
+│       ├── cli
+│       ├── concepts
+│       ├── date-time.md
+│       ├── debug
+│       ├── diagnostics
+│       ├── experiments
+│       ├── gateway
+│       ├── help
+│       ├── index.md
+│       ├── install
+│       ├── logging.md
+│       ├── network.md
+│       ├── nodes
+│       ├── perplexity.md
+│       ├── pi-dev.md
+│       ├── pi.md
+│       ├── platforms
+│       ├── plugins
+│       ├── prose.md
+│       ├── providers
+│       ├── refactor
+│       ├── reference
+│       ├── security
+│       ├── start
+│       ├── tools
+│       ├── tts.md
+│       ├── vps.md
+│       └── web
+├── openclawdbot
+│   ├── .env
+│   ├── .gitignore
+│   ├── .prettierrc
+│   ├── .vscode
+│   │   └── settings.json
+│   ├── AGENTS.md
+│   ├── LICENSE
+│   ├── README.md
+│   ├── devvit.json
+│   ├── dist
+│   │   ├── client
+│   │   ├── server
+│   │   └── types
+│   ├── eslint.config.js
+│   ├── node_modules
+│   │   ├── .bin
+│   │   ├── .package-lock.json
+│   │   ├── .vite-temp
+│   │   ├── @asamuzakjp
+│   │   ├── @babel
+│   │   ├── @cspotcode
+│   │   ├── @csstools
+│   │   ├── @devvit
+│   │   ├── @esbuild
+│   │   ├── @eslint
+│   │   ├── @eslint-community
+│   │   ├── @hono
+│   │   ├── @humanfs
+│   │   ├── @humanwhocodes
+│   │   ├── @improbable-eng
+│   │   ├── @jridgewell
+│   │   ├── @nodelib
+│   │   ├── @oclif
+│   │   ├── @protobuf-ts
+│   │   ├── @protobufjs
+│   │   ├── @rolldown
+│   │   ├── @rollup
+│   │   ├── @sec-ant
+│   │   ├── @sindresorhus
+│   │   ├── @standard-schema
+│   │   ├── @tailwindcss
+│   │   ├── @tokenizer
+│   │   ├── @tsconfig
+│   │   ├── @types
+│   │   ├── @typescript-eslint
+│   │   ├── @vitejs
+│   │   ├── @vitest
+│   │   ├── abort-controller
+│   │   ├── acorn
+│   │   ├── acorn-jsx
+│   │   ├── acorn-walk
+│   │   ├── agent-base
+│   │   ├── ajv
+│   │   ├── ansi-escapes
+│   │   ├── ansi-regex
+│   │   ├── ansi-styles
+│   │   ├── ansicolors
+│   │   ├── anymatch
+│   │   ├── arg
+│   │   ├── argparse
+│   │   ├── array-union
+│   │   ├── assertion-error
+│   │   ├── astral-regex
+│   │   ├── async
+│   │   ├── async-lock
+│   │   ├── asynckit
+│   │   ├── at-least-node
+│   │   ├── available-typed-arrays
+│   │   ├── balanced-match
+│   │   ├── base64-js
+│   │   ├── baseline-browser-mapping
+│   │   ├── binary-extensions
+│   │   ├── bl
+│   │   ├── brace-expansion
+│   │   ├── braces
+│   │   ├── browser-headers
+│   │   ├── browserslist
+│   │   ├── buffer
+│   │   ├── bundle-name
+│   │   ├── call-bind
+│   │   ├── call-bind-apply-helpers
+│   │   ├── call-bound
+│   │   ├── callsites
+│   │   ├── camel-case
+│   │   ├── caniuse-lite
+│   │   ├── cardinal
+│   │   ├── chai
+│   │   ├── chalk
+│   │   ├── char-regex
+│   │   ├── chardet
+│   │   ├── chokidar
+│   │   ├── clean-git-ref
+│   │   ├── clean-stack
+│   │   ├── cli-cursor
+│   │   ├── cli-progress
+│   │   ├── cli-spinners
+│   │   ├── cli-width
+│   │   ├── clone
+│   │   ├── clone-deep
+│   │   ├── clsx
+│   │   ├── color-convert
+│   │   ├── color-name
+│   │   ├── combined-stream
+│   │   ├── commander
+│   │   ├── concat-map
+│   │   ├── content-type
+│   │   ├── convert-source-map
+│   │   ├── core-util-is
+│   │   ├── crc-32
+│   │   ├── create-require
+│   │   ├── cross-spawn
+│   │   ├── cssstyle
+│   │   ├── csstype
+│   │   ├── data-urls
+│   │   ├── date-fns
+│   │   ├── debug
+│   │   ├── decimal.js
+│   │   ├── decompress-response
+│   │   ├── deep-is
+│   │   ├── default-browser
+│   │   ├── default-browser-id
+│   │   ├── defaults
+│   │   ├── define-data-property
+│   │   ├── define-lazy-prop
+│   │   ├── delayed-stream
+│   │   ├── detect-libc
+│   │   ├── devvit
+│   │   ├── diff
+│   │   ├── diff3
+│   │   ├── dir-glob
+│   │   ├── dot-object
+│   │   ├── dotenv
+│   │   ├── dunder-proto
+│   │   ├── eastasianwidth
+│   │   ├── ejs
+│   │   ├── electron-to-chromium
+│   │   ├── emoji-regex
+│   │   ├── enhanced-resolve
+│   │   ├── entities
+│   │   ├── error-ex
+│   │   ├── es-define-property
+│   │   ├── es-errors
+│   │   ├── es-module-lexer
+│   │   ├── es-object-atoms
+│   │   ├── es-set-tostringtag
+│   │   ├── esbuild
+│   │   ├── escalade
+│   │   ├── escape-string-regexp
+│   │   ├── eslint
+│   │   ├── eslint-plugin-react-hooks
+│   │   ├── eslint-plugin-react-refresh
+│   │   ├── eslint-scope
+│   │   ├── eslint-visitor-keys
+│   │   ├── espree
+│   │   ├── esprima
+│   │   ├── esquery
+│   │   ├── esrecurse
+│   │   ├── estraverse
+│   │   ├── estree-walker
+│   │   ├── esutils
+│   │   ├── event-target-shim
+│   │   ├── events
+│   │   ├── execa
+│   │   ├── expect-type
+│   │   ├── external-editor
+│   │   ├── fast-deep-equal
+│   │   ├── fast-glob
+│   │   ├── fast-json-stable-stringify
+│   │   ├── fast-levenshtein
+│   │   ├── fastest-levenshtein
+│   │   ├── fastq
+│   │   ├── figures
+│   │   ├── file-entry-cache
+│   │   ├── file-type
+│   │   ├── filelist
+│   │   ├── fill-range
+│   │   ├── find-up
+│   │   ├── flat-cache
+│   │   ├── flatted
+│   │   ├── for-each
+│   │   ├── form-data
+│   │   ├── fs-extra
+│   │   ├── fs.realpath
+│   │   ├── function-bind
+│   │   ├── gensync
+│   │   ├── get-intrinsic
+│   │   ├── get-package-type
+│   │   ├── get-proto
+│   │   ├── get-stream
+│   │   ├── glob
+│   │   ├── glob-parent
+│   │   ├── globals
+│   │   ├── globalyzer
+│   │   ├── globby
+│   │   ├── globrex
+│   │   ├── google-protobuf
+│   │   ├── gopd
+│   │   ├── graceful-fs
+│   │   ├── has-flag
+│   │   ├── has-property-descriptors
+│   │   ├── has-symbols
+│   │   ├── has-tostringtag
+│   │   ├── hasown
+│   │   ├── hermes-estree
+│   │   ├── hermes-parser
+│   │   ├── hono
+│   │   ├── hotscript
+│   │   ├── html-encoding-sniffer
+│   │   ├── http-call
+│   │   ├── http-proxy-agent
+│   │   ├── https-proxy-agent
+│   │   ├── human-signals
+│   │   ├── hyperlinker
+│   │   ├── iconv-lite
+│   │   ├── ieee754
+│   │   ├── ignore
+│   │   ├── image-size
+│   │   ├── immediate
+│   │   ├── import-fresh
+│   │   ├── imurmurhash
+│   │   ├── indent-string
+│   │   ├── inflight
+│   │   ├── inherits
+│   │   ├── inquirer
+│   │   ├── is-arrayish
+│   │   ├── is-binary-path
+│   │   ├── is-callable
+│   │   ├── is-docker
+│   │   ├── is-extglob
+│   │   ├── is-fullwidth-code-point
+│   │   ├── is-glob
+│   │   ├── is-inside-container
+│   │   ├── is-interactive
+│   │   ├── is-number
+│   │   ├── is-plain-obj
+│   │   ├── is-plain-object
+│   │   ├── is-potential-custom-element-name
+│   │   ├── is-retry-allowed
+│   │   ├── is-stream
+│   │   ├── is-typed-array
+│   │   ├── is-unicode-supported
+│   │   ├── is-wsl
+│   │   ├── isarray
+│   │   ├── isexe
+│   │   ├── isobject
+│   │   ├── isomorphic-git
+│   │   ├── jake
+│   │   ├── jiti
+│   │   ├── js-tokens
+│   │   ├── js-yaml
+│   │   ├── jsdom
+│   │   ├── jsesc
+│   │   ├── json-buffer
+│   │   ├── json-parse-better-errors
+│   │   ├── json-schema-traverse
+│   │   ├── json-stable-stringify-without-jsonify
+│   │   ├── json5
+│   │   ├── jsonfile
+│   │   ├── jsonschema
+│   │   ├── jszip
+│   │   ├── keyv
+│   │   ├── kind-of
+│   │   ├── levn
+│   │   ├── lie
+│   │   ├── lightningcss
+│   │   ├── lightningcss-linux-x64-gnu
+│   │   ├── lightningcss-linux-x64-musl
+│   │   ├── locate-path
+│   │   ├── lodash
+│   │   ├── lodash.merge
+│   │   ├── log-symbols
+│   │   ├── long
+│   │   ├── lower-case
+│   │   ├── lru-cache
+│   │   ├── magic-string
+│   │   ├── make-error
+│   │   ├── math-intrinsics
+│   │   ├── merge2
+│   │   ├── micromatch
+│   │   ├── mime-db
+│   │   ├── mime-types
+│   │   ├── mimic-fn
+│   │   ├── mimic-response
+│   │   ├── minimatch
+│   │   ├── minimist
+│   │   ├── minimisted
+│   │   ├── moderndash
+│   │   ├── ms
+│   │   ├── mustache
+│   │   ├── mute-stream
+│   │   ├── nanoid
+│   │   ├── natural-compare
+│   │   ├── natural-orderby
+│   │   ├── no-case
+│   │   ├── node-releases
+│   │   ├── normalize-path
+│   │   ├── npm-run-path
+│   │   ├── nwsapi
+│   │   ├── object-treeify
+│   │   ├── obug
+│   │   ├── once
+│   │   ├── onetime
+│   │   ├── open
+│   │   ├── optionator
+│   │   ├── ora
+│   │   ├── os-tmpdir
+│   │   ├── p-limit
+│   │   ├── p-locate
+│   │   ├── pako
+│   │   ├── parent-module
+│   │   ├── parse-json
+│   │   ├── parse-ms
+│   │   ├── parse5
+│   │   ├── pascal-case
+│   │   ├── password-prompt
+│   │   ├── path-browserify
+│   │   ├── path-exists
+│   │   ├── path-is-absolute
+│   │   ├── path-key
+│   │   ├── path-to-regexp
+│   │   ├── path-type
+│   │   ├── pathe
+│   │   ├── peek-readable
+│   │   ├── picocolors
+│   │   ├── picomatch
+│   │   ├── pify
+│   │   ├── possible-typed-array-names
+│   │   ├── postcss
+│   │   ├── prelude-ls
+│   │   ├── prettier
+│   │   ├── prettier-plugin-tailwindcss
+│   │   ├── pretty-ms
+│   │   ├── process
+│   │   ├── process-nextick-args
+│   │   ├── protobufjs
+│   │   ├── psl
+│   │   ├── punycode
+│   │   ├── querystringify
+│   │   ├── queue-microtask
+│   │   ├── react
+│   │   ├── react-dom
+│   │   ├── react-refresh
+│   │   ├── readable-stream
+│   │   ├── readable-web-to-node-stream
+│   │   ├── readdirp
+│   │   ├── redeyed
+│   │   ├── requires-port
+│   │   ├── resolve-from
+│   │   ├── restore-cursor
+│   │   ├── reusify
+│   │   ├── rollup
+│   │   ├── rrweb-cssom
+│   │   ├── run-applescript
+│   │   ├── run-async
+│   │   ├── run-parallel
+│   │   ├── rxjs
+│   │   ├── safe-buffer
+│   │   ├── safer-buffer
+│   │   ├── saxes
+│   │   ├── scheduler
+│   │   ├── semver
+│   │   ├── set-function-length
+│   │   ├── setimmediate
+│   │   ├── sha.js
+│   │   ├── shallow-clone
+│   │   ├── shebang-command
+│   │   ├── shebang-regex
+│   │   ├── siginfo
+│   │   ├── signal-exit
+│   │   ├── simple-concat
+│   │   ├── simple-get
+│   │   ├── slash
+│   │   ├── slice-ansi
+│   │   ├── source-map-js
+│   │   ├── sprintf-js
+│   │   ├── stackback
+│   │   ├── std-env
+│   │   ├── stdin-discarder
+│   │   ├── string-length
+│   │   ├── string-width
+│   │   ├── string_decoder
+│   │   ├── strip-ansi
+│   │   ├── strip-final-newline
+│   │   ├── strip-json-comments
+│   │   ├── strtok3
+│   │   ├── supports-color
+│   │   ├── supports-hyperlinks
+│   │   ├── symbol-tree
+│   │   ├── tailwind-merge
+│   │   ├── tailwindcss
+│   │   ├── tapable
+│   │   ├── through
+│   │   ├── tiny-glob
+│   │   ├── tinybench
+│   │   ├── tinyexec
+│   │   ├── tinyglobby
+│   │   ├── tinyrainbow
+│   │   ├── tmp
+│   │   ├── to-buffer
+│   │   ├── to-regex-range
+│   │   ├── token-types
+│   │   ├── tough-cookie
+│   │   ├── tr46
+│   │   ├── ts-api-utils
+│   │   ├── ts-node
+│   │   ├── ts-poet
+│   │   ├── tslib
+│   │   ├── tsv
+│   │   ├── tunnel-agent
+│   │   ├── twirp-ts
+│   │   ├── type-check
+│   │   ├── type-fest
+│   │   ├── typed-array-buffer
+│   │   ├── typescript
+│   │   ├── typescript-eslint
+│   │   ├── undici-types
+│   │   ├── unicorn-magic
+│   │   ├── universalify
+│   │   ├── update-browserslist-db
+│   │   ├── uri-js
+│   │   ├── url-parse
+│   │   ├── util-deprecate
+│   │   ├── uuid
+│   │   ├── v8-compile-cache-lib
+│   │   ├── vite
+│   │   ├── vitest
+│   │   ├── w3c-xmlserializer
+│   │   ├── wcwidth
+│   │   ├── webidl-conversions
+│   │   ├── whatwg-encoding
+│   │   ├── whatwg-mimetype
+│   │   ├── whatwg-url
+│   │   ├── which
+│   │   ├── which-typed-array
+│   │   ├── why-is-node-running
+│   │   ├── widest-line
+│   │   ├── word-wrap
+│   │   ├── wordwrap
+│   │   ├── wrap-ansi
+│   │   ├── wrappy
+│   │   ├── ws
+│   │   ├── xml-name-validator
+│   │   ├── xmlchars
+│   │   ├── yallist
+│   │   ├── yn
+│   │   ├── yocto-queue
+│   │   ├── yoctocolors
+│   │   ├── zod
+│   │   └── zod-validation-error
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   └── snoo.png
+│   ├── src
+│   │   ├── client
+│   │   ├── server
+│   │   └── shared
+│   ├── tools
+│   │   ├── tsconfig.base.json
+│   │   ├── tsconfig.client.json
+│   │   ├── tsconfig.server.json
+│   │   ├── tsconfig.shared.json
+│   │   └── tsconfig.vite.json
+│   ├── tsconfig.json
+│   └── vite.config.ts
+├── operations
+│   └── RUNBOOK_BOUNDARIES.md
+├── orchestrator
+│   ├── .dockerignore
+│   ├── .env
+│   ├── .env.example
+│   ├── .gitignore
+│   ├── DOCKER_QUICK_REFERENCE.md
+│   ├── Dockerfile
+│   ├── PHASE_2_COMPLETION.md
+│   ├── PHASE_3_COMPLETION.md
+│   ├── README.md
+│   ├── README_COMPLETE.md
+│   ├── build-docker.sh
+│   ├── data
+│   │   ├── knowledge-base
+│   │   ├── milestones-feed.json
+│   │   ├── orchestrator-state.json
+│   │   ├── snapshots
+│   │   └── test-write
+│   ├── dist
+│   │   ├── agentRegistry.js
+│   │   ├── alerter.js
+│   │   ├── alerts
+│   │   ├── approvalGate.js
+│   │   ├── config.js
+│   │   ├── docIndexer.js
+│   │   ├── index.js
+│   │   ├── knowledge
+│   │   ├── memory
+│   │   ├── metrics
+│   │   ├── middleware
+│   │   ├── milestones
+│   │   ├── notifier.js
+│   │   ├── openapi.js
+│   │   ├── persistence
+│   │   ├── skillAudit.js
+│   │   ├── skills
+│   │   ├── state.js
+│   │   ├── taskHandlers.js
+│   │   ├── taskQueue.js
+│   │   ├── toolGate.js
+│   │   └── types.js
+│   ├── docker-compose.yml
+│   ├── docs
+│   │   ├── API_REFERENCE.md
+│   │   ├── DEPLOYMENT_GUIDE.md
+│   │   ├── DOCKER_DEPLOYMENT.md
+│   │   ├── DOC_UPDATE_WORKFLOW.md
+│   │   ├── LOAD_TEST_REPORT.md
+│   │   └── hostile-audit
+│   ├── logs
+│   │   └── milestones.jsonl
+│   ├── mongo-init.js
+│   ├── monitoring
+│   │   ├── alert-rules.yml
+│   │   ├── alertmanager.yml
+│   │   ├── dashboards
+│   │   ├── datasources.yml
+│   │   ├── prometheus.yml
+│   │   └── providers.yml
+│   ├── node_modules
+│   │   ├── .bin
+│   │   ├── .package-lock.json
+│   │   ├── .vite
+│   │   ├── @ampproject
+│   │   ├── @babel
+│   │   ├── @bcoe
+│   │   ├── @esbuild
+│   │   ├── @istanbuljs
+│   │   ├── @jest
+│   │   ├── @jridgewell
+│   │   ├── @mongodb-js
+│   │   ├── @nodelib
+│   │   ├── @opentelemetry
+│   │   ├── @polka
+│   │   ├── @rollup
+│   │   ├── @sinclair
+│   │   ├── @types
+│   │   ├── @vitest
+│   │   ├── abort-controller
+│   │   ├── accepts
+│   │   ├── acorn
+│   │   ├── acorn-walk
+│   │   ├── agentkeepalive
+│   │   ├── ansi-styles
+│   │   ├── anymatch
+│   │   ├── array-flatten
+│   │   ├── assertion-error
+│   │   ├── asynckit
+│   │   ├── balanced-match
+│   │   ├── binary-extensions
+│   │   ├── bintrees
+│   │   ├── body-parser
+│   │   ├── brace-expansion
+│   │   ├── braces
+│   │   ├── bson
+│   │   ├── bytes
+│   │   ├── cac
+│   │   ├── call-bind-apply-helpers
+│   │   ├── call-bound
+│   │   ├── chai
+│   │   ├── check-error
+│   │   ├── chokidar
+│   │   ├── combined-stream
+│   │   ├── concat-map
+│   │   ├── confbox
+│   │   ├── content-disposition
+│   │   ├── content-type
+│   │   ├── cookie
+│   │   ├── cookie-signature
+│   │   ├── cross-spawn
+│   │   ├── debug
+│   │   ├── deep-eql
+│   │   ├── delayed-stream
+│   │   ├── depd
+│   │   ├── destroy
+│   │   ├── diff-sequences
+│   │   ├── dunder-proto
+│   │   ├── ee-first
+│   │   ├── encodeurl
+│   │   ├── es-define-property
+│   │   ├── es-errors
+│   │   ├── es-object-atoms
+│   │   ├── es-set-tostringtag
+│   │   ├── esbuild
+│   │   ├── escape-html
+│   │   ├── estree-walker
+│   │   ├── etag
+│   │   ├── event-target-shim
+│   │   ├── eventemitter3
+│   │   ├── execa
+│   │   ├── express
+│   │   ├── express-rate-limit
+│   │   ├── fast-glob
+│   │   ├── fastq
+│   │   ├── fflate
+│   │   ├── fill-range
+│   │   ├── finalhandler
+│   │   ├── flatted
+│   │   ├── form-data
+│   │   ├── form-data-encoder
+│   │   ├── formdata-node
+│   │   ├── forwarded
+│   │   ├── fresh
+│   │   ├── fs.realpath
+│   │   ├── function-bind
+│   │   ├── get-func-name
+│   │   ├── get-intrinsic
+│   │   ├── get-proto
+│   │   ├── get-stream
+│   │   ├── get-tsconfig
+│   │   ├── glob
+│   │   ├── glob-parent
+│   │   ├── gopd
+│   │   ├── has-flag
+│   │   ├── has-symbols
+│   │   ├── has-tostringtag
+│   │   ├── hasown
+│   │   ├── html-escaper
+│   │   ├── http-errors
+│   │   ├── human-signals
+│   │   ├── humanize-ms
+│   │   ├── iconv-lite
+│   │   ├── inflight
+│   │   ├── inherits
+│   │   ├── ip-address
+│   │   ├── ipaddr.js
+│   │   ├── is-binary-path
+│   │   ├── is-extglob
+│   │   ├── is-glob
+│   │   ├── is-number
+│   │   ├── is-stream
+│   │   ├── isexe
+│   │   ├── istanbul-lib-coverage
+│   │   ├── istanbul-lib-report
+│   │   ├── istanbul-lib-source-maps
+│   │   ├── istanbul-reports
+│   │   ├── js-tokens
+│   │   ├── local-pkg
+│   │   ├── loupe
+│   │   ├── magic-string
+│   │   ├── magicast
+│   │   ├── make-dir
+│   │   ├── math-intrinsics
+│   │   ├── media-typer
+│   │   ├── memory-pager
+│   │   ├── merge-descriptors
+│   │   ├── merge-stream
+│   │   ├── merge2
+│   │   ├── methods
+│   │   ├── micromatch
+│   │   ├── mime
+│   │   ├── mime-db
+│   │   ├── mime-types
+│   │   ├── mimic-fn
+│   │   ├── minimatch
+│   │   ├── mlly
+│   │   ├── mongodb
+│   │   ├── mongodb-connection-string-url
+│   │   ├── mrmime
+│   │   ├── ms
+│   │   ├── nanoid
+│   │   ├── negotiator
+│   │   ├── node-cron
+│   │   ├── node-domexception
+│   │   ├── node-fetch
+│   │   ├── normalize-path
+│   │   ├── npm-run-path
+│   │   ├── object-inspect
+│   │   ├── on-finished
+│   │   ├── once
+│   │   ├── onetime
+│   │   ├── openai
+│   │   ├── p-limit
+│   │   ├── p-queue
+│   │   ├── p-timeout
+│   │   ├── parseurl
+│   │   ├── path-is-absolute
+│   │   ├── path-key
+│   │   ├── path-to-regexp
+│   │   ├── pathe
+│   │   ├── pathval
+│   │   ├── picocolors
+│   │   ├── picomatch
+│   │   ├── pkg-types
+│   │   ├── postcss
+│   │   ├── pretty-format
+│   │   ├── prom-client
+│   │   ├── proxy-addr
+│   │   ├── punycode
+│   │   ├── qs
+│   │   ├── queue-microtask
+│   │   ├── range-parser
+│   │   ├── raw-body
+│   │   ├── react-is
+│   │   ├── readdirp
+│   │   ├── resolve-pkg-maps
+│   │   ├── reusify
+│   │   ├── rollup
+│   │   ├── run-parallel
+│   │   ├── safe-buffer
+│   │   ├── safer-buffer
+│   │   ├── semver
+│   │   ├── send
+│   │   ├── serve-static
+│   │   ├── setprototypeof
+│   │   ├── shebang-command
+│   │   ├── shebang-regex
+│   │   ├── side-channel
+│   │   ├── side-channel-list
+│   │   ├── side-channel-map
+│   │   ├── side-channel-weakmap
+│   │   ├── siginfo
+│   │   ├── signal-exit
+│   │   ├── sirv
+│   │   ├── source-map-js
+│   │   ├── sparse-bitfield
+│   │   ├── stackback
+│   │   ├── statuses
+│   │   ├── std-env
+│   │   ├── strip-final-newline
+│   │   ├── strip-literal
+│   │   ├── supports-color
+│   │   ├── tdigest
+│   │   ├── test-exclude
+│   │   ├── tinybench
+│   │   ├── tinypool
+│   │   ├── tinyspy
+│   │   ├── to-regex-range
+│   │   ├── toidentifier
+│   │   ├── totalist
+│   │   ├── tr46
+│   │   ├── tsx
+│   │   ├── type-detect
+│   │   ├── type-is
+│   │   ├── typescript
+│   │   ├── ufo
+│   │   ├── undici-types
+│   │   ├── unpipe
+│   │   ├── utils-merge
+│   │   ├── uuid
+│   │   ├── vary
+│   │   ├── vite
+│   │   ├── vite-node
+│   │   ├── vitest
+│   │   ├── web-streams-polyfill
+│   │   ├── webidl-conversions
+│   │   ├── whatwg-url
+│   │   ├── which
+│   │   ├── why-is-node-running
+│   │   ├── wrappy
+│   │   ├── yaml
+│   │   ├── yocto-queue
+│   │   └── zod
+│   ├── openapi.json
+│   ├── orchestrator
+│   │   ├── mongo-init.js
+│   │   └── monitoring
+│   ├── orchestrator_config.json
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── scripts
+│   │   ├── backfill-milestones.ts
+│   │   ├── check-doc-sync.mjs
+│   │   ├── generate-openapi.ts
+│   │   ├── live-rate-shaped-dispatch.ts
+│   │   └── push-feed.sh
+│   ├── src
+│   │   ├── agentRegistry.ts
+│   │   ├── alerter.ts
+│   │   ├── alerts
+│   │   ├── approvalGate.ts
+│   │   ├── config.ts
+│   │   ├── docIndexer.ts
+│   │   ├── index.ts
+│   │   ├── knowledge
+│   │   ├── memory
+│   │   ├── metrics
+│   │   ├── middleware
+│   │   ├── milestones
+│   │   ├── notifier.ts
+│   │   ├── openapi.ts
+│   │   ├── persistence
+│   │   ├── skillAudit.ts
+│   │   ├── skillAudit.ts.bak
+│   │   ├── skills
+│   │   ├── state.ts
+│   │   ├── taskHandlers.ts
+│   │   ├── taskQueue.ts
+│   │   ├── toolGate.ts
+│   │   ├── toolGate.ts.bak
+│   │   └── types.ts
+│   ├── test
+│   │   ├── .tmp
+│   │   ├── fixtures
+│   │   ├── fixtures.ts
+│   │   ├── gap7-key-rotation.test.ts
+│   │   ├── helpers
+│   │   ├── helpers.ts
+│   │   ├── integration
+│   │   ├── integration.test.ts
+│   │   ├── load
+│   │   ├── load.test.ts
+│   │   ├── milestones.e2e.test.ts
+│   │   ├── milestones.test.ts
+│   │   └── toolgate.runtime.test.ts
+│   ├── test-phase5.js
+│   ├── test-phase5.mjs
+│   ├── tsconfig.json
+│   └── vitest.config.ts
+├── orchestrator_config.json
+├── orchestrator_state.json
+├── package-lock.json
+├── package.json
+├── rss_filter_config.json
+├── run_drift_validation.sh
+├── scripts
+│   ├── audit_context_anchor_recon.sh
+│   ├── check-doc-drift.sh
+│   └── sync_openai_cookbook.sh
+├── security
+│   ├── DRIFT_RISK_REGISTER.md
+│   └── TRUST_BOUNDARIES_AND_THREATS.md
+├── skills
+│   ├── documentParser.ts
+│   ├── index.ts
+│   ├── normalizer.ts
+│   ├── sourceFetch.ts
+│   ├── testRunner.ts
+│   └── workspacePatch.ts
+├── sync_docs_sources.sh
+├── sync_openai_cookbook.sh
+├── sync_openclaw_docs.sh
+├── systemd
+│   ├── build-refactor-agent.service
+│   ├── content-agent.service
+│   ├── data-extraction-agent.service
+│   ├── doc-specialist.service
+│   ├── integration-agent.service
+│   ├── market-research-agent.service
+│   ├── normalization-agent.service
+│   ├── orchestrator.service
+│   ├── qa-verification-agent.service
+│   ├── reddit-helper.service
+│   ├── security-agent.service
+│   ├── skill-audit-agent.service
+│   ├── summarization-agent.service
+│   └── system-monitor-agent.service
+├── test-nightly-batch.ts
+└── test-send-digest.ts
+
+1160 directories, 1338 files

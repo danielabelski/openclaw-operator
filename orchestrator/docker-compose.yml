@@ -1,0 +1,183 @@
+version: '3.9'
+
+services:
+  # Orchestrator Application
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: openclaw-orchestrator
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      PORT: 3000
+      ORCHESTRATOR_CONFIG: /workspace/orchestrator/orchestrator_config.json
+      # API Keys (from .env)
+      API_KEY_ROTATION: ${API_KEY_ROTATION}
+      API_KEY: ${API_KEY}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Database
+      MONGO_USERNAME: ${MONGO_USERNAME}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+      DB_NAME: ${DB_NAME:-orchestrator}
+      DATABASE_URL: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/${DB_NAME:-orchestrator}?authSource=admin
+      # Redis Cache
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB:-0}
+      # Monitoring
+      PROMETHEUS_ENABLED: "true"
+      PROMETHEUS_PORT: 9100
+      GRAFANA_ENABLED: "true"
+      GRAFANA_PORT: 3001
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../logs:/workspace/logs
+      - ./data:/workspace/orchestrator/data
+    networks:
+      - orchestrator-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MongoDB for State & Audit Trail Persistence
+  mongo:
+    image: mongo:latest
+    container_name: openclaw-mongo
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    command: mongod --auth
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - orchestrator-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--username", "${MONGO_USERNAME}", "--password", "${MONGO_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # Redis for Cache & Session Storage
+  redis:
+    image: redis:latest
+    container_name: openclaw-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks:
+      - orchestrator-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Prometheus for Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: openclaw-prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libs"
+      - "--web.console.templates=/etc/prometheus/consoles"
+    networks:
+      - orchestrator-net
+    restart: unless-stopped
+    depends_on:
+      - orchestrator
+
+  # Grafana for Visualization
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: openclaw-grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - ./monitoring/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - orchestrator-net
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # AlertManager (optional, for alert routing)
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: openclaw-alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    networks:
+      - orchestrator-net
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+
+networks:
+  orchestrator-net:
+    driver: bridge

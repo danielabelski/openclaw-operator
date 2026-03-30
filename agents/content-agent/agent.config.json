@@ -1,0 +1,27 @@
+{
+  "id": "content-agent",
+  "orchestratorTask": "content-generate",
+  "orchestratorStatePath": "mongo:orchestrator-runtime-state",
+  "serviceStatePath": "../../logs/content-agent-service.json",
+  "name": "Content Generation Agent",
+  "description": "Generates documentation, README files, API specs, blog posts, and marketing content from code and data",
+  "model": {
+    "primary": "gpt-4o-mini",
+    "fallback": "gpt-4o-mini",
+    "tier": "cheap",
+    "temperature": 0.45,
+    "maxTokens": 2048
+  },
+  "maxConcurrentTasks": 15,
+  "permissions": {
+    "skills": {
+      "documentParser": { "allowed": true, "maxCalls": 50, "reason": "Parse source code and docs" }
+    },
+    "fileSystem": {
+      "readPaths": ["workspace"]
+    },
+    "network": { "allowed": false }
+  },
+  "constraints": { "timeoutSec": 180, "maxRetries": 1 },
+  "heartbeat": { "interval": "5m", "checks": ["skill_access"] }
+}

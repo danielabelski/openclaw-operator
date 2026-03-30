@@ -1,0 +1,41 @@
+{
+  "name": "@openclaw/workspace",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix orchestrator install && npm --prefix operator-s-console install",
+    "review-session:start": "node scripts/review-session/bootstrap.mjs",
+    "dev": "npm run build:operator-ui && npm --prefix orchestrator run dev",
+    "start": "npm --prefix orchestrator run start",
+    "build:operator-ui": "npm --prefix operator-s-console run build",
+    "dev:operator-ui": "npm --prefix operator-s-console run dev",
+    "typecheck:operator-ui": "npm --prefix operator-s-console run typecheck",
+    "test:operator-ui": "npm --prefix operator-s-console run test",
+    "build": "npm run build:operator-ui && npm --prefix orchestrator run build",
+    "typecheck": "npm --prefix orchestrator run typecheck && npm run typecheck:operator-ui",
+    "test": "npm --prefix orchestrator run test:run && npm run test:operator-ui",
+    "test:unit": "npm --prefix orchestrator run test:unit:fixtures",
+    "test:integration": "npm --prefix orchestrator run test:integration",
+    "test:coverage": "npm --prefix orchestrator run test:coverage",
+    "docs:drift": "bash scripts/check-doc-drift.sh",
+    "docs:links": "node scripts/check-markdown-links.mjs",
+    "docs:site:sync": "node scripts/sync-docs-site.mjs",
+    "docs:site:dev": "npm run docs:site:sync && vitepress dev site",
+    "docs:site:build": "npm run docs:site:sync && vitepress build site",
+    "docs:site:preview": "vitepress preview site",
+    "docs:sync": "npm --prefix orchestrator run docs:check-sync",
+    "docs:sync:staged": "npm --prefix orchestrator run docs:check-sync:staged",
+    "openapi:generate": "npm --prefix orchestrator run openapi:generate",
+    "public:mirror": "node scripts/export-public-mirror.mjs",
+    "clean:dry-run": "node scripts/clean-workspace.mjs --dry-run",
+    "clean": "node scripts/clean-workspace.mjs",
+    "clean:dry-run:builds": "node scripts/clean-workspace.mjs --dry-run --include-builds",
+    "clean:builds": "node scripts/clean-workspace.mjs --include-builds",
+    "verify": "npm run build && npm run docs:drift && npm run docs:links && npm run test:unit && npm run test:integration && npm run test:operator-ui && npm run typecheck"
+  },
+  "dependencies": {
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

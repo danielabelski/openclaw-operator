@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openclaw-orchestrator
+    env_file:
+      - ./orchestrator/.env
+    volumes:
+      - ./logs:/workspace/logs
+      - ./orchestrator/data:/workspace/orchestrator/data
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      PORT: 3000
+      ORCHESTRATOR_CONFIG: /workspace/orchestrator/orchestrator_config.json
+      ORCHESTRATOR_FAST_START: "true"
+      PROMETHEUS_PORT: 9100
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - openclaw
+
+networks:
+  openclaw:
+    driver: bridge

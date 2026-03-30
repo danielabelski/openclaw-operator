@@ -1,0 +1,26 @@
+{
+  "name": "doc-specialist",
+  "id": "doc-specialist",
+  "orchestratorTask": "drift-repair",
+  "model": {
+    "primary": "claude-3-5-sonnet",
+    "fallback": "gpt-4o-mini",
+    "tier": "balanced",
+    "temperature": 0.2,
+    "maxTokens": 4096
+  },
+  "permissions": {
+    "skills": {
+      "documentParser": {
+        "allowed": true
+      }
+    }
+  },
+  "docsPath": "../../openclaw-docs",
+  "cookbookPath": "../../openai-cookbook",
+  "stateFile": "mongo:orchestrator-runtime-state",
+  "orchestratorStatePath": "mongo:orchestrator-runtime-state",
+  "serviceStatePath": "../../logs/doc-specialist-service.json",
+  "telemetryStream": "http://localhost:8700/telemetry",
+  "knowledgePackDir": "../../logs/knowledge-packs"
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenClaw Reddit Helper Service
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/openclaw-operator/agents/reddit-helper
+Environment=ALLOW_DIRECT_SERVICE=true
+ExecStart=/usr/bin/env bash -lc 'exec node ../../node_modules/tsx/dist/cli.mjs src/service.ts'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

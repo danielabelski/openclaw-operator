@@ -1,0 +1,35 @@
+{
+  "docsPath": "/workspace/openclaw-docs",
+  "cookbookPath": "/workspace/openai-cookbook",
+  "logsDir": "/workspace/logs",
+  "stateFile": "/workspace/orchestrator/data/orchestrator-state.json",
+  "strictPersistence": false,
+  "deployBaseDir": "/workspace/agents-deployed",
+  "rssConfigPath": "/workspace/rss_filter_config.json",
+  "redditDraftsPath": "/workspace/logs/reddit-drafts.jsonl",
+  "knowledgePackDir": "/workspace/logs/knowledge-packs",
+  "runtimeEngagementOsPath": "/workspace/RUNTIME_ENGAGEMENT_OS.md",
+  "digestDir": "/workspace/logs/digests",
+  "corsAllowedOrigins": [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000"
+  ],
+  "corsAllowedMethods": [
+    "GET",
+    "POST"
+  ],
+  "corsAllowedHeaders": [
+    "Authorization",
+    "Content-Type"
+  ],
+  "corsExposedHeaders": [
+    "X-Request-Id",
+    "X-API-Key-Expires",
+    "ratelimit-limit",
+    "ratelimit-remaining",
+    "ratelimit-reset",
+    "Retry-After"
+  ],
+  "corsAllowCredentials": false,
+  "corsMaxAgeSeconds": 600
+}

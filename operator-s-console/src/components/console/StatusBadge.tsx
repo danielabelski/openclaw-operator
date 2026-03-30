@@ -1,0 +1,128 @@
+import { cn } from "@/lib/utils";
+
+interface StatusBadgeProps {
+  label: string;
+  size?: "sm" | "md";
+  className?: string;
+}
+
+const colorMap: Record<string, string> = {
+  "Ready": "bg-status-healthy/12 text-status-healthy border-status-healthy/25 shadow-[0_0_6px_-2px_hsl(var(--status-healthy)/0.3)]",
+  "Needs Approval": "bg-status-approval/12 text-status-approval border-status-approval/25 shadow-[0_0_6px_-2px_hsl(var(--status-approval)/0.3)]",
+  "Partially Available": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "Needs External Setup": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "Internal Only": "bg-muted/80 text-muted-foreground border-border",
+  "Not Yet Verified": "bg-status-neutral/10 text-status-neutral border-status-neutral/25",
+  "Service Available": "bg-status-healthy/12 text-status-healthy border-status-healthy/25 shadow-[0_0_6px_-2px_hsl(var(--status-healthy)/0.3)]",
+  "Service Not Available": "bg-status-error/12 text-status-error border-status-error/25",
+  "Restart-Safe": "bg-status-info/12 text-status-info border-status-info/25",
+  "Metadata Only": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "healthy": "bg-status-healthy/12 text-status-healthy border-status-healthy/25 shadow-[0_0_8px_-2px_hsl(var(--status-healthy)/0.3)]",
+  "degraded": "bg-status-warning/12 text-status-warning border-status-warning/25 shadow-[0_0_8px_-2px_hsl(var(--status-warning)/0.3)]",
+  "down": "bg-status-error/12 text-status-error border-status-error/25 shadow-[0_0_8px_-2px_hsl(var(--status-error)/0.3)]",
+  "full": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "partial": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "metadata-only": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "pending": "bg-status-info/12 text-status-info border-status-info/25",
+  "queued": "bg-status-info/12 text-status-info border-status-info/25",
+  "running": "bg-status-info/12 text-status-info border-status-info/25 animate-pulse-subtle",
+  "retrying": "bg-status-warning/12 text-status-warning border-status-warning/25 animate-pulse-subtle",
+  "success": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "completed": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "failed": "bg-status-error/12 text-status-error border-status-error/25",
+  "pending-approval": "bg-status-approval/12 text-status-approval border-status-approval/25",
+  "Confirmed Worker": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "Spawned-Worker Capable": "bg-status-info/12 text-status-info border-status-info/25",
+  "Installed": "bg-status-info/12 text-status-info border-status-info/25",
+  "Not Installed": "bg-status-error/12 text-status-error border-status-error/25",
+  "Running": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "Stopped": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "Worker-first": "bg-status-info/12 text-status-info border-status-info/25",
+  "Service-expected": "bg-status-approval/12 text-status-approval border-status-approval/25",
+  "Worker Ready": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "Worker Missing": "bg-status-error/12 text-status-error border-status-error/25",
+  "Service Entry": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "Entry Missing": "bg-status-error/12 text-status-error border-status-error/25",
+  "Host Running": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "Host Stopped": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "Host N/A": "bg-muted/80 text-muted-foreground border-border",
+  "Probe Unavailable": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "Missing Entrypoint": "bg-status-error/12 text-status-error border-status-error/25",
+  "Unknown": "bg-muted/80 text-muted-foreground border-border",
+  "Available": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "Missing": "bg-status-error/12 text-status-error border-status-error/25",
+  "error": "bg-status-error/12 text-status-error border-status-error/25",
+  "warning": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "approval": "bg-status-approval/12 text-status-approval border-status-approval/25",
+  "critical": "bg-status-error/12 text-status-error border-status-error/25 shadow-[0_0_8px_-2px_hsl(var(--status-error)/0.3)]",
+  "stable": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "configured": "bg-status-info/12 text-status-info border-status-info/25",
+  "local-only": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "active": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "watching": "bg-status-info/12 text-status-info border-status-info/25",
+  "in-progress": "bg-status-info/12 text-status-info border-status-info/25 animate-pulse-subtle",
+  "blocked": "bg-status-error/12 text-status-error border-status-error/25",
+  "publishing": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "catching-up": "bg-status-warning/12 text-status-warning border-status-warning/25 animate-pulse-subtle",
+  "misconfigured": "bg-status-error/12 text-status-error border-status-error/25",
+  "declared": "bg-status-neutral/10 text-status-neutral border-status-neutral/25",
+  "foundation": "bg-status-info/12 text-status-info border-status-info/25",
+  "operational": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "advanced": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "attempted": "bg-status-info/12 text-status-info border-status-info/25",
+  "duplicate": "bg-status-info/12 text-status-info border-status-info/25",
+  "live": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+};
+
+const displayMap: Record<string, string> = {
+  "full": "Stable",
+  "partial": "Partial",
+  "metadata-only": "Metadata Only",
+  "healthy": "All Systems Operational",
+  "degraded": "Degraded Mode",
+  "down": "System Down",
+  "pending": "Pending",
+  "queued": "Queued",
+  "running": "Running",
+  "retrying": "Retrying",
+  "success": "Success",
+  "completed": "Success",
+  "failed": "Failed",
+  "pending-approval": "Awaiting Approval",
+  "critical": "Critical",
+  "stable": "Stable",
+  "configured": "Configured",
+  "local-only": "Local Only",
+  "active": "Active",
+  "watching": "Watching",
+  "in-progress": "In Progress",
+  "blocked": "Blocked",
+  "publishing": "Publishing",
+  "catching-up": "Catching Up",
+  "misconfigured": "Misconfigured",
+  "declared": "Declared",
+  "foundation": "Foundation",
+  "operational": "Operational",
+  "advanced": "Advanced",
+  "attempted": "Attempted",
+  "duplicate": "Duplicate",
+  "live": "Live",
+};
+
+export function StatusBadge({ label, size = "sm", className }: StatusBadgeProps) {
+  const colors = colorMap[label] || "bg-muted/80 text-muted-foreground border-border";
+  const display = displayMap[label] || label;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center border font-mono font-semibold uppercase tracking-[0.1em]",
+        size === "sm" ? "px-2 py-0.5 text-[9px] rounded-sm" : "px-3 py-1 text-[10px] rounded-sm",
+        colors,
+        className
+      )}
+    >
+      {display}
+    </span>
+  );
+}

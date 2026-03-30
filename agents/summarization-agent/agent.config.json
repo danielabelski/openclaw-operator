@@ -1,0 +1,54 @@
+{
+  "id": "summarization-agent",
+  "orchestratorTask": "summarize-content",
+  "orchestratorStatePath": "mongo:orchestrator-runtime-state",
+  "serviceStatePath": "../../logs/summarization-agent-service.json",
+  "name": "Summarization Agent",
+  "description": "Condenses large bodies of text, research, and reports into concise executive summaries",
+  "model": {
+    "primary": "gpt-4o-mini",
+    "fallback": "gpt-4o-mini",
+    "tier": "cheap",
+    "temperature": 0.3,
+    "maxTokens": 2048
+  },
+  "maxConcurrentTasks": 10,
+  "permissions": {
+    "skills": {
+      "documentParser": {
+        "allowed": true,
+        "maxCalls": 30,
+        "rateLimit": "5/sec",
+        "reason": "Parse documents before summarization"
+      },
+      "normalizer": {
+        "allowed": true,
+        "maxCalls": 20,
+        "rateLimit": "5/sec",
+        "reason": "Normalize extracted text"
+      }
+    },
+    "network": {
+      "allowed": false,
+      "reason": "Works only on local content"
+    }
+  },
+  "constraints": {
+    "maxSummaryLength": 2000,
+    "minCompressionRatio": 0.1,
+    "timeoutSec": 60,
+    "maxRetries": 2
+  },
+  "heartbeat": {
+    "interval": "5m",
+    "checks": [
+      "skill_access",
+      "performance",
+      "error_rate"
+    ]
+  },
+  "escalation": {
+    "alertThreshold": 3,
+    "alertIntervalSec": 1800
+  }
+}

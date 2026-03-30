@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Scoped feature build operator walkthrough</title>
+  <desc id="desc">Flow diagram showing the OpenClaw Operator path for a scoped feature build: Tasks to Runs to Approvals to Runs to Repo and Logs.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0b1220" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <linearGradient id="card" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#172033" />
+    </linearGradient>
+    <style>
+      .bg { fill: url(#bg); }
+      .card { fill: url(#card); stroke-width: 3; rx: 20; ry: 20; }
+      .step { font: 700 22px 'Inter', 'Segoe UI', sans-serif; fill: #f8fafc; }
+      .title { font: 800 30px 'Inter', 'Segoe UI', sans-serif; fill: #f8fafc; }
+      .body { font: 500 18px 'Inter', 'Segoe UI', sans-serif; fill: #cbd5e1; }
+      .mono { font: 600 17px 'JetBrains Mono', 'SFMono-Regular', monospace; fill: #fde68a; }
+      .arrow { fill: none; stroke: #94a3b8; stroke-width: 4; marker-end: url(#arrowHead); }
+      .note { font: 600 16px 'Inter', 'Segoe UI', sans-serif; fill: #93c5fd; }
+      .small { font: 500 15px 'Inter', 'Segoe UI', sans-serif; fill: #94a3b8; }
+    </style>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1200" height="760" rx="28" ry="28" />
+
+  <text x="60" y="72" class="title">Scoped Feature Build: Operator Walkthrough</text>
+  <text x="60" y="106" class="body">This is the practical path for an approval-aware build lane that changes a bounded repo scope and then verifies it.</text>
+
+  <rect x="60" y="150" width="204" height="182" class="card" stroke="#38bdf8" />
+  <text x="84" y="188" class="step">1. Tasks</text>
+  <text x="84" y="220" class="mono">/operator/tasks</text>
+  <text x="84" y="256" class="body">Launch</text>
+  <text x="84" y="284" class="body">build-refactor</text>
+  <text x="84" y="312" class="body">with a narrow</text>
+  <text x="84" y="340" class="body">repo scope.</text>
+
+  <rect x="292" y="150" width="204" height="182" class="card" stroke="#a78bfa" />
+  <text x="316" y="188" class="step">2. Runs</text>
+  <text x="316" y="220" class="mono">/operator/runs</text>
+  <text x="316" y="256" class="body">Confirm the</text>
+  <text x="316" y="284" class="body">task was queued</text>
+  <text x="316" y="312" class="body">and copy the</text>
+  <text x="316" y="340" class="body">run id if needed.</text>
+
+  <rect x="524" y="150" width="204" height="182" class="card" stroke="#f59e0b" />
+  <text x="548" y="188" class="step">3. Approvals</text>
+  <text x="548" y="220" class="mono">/operator/approvals</text>
+  <text x="548" y="256" class="body">Only when the</text>
+  <text x="548" y="284" class="body">run pauses for</text>
+  <text x="548" y="312" class="body">operator review</text>
+  <text x="548" y="340" class="body">or approval.</text>
+
+  <rect x="756" y="150" width="204" height="182" class="card" stroke="#34d399" />
+  <text x="780" y="188" class="step">4. Runs</text>
+  <text x="780" y="220" class="mono">/operator/runs</text>
+  <text x="780" y="256" class="body">Inspect the</text>
+  <text x="780" y="284" class="body">result summary,</text>
+  <text x="780" y="312" class="body">verification</text>
+  <text x="780" y="340" class="body">trace, and scope.</text>
+
+  <rect x="988" y="150" width="152" height="182" class="card" stroke="#f472b6" />
+  <text x="1012" y="188" class="step">5. Repo + Logs</text>
+  <text x="1012" y="220" class="mono">projects/... </text>
+  <text x="1012" y="256" class="body">Open the code</text>
+  <text x="1012" y="284" class="body">changes and any</text>
+  <text x="1012" y="312" class="body">artifact rails</text>
+  <text x="1012" y="340" class="body">if used.</text>
+
+  <path class="arrow" d="M264 241 C276 241, 280 241, 292 241" />
+  <path class="arrow" d="M496 241 C508 241, 512 241, 524 241" />
+  <path class="arrow" d="M728 241 C740 241, 744 241, 756 241" />
+  <path class="arrow" d="M960 241 C972 241, 976 241, 988 241" />
+
+  <text x="546" y="382" class="note">Approval is conditional, not guaranteed.</text>
+  <text x="60" y="434" class="step">What the operator should do at each stop</text>
+
+  <rect x="60" y="462" width="1080" height="226" class="card" stroke="#475569" />
+
+  <text x="88" y="504" class="mono">Tasks</text>
+  <text x="188" y="504" class="body">Submit a bounded scope like</text>
+  <text x="486" y="504" class="mono">projects/acme-site/src/components/Hero.tsx</text>
+
+  <text x="88" y="548" class="mono">Runs</text>
+  <text x="188" y="548" class="body">First visit: confirm the run exists and note whether it is waiting for approval or already executing.</text>
+
+  <text x="88" y="592" class="mono">Approvals</text>
+  <text x="188" y="592" class="body">Review the requested scope, reason, and risk before approving a code-changing lane.</text>
+
+  <text x="88" y="636" class="mono">Runs</text>
+  <text x="188" y="636" class="body">Second visit: read the refactor summary, files changed, and verifier output.</text>
+
+  <text x="88" y="680" class="mono">Repo + Logs</text>
+  <text x="188" y="680" class="body">Open the target repo for actual edits. Use</text>
+  <text x="585" y="680" class="mono">logs/</text>
+  <text x="642" y="680" class="body">only when the lane emits a named artifact.</text>
+
+  <text x="60" y="726" class="small">Canonical written playbook: docs/guides/running-agents.md -> Service Recipes -> Scoped Feature Build</text>
+</svg>

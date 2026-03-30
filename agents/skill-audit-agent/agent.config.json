@@ -1,0 +1,25 @@
+{
+  "id": "skill-audit-agent",
+  "orchestratorTask": "skill-audit",
+  "orchestratorStatePath": "mongo:orchestrator-runtime-state",
+  "serviceStatePath": "../../logs/skill-audit-agent-service.json",
+  "name": "Skill Audit & Verification Agent",
+  "description": "Validates skills for correctness, performance, and compliance: unit testing, integration testing, provenance verification, audit logging",
+  "model": {
+    "primary": "claude-3-5-sonnet",
+    "fallback": "gpt-4o-mini",
+    "tier": "balanced",
+    "temperature": 0.2,
+    "maxTokens": 2048
+  },
+  "maxConcurrentTasks": 4,
+  "permissions": {
+    "skills": {
+      "testRunner": { "allowed": true, "maxCalls": 50, "reason": "Run skill tests" },
+      "documentParser": { "allowed": true, "maxCalls": 20, "reason": "Parse skill code and docs" }
+    },
+    "network": { "allowed": false }
+  },
+  "constraints": { "timeoutSec": 300, "maxRetries": 1 },
+  "heartbeat": { "interval": "30m", "checks": ["skill_access", "test_availability"] }
+}

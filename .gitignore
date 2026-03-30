@@ -1,0 +1,95 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+!/package-lock.json
+!orchestrator/package-lock.json
+!operator-s-console/package-lock.json
+
+# Build artifacts
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime
+.pid
+.cache
+
+# Docker
+.docker/
+
+# deps/build
+**/node_modules/
+**/dist/
+**/.cache/
+**/.vite/
+**/*.tsbuildinfo
+
+# env/secrets
+.env
+.env.*
+!.env.example
+
+# runtime state (root + packages)
+logs/
+memory/
+MEMORY.md
+.openclaw/workspace-state.json
+.codex
+!orchestrator/src/memory/
+orchestrator/src/memory/*
+!orchestrator/src/memory/snapshot-service.ts
+/data/
+!orchestrator/data/milestones-feed.json
+*.sqlite
+*.sqlite3
+*.db
+*.jsonl
+orchestrator_state.json
+orchestrator_status.md
+
+# orchestrator runtime dirs
+orchestrator/logs/
+orchestrator/data/*
+!orchestrator/data/milestones-feed.json
+openclawdbot/data/
+public-decision-intelligence-console/
+orchestrator/MEMORY.md
+orchestrator/OpenClaw operator console dashboard.png
+operator-s-console/.env.local
+operator-s-console/.git/
+operator-s-console/.lovable/
+operator-s-console/bun.lock
+operator-s-console/bun.lockb
+operator-s-console/node_modules/
+operator-s-console/dist/
+operator-s-console/dist.vitest-bak-*/
+operator-s-console/OpenClaw operator console dashboard.png
+operator-s-console/V1_API_Contract.docx
+operator-s-console/docs/OpenClaw operator console dashboard.png
+site/.vitepress/cache/
+site/.vitepress/dist/
+site/.vitepress/.temp/
+
+# misc
+.DS_Store
+.vscode/
