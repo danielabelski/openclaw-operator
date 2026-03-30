@@ -86,6 +86,23 @@ and lets you publish a separate public repo with fresh history.
 The operational guide lives at
 [docs/operations/public-release.md](./docs/operations/public-release.md).
 
+## Canonical Public Home
+
+This repository is now the canonical home for public product work.
+
+Use this repo for:
+
+- product behavior meant for users and contributors
+- public docs, examples, and self-hosting guidance
+- agent, task, operator, API, and runtime changes that should ship publicly
+- issues, pull requests, and releases for the open-source product
+
+The private workspace continues to exist as a personal lab for local notes,
+machine-specific helpers, incubation, and rough experiments, but those
+side-step workflows should only land here once they are ready for public use.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the working rule.
+
 ## Using It For Real Client Work
 
 OpenClaw Operator is most useful when you treat it as a governed web-dev
