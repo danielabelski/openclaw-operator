@@ -73,6 +73,19 @@ Recommended commit policy:
 If the mirror changed after the latest knowledge pack was generated, refresh
 `drift-repair` before you treat Reddit or content drafts as current.
 
+## Public Release Path
+
+If you want a public GitHub repo without rewriting this repo's private history,
+use the sanitized public-mirror workflow instead of changing this repo's
+visibility directly.
+
+That path exports a clean tree from the current working copy, excludes tracked
+local/session material such as `MEMORY.md` and `.openclaw/workspace-state.json`,
+and lets you publish a separate public repo with fresh history.
+
+The operational guide lives at
+[docs/operations/public-release.md](./docs/operations/public-release.md).
+
 ## Canonical Public Home
 
 This repository is now the canonical home for public product work.
@@ -87,6 +100,22 @@ Use this repo for:
 The private workspace continues to exist as a personal lab for local notes,
 machine-specific helpers, incubation, and rough experiments, but those
 side-step workflows should only land here once they are ready for public use.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the working rule.
+
+## Branch-First Workflow
+
+Public product work should happen on a local branch first, not directly on
+`main`.
+
+The expected flow is:
+
+1. create a local feature branch
+2. make and validate the change there
+3. merge into `main` locally once the branch is ready
+4. push the merged `main`
+
+That is the normal working style for this repo going forward.
 
 ## Using It For Real Client Work
 

@@ -299,6 +299,69 @@ Acceptance:
 - clearer normalization and research handoff output
 - no overstatement beyond current tool and network boundaries
 
+## Post-Adaptation Public Refinement Order
+
+Once Phases 0 through 3 are implemented, the next work is not new lanes first.
+
+The first public follow-through is to operate the adapted portfolio in real
+work and tighten the current operator experience around what those agents now
+emit.
+
+Current agreed order after the adaptation implementation:
+
+1. operate and refine the adapted current portfolio in the public repo
+2. then consider new task lanes
+3. then consider broader agent portfolio growth
+4. then add richer OpenClaw companion or plugin metadata
+5. then tighten channel or runtime integration
+
+### Sprint 1: Trust And Governance Adoption
+
+Public refinement sprint 1 is complete.
+
+Agents and lanes:
+
+- `qa-verification-agent` via `qa-verification`
+- `security-agent` via `security-audit`
+- `system-monitor-agent` via `system-monitor`
+- `skill-audit-agent` via `skill-audit`
+
+What this sprint hardened:
+
+- clearer trust and governance control decks in run detail
+- stronger governance-focus guidance in the operator console
+- lane-specific status handling for review, closure, watch, and escalation
+
+### Sprint 2: Remaining Nine-Lane Adoption
+
+Public refinement sprint 2 covers the rest of the adapted portfolio.
+
+Agents and lanes:
+
+- `integration-agent` via `integration-workflow`
+- `build-refactor-agent` via `build-refactor`
+- `doc-specialist` via `drift-repair`
+- `content-agent` via `content-generate`
+- `summarization-agent` via `summarize-content`
+- `reddit-helper` via `reddit-response`
+- `data-extraction-agent` via `data-extraction`
+- `normalization-agent` via `normalize-data`
+- `market-research-agent` via `market-research`
+
+What this sprint must deliver:
+
+- lane-specific operator control decks for the remaining nine run-detail paths
+- clearer reading of handoff, bounded-scope, freshness, publication, and
+  comparison-ready posture
+- focused operator-console proof so the adapted output shape is not just agent
+  truth but operator-usable product truth
+
+What this sprint must not do:
+
+- add new task lanes
+- add new specialist agents
+- widen tool or network boundaries just to make the UI look richer
+
 ## Per-Agent First Slices
 
 ### `integration-agent`

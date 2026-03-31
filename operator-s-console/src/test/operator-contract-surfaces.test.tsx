@@ -21,6 +21,94 @@ const ownerMutate = vi.fn();
 const remediateMutate = vi.fn();
 const triggerTaskMutate = vi.fn();
 
+function buildTaskRun(type: string, overrides: Record<string, unknown> = {}) {
+  return {
+    runId: `run-${type}`,
+    type,
+    status: "success",
+    createdAt: "2026-03-11T10:00:00.000Z",
+    startedAt: "2026-03-11T10:00:01.000Z",
+    completedAt: "2026-03-11T10:00:05.000Z",
+    model: "gpt-4.1-mini",
+    cost: 0.01,
+    latency: 600,
+    usage: {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    },
+    budget: null,
+    accounting: null,
+    error: null,
+    lastHandledAt: "2026-03-11T10:00:05.000Z",
+    repair: null,
+    history: [],
+    attempt: 1,
+    maxRetries: 1,
+    workflow: {
+      stage: "completed",
+      graphStatus: "completed",
+      currentStage: "proof",
+      blockedStage: null,
+      stopReason: null,
+      stopClassification: "completed",
+      awaitingApproval: false,
+      retryScheduled: false,
+      nextRetryAt: null,
+      repairStatus: null,
+      eventCount: 2,
+      latestEventAt: "2026-03-11T10:00:05.000Z",
+      stageDurations: {},
+      timingBreakdown: {},
+      nodeCount: 3,
+      edgeCount: 2,
+    },
+    approval: {
+      required: false,
+      status: null,
+      requestedAt: null,
+      decidedAt: null,
+      decidedBy: null,
+      note: null,
+    },
+    events: [],
+    workflowGraph: null,
+    proofLinks: [],
+    ...overrides,
+  };
+}
+
+function renderTaskRunDetail(
+  type: string,
+  runResult: Record<string, unknown>,
+  runOverrides: Record<string, unknown> = {},
+) {
+  const view = render(
+    <TaskRunDetailContent
+      isLoading={false}
+      run={buildTaskRun(type, runOverrides) as never}
+      runResult={runResult}
+    />,
+  );
+
+  return {
+    ...view,
+    rerenderFor(
+      nextType: string,
+      nextRunResult: Record<string, unknown>,
+      nextRunOverrides: Record<string, unknown> = {},
+    ) {
+      view.rerender(
+        <TaskRunDetailContent
+          isLoading={false}
+          run={buildTaskRun(nextType, nextRunOverrides) as never}
+          runResult={nextRunResult}
+        />,
+      );
+    },
+  };
+}
+
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
@@ -617,6 +705,373 @@ describe("operator contract surfaces", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Evidence still expected: verifier note, repair link.")).toBeInTheDocument();
     expect(screen.getByText("Follow-ups: Attach verifier note.")).toBeInTheDocument();
+  });
+
+  it("renders workflow and bounded-surgery control decks for integration-workflow and build-refactor", () => {
+    const view = renderTaskRunDetail("integration-workflow", {
+      plan: {
+        readySteps: 2,
+        blockedSteps: 1,
+        workflowProfile: {
+          classification: "delivery",
+          dominantSurface: "repo-and-runtime",
+          verifierRequired: true,
+          criticalPath: ["market-research", "build-refactor", "qa-verification"],
+          coordinationRisks: ["shared approval queue", "stale verifier note"],
+        },
+      },
+      dependencyPlan: {
+        totalDependencies: 3,
+        sharedDependencyCount: 1,
+        blockedDependencyCount: 1,
+        criticalSteps: [
+          {
+            step: "qa-verification",
+            surface: "workspace",
+            selectedAgent: "qa-verification-agent",
+            dependsOn: ["build-refactor"],
+            blockers: ["approval pending"],
+          },
+        ],
+      },
+      workflowMemory: {
+        recentStopSignals: 1,
+      },
+      partialCompletion: {
+        blockedStep: "qa-verification",
+        replayable: true,
+        remainingSteps: ["qa-verification"],
+        rerouteCount: 1,
+      },
+      recoveryPlan: {
+        verificationHandoff: {
+          reason: "Verifier must close the workflow once the bounded refactor is merged.",
+        },
+      },
+      handoffPackages: [
+        {
+          payloadType: "workflow-replay",
+          targetAgentId: "qa-verification-agent",
+        },
+      ],
+    });
+
+    expect(screen.getByText("Workflow Coordination Deck")).toBeInTheDocument();
+    expect(screen.getByText("Workflow Profile")).toBeInTheDocument();
+    expect(screen.getByText("Dependency Plan")).toBeInTheDocument();
+    expect(screen.getByText("Replay And Handoff")).toBeInTheDocument();
+    expect(screen.getByText("Critical path: market-research -> build-refactor -> qa-verification.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Verifier handoff: Verifier must close the workflow once the bounded refactor is merged.",
+      ),
+    ).toBeInTheDocument();
+
+    view.rerenderFor("build-refactor", {
+      scopeContract: {
+        scopeType: "bounded-runtime-fix",
+        bounded: true,
+        estimatedTouchedFiles: 2,
+        requestedMaxFilesChanged: 3,
+      },
+      surgeryProfile: {
+        changeType: "surgical-fix",
+        affectedSurfaces: ["operator-ui", "orchestrator"],
+        qaVerificationRequired: true,
+        rollbackSensitive: true,
+        operatorReviewReason: "Proof-linked runtime work still needs bounded human review before rollout.",
+      },
+      verificationLoop: {
+        requiresVerifier: true,
+        postEditSteps: ["npm run build", "npx vitest run"],
+        mode: "repair-linked",
+      },
+      impactEnvelope: {
+        verificationDepth: "deep",
+        rollbackWindow: "tight",
+      },
+      refusalProfile: {
+        refused: false,
+      },
+      summary: {
+        testsPass: true,
+        filesChanged: 2,
+        linesChanged: 54,
+      },
+    });
+
+    expect(screen.getByText("Refactor Control Deck")).toBeInTheDocument();
+    expect(screen.getByText("Scope Contract")).toBeInTheDocument();
+    expect(screen.getByText("Surgery Profile")).toBeInTheDocument();
+    expect(screen.getByText("Verification And Rollback")).toBeInTheDocument();
+    expect(screen.getByText("Proof-linked runtime work still needs bounded human review before rollout.")).toBeInTheDocument();
+    expect(screen.getByText("Post-edit steps: npm run build, npx vitest run.")).toBeInTheDocument();
+  });
+
+  it("renders knowledge, publication, compression, and community decks for the remaining communication lanes", () => {
+    const view = renderTaskRunDetail("drift-repair", {
+      contradictionLedger: [
+        {
+          summary: "Task catalog docs still trail the runtime wording for the build-refactor lane.",
+        },
+      ],
+      repairDrafts: [
+        {
+          targetAgentId: "doc-specialist",
+          handoff: {
+            recommendedTaskType: "qa-verification",
+          },
+        },
+      ],
+      topologyPacks: [
+        {
+          targetAgentId: "reddit-helper",
+          routeTaskType: "reddit-response",
+        },
+      ],
+      taskSpecificKnowledge: [
+        {
+          targetAgentId: "content-agent",
+        },
+      ],
+      entityFreshnessLedger: [
+        {
+          freshness: "stale",
+        },
+      ],
+      contradictionGraph: {
+        entityCount: 3,
+        rankedContradictionCount: 1,
+      },
+      repairLoop: {
+        status: "repair-needed",
+        recommendedTaskType: "qa-verification",
+        nextActions: ["Regenerate the knowledge pack after the task wording refresh."],
+        staleSignals: ["Docs mirror is ahead of the last repair pack."],
+      },
+    });
+
+    expect(screen.getByText("Knowledge Repair Deck")).toBeInTheDocument();
+    expect(screen.getByText("Contradiction Review")).toBeInTheDocument();
+    expect(screen.getByText("Repair Loop")).toBeInTheDocument();
+    expect(screen.getByText("Knowledge Coverage")).toBeInTheDocument();
+    expect(screen.getByText("Task catalog docs still trail the runtime wording for the build-refactor lane.")).toBeInTheDocument();
+    expect(screen.getByText("Regenerate the knowledge pack after the task wording refresh.")).toBeInTheDocument();
+
+    view.rerenderFor("content-generate", {
+      publicationPolicy: {
+        status: "grounded",
+        rationale: "Every claim now maps back to a bounded evidence anchor.",
+      },
+      claimDiscipline: {
+        groundedClaims: 4,
+        speculativeClaims: ["launch date"],
+      },
+      routingDecision: {
+        audience: "operators",
+        documentMode: "release-note",
+        downstreamAgent: "summarization-agent",
+        escalationRequired: true,
+      },
+      handoffPackage: {
+        targetAgentId: "summarization-agent",
+        payloadType: "publication-summary",
+        reason: "Compress the release note into a shorter operational handoff.",
+      },
+      evidenceSchema: {
+        evidenceAttached: true,
+        rails: ["docs", "runtime"],
+        sourceSummaryCount: 2,
+      },
+      documentSpecialization: {
+        mode: "release-note",
+        riskLevel: "medium",
+      },
+    });
+
+    expect(screen.getByText("Publishing Control Deck")).toBeInTheDocument();
+    expect(screen.getByText("Publication Policy")).toBeInTheDocument();
+    expect(screen.getByText("Routing Decision")).toBeInTheDocument();
+    expect(screen.getByText("Evidence And Handoff")).toBeInTheDocument();
+    expect(screen.getByText("Speculative claims: launch date.")).toBeInTheDocument();
+    expect(screen.getByText("Compress the release note into a shorter operational handoff.")).toBeInTheDocument();
+
+    view.rerenderFor("summarize-content", {
+      evidencePreservation: {
+        status: "preserved",
+        anchorsRetained: 4,
+        anchorsDetected: 4,
+      },
+      handoff: {
+        readyForDelegation: true,
+        mode: "operator-handoff",
+      },
+      handoffPackage: {
+        targetAgentId: "reddit-helper",
+        payloadType: "operator-handoff",
+      },
+      operationalCompression: {
+        mode: "action-summary",
+        anchorRetentionRatio: "1.0",
+        blockerSafe: true,
+        downstreamTarget: "reddit-helper",
+      },
+      actionCriticalDetails: {
+        nextActions: ["Review the outbound explanation before publishing it."],
+        blockers: ["awaiting reviewer"],
+      },
+      downstreamArtifact: {
+        artifactType: "handoff-summary",
+        replayAnchorCount: 3,
+      },
+    });
+
+    expect(screen.getByText("Compression Handoff Deck")).toBeInTheDocument();
+    expect(screen.getByText("Evidence Preservation")).toBeInTheDocument();
+    expect(screen.getByText("Handoff Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Action-Critical Details")).toBeInTheDocument();
+    expect(screen.getByText("Review the outbound explanation before publishing it.")).toBeInTheDocument();
+    expect(screen.getByText("Blockers: awaiting reviewer.")).toBeInTheDocument();
+
+    view.rerenderFor("reddit-response", {
+      replyVerification: {
+        requiresReview: true,
+        doctrineApplied: ["value-first", "no-spam"],
+        anchorCount: 3,
+        reasoning: "Draft stays practical and avoids overselling what the runtime can guarantee.",
+      },
+      explanationBoundary: {
+        status: "internal-only-review",
+      },
+      providerPosture: {
+        reviewRecommended: true,
+        mode: "hybrid-polished",
+        queuePressureStatus: "elevated",
+        reason: "Provider queue pressure suggests holding this draft for review before broad reuse.",
+        fallbackIntegrity: "retained-local-doctrine",
+      },
+      communitySignalRouting: {
+        systematic: true,
+        handoffs: [
+          {
+            surface: "docs",
+            targetAgentId: "doc-specialist",
+            reason: "Capture the explanation for future doctrine refreshes.",
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText("Community Control Deck")).toBeInTheDocument();
+    expect(screen.getByText("Reply Verification")).toBeInTheDocument();
+    expect(screen.getByText("Provider Posture")).toBeInTheDocument();
+    expect(screen.getByText("Boundary And Routing")).toBeInTheDocument();
+    expect(screen.getByText("Draft stays practical and avoids overselling what the runtime can guarantee.")).toBeInTheDocument();
+    expect(screen.getByText("Capture the explanation for future doctrine refreshes.")).toBeInTheDocument();
+  });
+
+  it("renders extraction, canonicalization, and research decks for the remaining ingestion lanes", () => {
+    const view = renderTaskRunDetail("data-extraction", {
+      artifactCoverage: {
+        formats: ["pdf", "markdown"],
+        normalizationReadyCount: 1,
+        adapterModes: ["parser"],
+        provenanceDepth: "strong",
+      },
+      provenanceSummary: [
+        {
+          sourceType: "document",
+          format: "pdf",
+          extractedAt: "2026-03-11T10:00:00.000Z",
+        },
+      ],
+      handoffPackages: [
+        {
+          targetAgentId: "normalization-agent",
+          payloadType: "raw-extraction",
+          confidence: "high",
+        },
+      ],
+      recordsExtracted: 12,
+      entitiesFound: 5,
+    });
+
+    expect(screen.getByText("Extraction Handoff Deck")).toBeInTheDocument();
+    expect(screen.getByText("Artifact Coverage")).toBeInTheDocument();
+    expect(screen.getByText("Provenance Summary")).toBeInTheDocument();
+    expect(screen.getByText("Normalization Handoff")).toBeInTheDocument();
+    expect(screen.getByText("Adapter modes: parser.")).toBeInTheDocument();
+    expect(screen.getByText("Confidence: high.")).toBeInTheDocument();
+
+    view.rerenderFor("normalize-data", {
+      comparisonReadiness: {
+        status: "watching",
+        canonicalIdCount: 4,
+        duplicateKeyCount: 1,
+        uncertaintyCount: 1,
+      },
+      dedupeSummary: {
+        totalKeys: 4,
+        duplicateKeys: ["acme-1"],
+      },
+      handoffPackage: {
+        targetAgentId: "market-research-agent",
+        comparisonReady: false,
+        canonicalIds: ["canonical-1", "canonical-2"],
+      },
+      schemaMismatches: [
+        {
+          field: "pricing",
+        },
+      ],
+      uncertaintyFlags: [
+        {
+          type: "alias",
+        },
+      ],
+      dedupeDecisions: [
+        {
+          action: "merge-review",
+          dedupeKey: "acme-1",
+        },
+      ],
+    });
+
+    expect(screen.getByText("Canonicalization Deck")).toBeInTheDocument();
+    expect(screen.getByText("Comparison Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Dedupe And Uncertainty")).toBeInTheDocument();
+    expect(screen.getByText("Canonical Handoff")).toBeInTheDocument();
+    expect(screen.getByText("Top decision: merge-review for acme-1.")).toBeInTheDocument();
+    expect(screen.getByText("1 schema mismatch record(s) still need review.")).toBeInTheDocument();
+
+    view.rerenderFor("market-research", {
+      deltaCapture: {
+        status: "fetched",
+        substantiveCount: 2,
+        degradedCount: 1,
+        unreachableCount: 0,
+      },
+      changePack: {
+        surfaces: ["pricing", "positioning"],
+        durableSignalCount: 3,
+        degradationResilient: true,
+      },
+      handoffPackage: {
+        targetAgentId: "content-agent",
+        payloadType: "market-change-pack",
+        recommendedTaskType: "content-generate",
+      },
+      warnings: ["One source degraded to cached evidence."],
+      confidence: "high",
+      networkPosture: "degraded",
+    });
+
+    expect(screen.getByText("Research Signal Deck")).toBeInTheDocument();
+    expect(screen.getByText("Delta Capture")).toBeInTheDocument();
+    expect(screen.getByText("Change Pack")).toBeInTheDocument();
+    expect(screen.getByText("Handoff And Confidence")).toBeInTheDocument();
+    expect(screen.getByText("One source degraded to cached evidence.")).toBeInTheDocument();
+    expect(screen.getByText("Recommended task: content-generate.")).toBeInTheDocument();
   });
 
   it("renders operator focus actions on the governance page", () => {

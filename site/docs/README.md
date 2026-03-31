@@ -46,6 +46,7 @@ npm run docs:site:build
 - [Documentation Site Information Architecture](./architecture/DOCUMENTATION_SITE_INFORMATION_ARCHITECTURE.md)
 - [Configuration Guide](./guides/configuration.md)
 - [Knowledge Mirror Policy](./operations/KNOWLEDGE_MIRROR_POLICY.md)
+- [Public Release Guide](./operations/public-release.md)
 - [Task Types](./reference/task-types.md)
 - [State Schema](./reference/state-schema.md)
 

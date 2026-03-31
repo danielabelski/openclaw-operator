@@ -484,10 +484,762 @@ function buildSkillAuditSignalDeck(raw: Record<string, unknown>): OperatorSignal
   };
 }
 
+function mapDocRepairStatus(value: string) {
+  if (value === "clear") return "ready";
+  if (value === "repair-needed") return "blocked";
+  return "watching";
+}
+
+function mapPublicationPolicyStatus(value: string) {
+  if (value === "grounded") return "ready";
+  if (value === "speculative-refused") return "blocked";
+  return "watching";
+}
+
+function mapEvidencePreservationStatus(value: string) {
+  if (value === "preserved") return "ready";
+  if (value === "missing") return "blocked";
+  return "watching";
+}
+
+function mapDeltaCaptureStatus(value: string) {
+  if (value === "fetched") return "ready";
+  return "watching";
+}
+
+function buildIntegrationSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const plan = asRecord(raw.plan);
+  const workflowProfile = asRecord(plan?.workflowProfile);
+  const dependencyPlan = asRecord(raw.dependencyPlan);
+  const workflowMemory = asRecord(raw.workflowMemory);
+  const partialCompletion = asRecord(raw.partialCompletion);
+  const recoveryPlan = asRecord(raw.recoveryPlan);
+  const handoffPackages = toArray<Record<string, unknown>>(raw.handoffPackages);
+
+  if (
+    !plan &&
+    !workflowProfile &&
+    !dependencyPlan &&
+    !workflowMemory &&
+    !partialCompletion &&
+    !recoveryPlan &&
+    handoffPackages.length === 0
+  ) {
+    return null;
+  }
+
+  const criticalPath = normalizeStringList(workflowProfile?.criticalPath, 3);
+  const coordinationRisks = normalizeStringList(workflowProfile?.coordinationRisks, 2);
+  const criticalStep = toArray<Record<string, unknown>>(dependencyPlan?.criticalSteps)[0];
+  const topHandoff = handoffPackages[0];
+  const verificationHandoff = asRecord(recoveryPlan?.verificationHandoff);
+  const remainingSteps = toArray<string>(partialCompletion?.remainingSteps).length;
+
+  return {
+    title: "Workflow Coordination Deck",
+    summary: "Workflow profile, dependency pressure, and replay posture for this conductor run.",
+    cards: [
+      {
+        id: "integration-profile",
+        title: "Workflow Profile",
+        status:
+          toNullableString(partialCompletion?.blockedStep) !== null
+            ? "blocked"
+            : workflowProfile?.verifierRequired === true || coordinationRisks.length > 0
+              ? "watching"
+              : "ready",
+        summary: `Classification ${str(workflowProfile?.classification, "mixed")} over ${str(
+          workflowProfile?.dominantSurface,
+          "runtime",
+        )} with ${str(plan?.readySteps, "0")} ready and ${str(plan?.blockedSteps, "0")} blocked step(s).`,
+        details: compactDetails([
+          criticalPath.length > 0 ? `Critical path: ${criticalPath.join(" -> ")}.` : null,
+          coordinationRisks.length > 0 ? `Coordination risks: ${coordinationRisks.join(", ")}.` : null,
+          `Verifier handoff required: ${workflowProfile?.verifierRequired === true ? "yes" : "no"}.`,
+        ]),
+      },
+      {
+        id: "integration-dependencies",
+        title: "Dependency Plan",
+        status:
+          Number(dependencyPlan?.blockedDependencyCount ?? 0) > 0
+            ? "blocked"
+            : Number(dependencyPlan?.sharedDependencyCount ?? 0) > 0
+              ? "watching"
+              : "ready",
+        summary: `Dependencies: ${str(dependencyPlan?.totalDependencies, "0")} total with ${str(
+          dependencyPlan?.sharedDependencyCount,
+          "0",
+        )} shared and ${str(dependencyPlan?.blockedDependencyCount, "0")} blocked.`,
+        details: compactDetails([
+          criticalStep
+            ? `Top critical step: ${str(criticalStep.step, "step")} on ${str(
+                criticalStep.surface,
+                "runtime",
+              )} via ${str(criticalStep.selectedAgent, "unassigned")}.`
+            : null,
+          criticalStep
+            ? `Depends on ${normalizeStringList(criticalStep.dependsOn, 3).join(", ") || "no explicit dependencies"}.`
+            : null,
+          criticalStep
+            ? `Blockers: ${normalizeStringList(criticalStep.blockers, 2).join(", ") || "none recorded"}.`
+            : null,
+        ]),
+      },
+      {
+        id: "integration-replay",
+        title: "Replay And Handoff",
+        status:
+          remainingSteps > 0 || handoffPackages.length > 0 || Number(workflowMemory?.recentStopSignals ?? 0) > 0
+            ? "watching"
+            : "ready",
+        summary:
+          topHandoff
+            ? `Top handoff routes ${str(topHandoff.payloadType, "workflow-replay")} to ${str(
+                topHandoff.targetAgentId,
+                "next-agent",
+              )}.`
+            : "No downstream handoff package was required for this workflow.",
+        details: compactDetails([
+          `Replayable: ${partialCompletion?.replayable === true ? "yes" : "no"} · remaining steps: ${remainingSteps}.`,
+          `Reroute count: ${str(partialCompletion?.rerouteCount, "0")} · recent stop signals: ${str(
+            workflowMemory?.recentStopSignals,
+            "0",
+          )}.`,
+          verificationHandoff ? `Verifier handoff: ${str(verificationHandoff.reason, "No verifier reason recorded.")}` : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildBuildRefactorSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const scopeContract = asRecord(raw.scopeContract);
+  const surgeryProfile = asRecord(raw.surgeryProfile);
+  const verificationLoop = asRecord(raw.verificationLoop);
+  const impactEnvelope = asRecord(raw.impactEnvelope);
+  const refusalProfile = asRecord(raw.refusalProfile);
+  const summary = asRecord(raw.summary);
+
+  if (!scopeContract && !surgeryProfile && !verificationLoop && !impactEnvelope && !refusalProfile && !summary) {
+    return null;
+  }
+
+  return {
+    title: "Refactor Control Deck",
+    summary: "Scope, surgery, verification, and rollback posture for this bounded code run.",
+    cards: [
+      {
+        id: "refactor-scope",
+        title: "Scope Contract",
+        status:
+          refusalProfile?.refused === true
+            ? "refused"
+            : scopeContract?.bounded === true
+              ? "ready"
+              : "watching",
+        summary: `Scope is ${str(scopeContract?.scopeType, "bounded")} with ${str(
+          scopeContract?.estimatedTouchedFiles,
+          "0",
+        )} estimated touched file(s).`,
+        details: compactDetails([
+          `Requested max files: ${str(scopeContract?.requestedMaxFilesChanged, "none")}.`,
+          normalizeStringList(scopeContract?.refusalReasons, 2).length > 0
+            ? `Scope concerns: ${normalizeStringList(scopeContract?.refusalReasons, 2).join(", ")}.`
+            : null,
+          refusalProfile?.narrowScopeSuggested === true
+            ? `Suggested max files changed: ${str(refusalProfile?.suggestedMaxFilesChanged, "n/a")}.`
+            : null,
+        ]),
+      },
+      {
+        id: "refactor-surgery",
+        title: "Surgery Profile",
+        status:
+          surgeryProfile?.rollbackSensitive === true
+            ? "watching"
+            : surgeryProfile?.qaVerificationRequired === true
+              ? "verification-required"
+              : "ready",
+        summary: `Change type ${str(surgeryProfile?.changeType, "bounded")} touches ${normalizeStringList(
+          surgeryProfile?.affectedSurfaces,
+          3,
+        ).join(", ") || "repo-local surfaces"}.`,
+        details: compactDetails([
+          `QA verification required: ${surgeryProfile?.qaVerificationRequired === true ? "yes" : "no"}.`,
+          `Rollback sensitive: ${surgeryProfile?.rollbackSensitive === true ? "yes" : "no"}.`,
+          str(surgeryProfile?.operatorReviewReason, "") || null,
+        ]),
+      },
+      {
+        id: "refactor-verification",
+        title: "Verification And Rollback",
+        status:
+          summary?.testsPass === false
+            ? "blocked"
+            : verificationLoop?.requiresVerifier === true
+              ? "verification-required"
+              : impactEnvelope?.rollbackWindow === "tight"
+                ? "watching"
+                : "ready",
+        summary:
+          summary?.testsPass === false
+            ? "Verification did not stay green after the bounded surgery."
+            : `Verification depth is ${str(impactEnvelope?.verificationDepth, "advisory")} with rollback window ${str(
+                impactEnvelope?.rollbackWindow,
+                "standard",
+              )}.`,
+        details: compactDetails([
+          `Files changed: ${str(summary?.filesChanged, "0")} · lines changed: ${str(summary?.linesChanged, "0")}.`,
+          normalizeStringList(verificationLoop?.postEditSteps, 3).length > 0
+            ? `Post-edit steps: ${normalizeStringList(verificationLoop?.postEditSteps, 3).join(", ")}.`
+            : null,
+          `Verifier required: ${verificationLoop?.requiresVerifier === true ? "yes" : "no"} · repair linked: ${str(
+            verificationLoop?.mode,
+            "standard",
+          )}.`,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildDocSpecialistSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const contradictionLedger = toArray<Record<string, unknown>>(raw.contradictionLedger);
+  const repairDrafts = toArray<Record<string, unknown>>(raw.repairDrafts);
+  const topologyPacks = toArray<Record<string, unknown>>(raw.topologyPacks);
+  const taskSpecificKnowledge = toArray<Record<string, unknown>>(raw.taskSpecificKnowledge);
+  const entityFreshnessLedger = toArray<Record<string, unknown>>(raw.entityFreshnessLedger);
+  const contradictionGraph = asRecord(raw.contradictionGraph);
+  const repairLoop = asRecord(raw.repairLoop);
+
+  if (
+    contradictionLedger.length === 0 &&
+    repairDrafts.length === 0 &&
+    topologyPacks.length === 0 &&
+    taskSpecificKnowledge.length === 0 &&
+    entityFreshnessLedger.length === 0 &&
+    !contradictionGraph &&
+    !repairLoop
+  ) {
+    return null;
+  }
+
+  const staleEntityCount = entityFreshnessLedger.filter(
+    (entry) => str(entry.freshness, "unknown") === "stale",
+  ).length;
+  const topRepairDraft = repairDrafts[0];
+
+  return {
+    title: "Knowledge Repair Deck",
+    summary: "Contradiction review, repair guidance, and freshness coverage for this knowledge pack refresh.",
+    cards: [
+      {
+        id: "doc-contradictions",
+        title: "Contradiction Review",
+        status: contradictionLedger.length > 0 ? "watching" : "ready",
+        summary: `Ranked contradictions: ${contradictionLedger.length} across ${str(
+          contradictionGraph?.entityCount,
+          "0",
+        )} entity(ies).`,
+        details: compactDetails([
+          `Ranked contradiction count: ${str(contradictionGraph?.rankedContradictionCount, "0")}.`,
+          contradictionLedger[0] ? str(contradictionLedger[0].summary, "") || null : null,
+          staleEntityCount > 0 ? `${staleEntityCount} entity freshness record(s) are stale.` : null,
+        ]),
+      },
+      {
+        id: "doc-repair",
+        title: "Repair Loop",
+        status: mapDocRepairStatus(str(repairLoop?.status, "watching")),
+        summary: `Repair loop is ${str(repairLoop?.status, "watching")} with recommended task ${str(
+          repairLoop?.recommendedTaskType,
+          "qa-verification",
+        )}.`,
+        details: compactDetails([
+          topRepairDraft
+            ? `Top draft routes ${str(topRepairDraft.handoff?.recommendedTaskType, "qa-verification")} for ${str(
+                topRepairDraft.targetAgentId,
+                "target-agent",
+              )}.`
+            : null,
+          normalizeStringList(repairLoop?.nextActions, 1)[0] ?? null,
+          normalizeStringList(repairLoop?.staleSignals, 1)[0] ?? null,
+        ]),
+      },
+      {
+        id: "doc-coverage",
+        title: "Knowledge Coverage",
+        status: staleEntityCount > 0 ? "watching" : "ready",
+        summary: `Topology packs: ${topologyPacks.length} · task-specific bundles: ${taskSpecificKnowledge.length} · freshness entries: ${entityFreshnessLedger.length}.`,
+        details: compactDetails([
+          taskSpecificKnowledge[0]
+            ? `Top target bundle: ${str(taskSpecificKnowledge[0].targetAgentId, "target-agent")}.`
+            : null,
+          topologyPacks[0]
+            ? `Top topology pack routes ${str(topologyPacks[0].targetAgentId, "target-agent")} via ${str(
+                topologyPacks[0].routeTaskType,
+                "n/a",
+              )}.`
+            : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildContentSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const publicationPolicy = asRecord(raw.publicationPolicy);
+  const claimDiscipline = asRecord(raw.claimDiscipline);
+  const routingDecision = asRecord(raw.routingDecision);
+  const handoffPackage = asRecord(raw.handoffPackage);
+  const evidenceSchema = asRecord(raw.evidenceSchema);
+  const documentSpecialization = asRecord(raw.documentSpecialization);
+
+  if (!publicationPolicy && !claimDiscipline && !routingDecision && !handoffPackage && !evidenceSchema && !documentSpecialization) {
+    return null;
+  }
+
+  return {
+    title: "Publishing Control Deck",
+    summary: "Publication policy, routing, and evidence posture for this grounded content draft.",
+    cards: [
+      {
+        id: "content-policy",
+        title: "Publication Policy",
+        status: mapPublicationPolicyStatus(str(publicationPolicy?.status, "grounded")),
+        summary: `Policy is ${str(publicationPolicy?.status, "grounded")} with ${str(
+          claimDiscipline?.groundedClaims,
+          "0",
+        )} grounded claim(s).`,
+        details: compactDetails([
+          Number(toArray<string>(claimDiscipline?.speculativeClaims).length) > 0
+            ? `Speculative claims: ${normalizeStringList(claimDiscipline?.speculativeClaims, 2).join(", ")}.`
+            : null,
+          str(publicationPolicy?.rationale, "") || null,
+        ]),
+      },
+      {
+        id: "content-routing",
+        title: "Routing Decision",
+        status: routingDecision?.escalationRequired === true ? "blocked" : "ready",
+        summary: `Audience ${str(routingDecision?.audience, "general")} in ${str(
+          routingDecision?.documentMode,
+          "general",
+        )} mode routes to ${str(routingDecision?.downstreamAgent, "next-agent")}.`,
+        details: compactDetails([
+          documentSpecialization
+            ? `Document mode: ${str(documentSpecialization.mode, "general")} with ${str(
+                documentSpecialization.riskLevel,
+                "low",
+              )} risk.`
+            : null,
+          routingDecision?.escalationRequired === true
+            ? "Operator review is still required before broadening this draft."
+            : null,
+        ]),
+      },
+      {
+        id: "content-evidence",
+        title: "Evidence And Handoff",
+        status: evidenceSchema?.evidenceAttached === true ? "ready" : "watching",
+        summary: `Evidence rails: ${normalizeStringList(evidenceSchema?.rails, 3).join(", ") || "none recorded"} with ${str(
+          evidenceSchema?.sourceSummaryCount,
+          "0",
+        )} source summary block(s).`,
+        details: compactDetails([
+          handoffPackage
+            ? `Handoff target: ${str(handoffPackage.targetAgentId, "next-agent")} via ${str(
+                handoffPackage.payloadType,
+                "publication-summary",
+              )}.`
+            : null,
+          handoffPackage ? str(handoffPackage.reason, "") || null : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildSummarizationSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const evidencePreservation = asRecord(raw.evidencePreservation);
+  const handoff = asRecord(raw.handoff);
+  const handoffPackage = asRecord(raw.handoffPackage);
+  const operationalCompression = asRecord(raw.operationalCompression);
+  const actionCriticalDetails = asRecord(raw.actionCriticalDetails);
+  const downstreamArtifact = asRecord(raw.downstreamArtifact);
+
+  if (!evidencePreservation && !handoff && !handoffPackage && !operationalCompression && !actionCriticalDetails && !downstreamArtifact) {
+    return null;
+  }
+
+  const blockers = normalizeStringList(actionCriticalDetails?.blockers, 2);
+  const nextActions = normalizeStringList(actionCriticalDetails?.nextActions, 2);
+
+  return {
+    title: "Compression Handoff Deck",
+    summary: "Anchor retention, delegation readiness, and downstream artifact posture for this summary.",
+    cards: [
+      {
+        id: "summary-preservation",
+        title: "Evidence Preservation",
+        status: mapEvidencePreservationStatus(str(evidencePreservation?.status, "partial")),
+        summary: `Anchors retained: ${str(evidencePreservation?.anchorsRetained, "0")} of ${str(
+          evidencePreservation?.anchorsDetected,
+          "0",
+        )} detected.`,
+        details: compactDetails([
+          `Compression mode: ${str(operationalCompression?.mode, "general")} at ${str(
+            operationalCompression?.anchorRetentionRatio,
+            "0",
+          )} retention ratio.`,
+        ]),
+      },
+      {
+        id: "summary-handoff",
+        title: "Handoff Readiness",
+        status:
+          handoff?.readyForDelegation === true && operationalCompression?.blockerSafe !== false
+            ? "ready"
+            : "watching",
+        summary: `Delegation mode ${str(handoff?.mode, "general")} targets ${str(
+          handoffPackage?.targetAgentId,
+          "next-agent",
+        )} via ${str(handoffPackage?.payloadType, "operator-handoff")}.`,
+        details: compactDetails([
+          `Downstream target: ${str(operationalCompression?.downstreamTarget, "next-agent")}.`,
+          `Blocker safe: ${operationalCompression?.blockerSafe === true ? "yes" : "no"}.`,
+        ]),
+      },
+      {
+        id: "summary-action",
+        title: "Action-Critical Details",
+        status: blockers.length > 0 ? "watching" : "ready",
+        summary:
+          nextActions[0] ??
+          "No action-critical next step was emitted for this summary.",
+        details: compactDetails([
+          blockers.length > 0 ? `Blockers: ${blockers.join(", ")}.` : null,
+          downstreamArtifact
+            ? `Artifact: ${str(downstreamArtifact.artifactType, "handoff-summary")} with ${str(
+                downstreamArtifact.replayAnchorCount,
+                "0",
+              )} replay anchor(s).`
+            : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildRedditSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const replyVerification = asRecord(raw.replyVerification);
+  const explanationBoundary = asRecord(raw.explanationBoundary);
+  const providerPosture = asRecord(raw.providerPosture);
+  const communitySignalRouting = asRecord(raw.communitySignalRouting);
+
+  if (!replyVerification && !explanationBoundary && !providerPosture && !communitySignalRouting) {
+    return null;
+  }
+
+  const handoffs = toArray<Record<string, unknown>>(communitySignalRouting?.handoffs);
+  const doctrineApplied = normalizeStringList(replyVerification?.doctrineApplied, 3);
+  const topHandoff = handoffs[0];
+
+  return {
+    title: "Community Control Deck",
+    summary: "Doctrine, provider posture, and community-routing signals for this reply draft.",
+    cards: [
+      {
+        id: "reddit-doctrine",
+        title: "Reply Verification",
+        status: replyVerification?.requiresReview === true ? "watching" : "ready",
+        summary: `Doctrine checks applied: ${doctrineApplied.join(", ") || "none recorded"} with ${str(
+          replyVerification?.anchorCount,
+          "0",
+        )} anchor(s).`,
+        details: compactDetails([
+          str(replyVerification?.reasoning, "") || null,
+        ]),
+      },
+      {
+        id: "reddit-provider",
+        title: "Provider Posture",
+        status:
+          providerPosture?.reviewRecommended === true
+            ? "watching"
+            : str(providerPosture?.queuePressureStatus, "nominal") === "nominal"
+              ? "ready"
+              : "watching",
+        summary: `Mode ${str(providerPosture?.mode, "local-only")} with queue pressure ${str(
+          providerPosture?.queuePressureStatus,
+          "nominal",
+        )}.`,
+        details: compactDetails([
+          str(providerPosture?.reason, "") || null,
+          `Fallback integrity: ${str(providerPosture?.fallbackIntegrity, "retained-local-doctrine")}.`,
+        ]),
+      },
+      {
+        id: "reddit-routing",
+        title: "Boundary And Routing",
+        status:
+          str(explanationBoundary?.status, "public-safe") === "internal-only-review"
+            ? "watching"
+            : handoffs.length > 0
+              ? "watching"
+              : "ready",
+        summary: `Explanation boundary is ${str(explanationBoundary?.status, "public-safe")} with ${handoffs.length} downstream handoff(s).`,
+        details: compactDetails([
+          topHandoff
+            ? `Top handoff routes ${str(topHandoff.surface, "docs")} to ${str(
+                topHandoff.targetAgentId,
+                "next-agent",
+              )}.`
+            : null,
+          topHandoff ? str(topHandoff.reason, "") || null : null,
+          `Systematic routing: ${communitySignalRouting?.systematic === true ? "yes" : "no"}.`,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildDataExtractionSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const artifactCoverage = asRecord(raw.artifactCoverage);
+  const provenanceSummary = toArray<Record<string, unknown>>(raw.provenanceSummary);
+  const handoffPackages = toArray<Record<string, unknown>>(raw.handoffPackages);
+
+  if (!artifactCoverage && provenanceSummary.length === 0 && handoffPackages.length === 0) {
+    return null;
+  }
+
+  const uniqueTargets = Array.from(
+    new Set(
+      handoffPackages
+        .map((entry) => str(entry.targetAgentId, ""))
+        .filter(Boolean),
+    ),
+  );
+  const topHandoff = handoffPackages[0];
+
+  return {
+    title: "Extraction Handoff Deck",
+    summary: "Artifact coverage, provenance depth, and downstream handoff posture for this extraction run.",
+    cards: [
+      {
+        id: "extract-coverage",
+        title: "Artifact Coverage",
+        status:
+          str(artifactCoverage?.provenanceDepth, "basic") === "strong" &&
+          Number(artifactCoverage?.normalizationReadyCount ?? 0) > 0
+            ? "ready"
+            : "watching",
+        summary: `Formats: ${normalizeStringList(artifactCoverage?.formats, 3).join(", ") || "mixed"} · normalization-ready sources: ${str(
+          artifactCoverage?.normalizationReadyCount,
+          "0",
+        )}.`,
+        details: compactDetails([
+          `Adapter modes: ${normalizeStringList(artifactCoverage?.adapterModes, 3).join(", ") || "unknown"}.`,
+          `Provenance depth: ${str(artifactCoverage?.provenanceDepth, "basic")}.`,
+        ]),
+      },
+      {
+        id: "extract-provenance",
+        title: "Provenance Summary",
+        status: provenanceSummary.length > 0 ? "ready" : "watching",
+        summary: `Records extracted: ${str(raw.recordsExtracted, "0")} · entities found: ${str(
+          raw.entitiesFound,
+          "0",
+        )}.`,
+        details: compactDetails([
+          provenanceSummary[0]
+            ? `Top source: ${str(provenanceSummary[0].sourceType, "source")} in ${str(
+                provenanceSummary[0].format,
+                "unknown",
+              )}.`
+            : null,
+          provenanceSummary[0] && provenanceSummary[0].extractedAt
+            ? `Extracted at ${new Date(String(provenanceSummary[0].extractedAt)).toLocaleString()}.`
+            : null,
+        ]),
+      },
+      {
+        id: "extract-handoff",
+        title: "Normalization Handoff",
+        status: uniqueTargets.length > 0 ? "ready" : "watching",
+        summary:
+          topHandoff
+            ? `Top handoff routes ${str(topHandoff.payloadType, "raw-extraction")} to ${str(
+                topHandoff.targetAgentId,
+                "next-agent",
+              )}.`
+            : "No downstream extraction handoff was emitted.",
+        details: compactDetails([
+          uniqueTargets.length > 1 ? `Distinct targets: ${uniqueTargets.join(", ")}.` : null,
+          topHandoff ? `Confidence: ${str(topHandoff.confidence, "unknown")}.` : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildNormalizationSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const comparisonReadiness = asRecord(raw.comparisonReadiness);
+  const dedupeSummary = asRecord(raw.dedupeSummary);
+  const handoffPackage = asRecord(raw.handoffPackage);
+  const schemaMismatches = toArray<Record<string, unknown>>(raw.schemaMismatches);
+  const uncertaintyFlags = toArray<Record<string, unknown>>(raw.uncertaintyFlags);
+  const dedupeDecisions = toArray<Record<string, unknown>>(raw.dedupeDecisions);
+
+  if (
+    !comparisonReadiness &&
+    !dedupeSummary &&
+    !handoffPackage &&
+    schemaMismatches.length === 0 &&
+    uncertaintyFlags.length === 0 &&
+    dedupeDecisions.length === 0
+  ) {
+    return null;
+  }
+
+  const topDecision = dedupeDecisions[0];
+
+  return {
+    title: "Canonicalization Deck",
+    summary: "Comparison readiness, dedupe review, and downstream canonical handoff for this normalization run.",
+    cards: [
+      {
+        id: "normalize-comparison",
+        title: "Comparison Readiness",
+        status: str(comparisonReadiness?.status, "watching"),
+        summary: `Canonical IDs: ${str(comparisonReadiness?.canonicalIdCount, "0")} · duplicates: ${str(
+          comparisonReadiness?.duplicateKeyCount,
+          "0",
+        )} · uncertainty flags: ${str(comparisonReadiness?.uncertaintyCount, "0")}.`,
+        details: compactDetails([
+          `Handoff target: ${str(handoffPackage?.targetAgentId, "next-agent")}.`,
+        ]),
+      },
+      {
+        id: "normalize-dedupe",
+        title: "Dedupe And Uncertainty",
+        status:
+          Number(dedupeSummary?.duplicateKeys ? toArray(dedupeSummary.duplicateKeys).length : 0) > 0 ||
+          uncertaintyFlags.length > 0
+            ? "watching"
+            : "ready",
+        summary: `Dedupe keys: ${str(dedupeSummary?.totalKeys, "0")} total with ${toArray(
+          dedupeSummary?.duplicateKeys,
+        ).length} duplicate key(s).`,
+        details: compactDetails([
+          topDecision
+            ? `Top decision: ${str(topDecision.action, "review-duplicate")} for ${str(
+                topDecision.dedupeKey,
+                "dedupe-key",
+              )}.`
+            : null,
+          schemaMismatches.length > 0 ? `${schemaMismatches.length} schema mismatch record(s) still need review.` : null,
+          uncertaintyFlags.length > 0 ? `${uncertaintyFlags.length} uncertainty flag(s) were emitted.` : null,
+        ]),
+      },
+      {
+        id: "normalize-handoff",
+        title: "Canonical Handoff",
+        status: handoffPackage?.comparisonReady === true ? "ready" : "watching",
+        summary:
+          handoffPackage
+            ? `Canonical dataset routes to ${str(handoffPackage.targetAgentId, "next-agent")} with ${toArray(
+                handoffPackage.canonicalIds,
+              ).length} canonical id(s).`
+            : "No canonical handoff package was emitted.",
+        details: compactDetails([
+          `Comparison ready: ${handoffPackage?.comparisonReady === true ? "yes" : "no"}.`,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildMarketResearchSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const deltaCapture = asRecord(raw.deltaCapture);
+  const changePack = asRecord(raw.changePack);
+  const handoffPackage = asRecord(raw.handoffPackage);
+  const warnings = normalizeStringList(raw.warnings, 2);
+
+  if (!deltaCapture && !changePack && !handoffPackage && warnings.length === 0) {
+    return null;
+  }
+
+  return {
+    title: "Research Signal Deck",
+    summary: "Delta capture, durable change-pack posture, and follow-on routing for this research brief.",
+    cards: [
+      {
+        id: "research-delta",
+        title: "Delta Capture",
+        status: mapDeltaCaptureStatus(str(deltaCapture?.status, "query-only")),
+        summary: `Delta capture is ${str(deltaCapture?.status, "query-only")} with ${str(
+          deltaCapture?.substantiveCount,
+          "0",
+        )} substantive, ${str(deltaCapture?.degradedCount, "0")} degraded, and ${str(
+          deltaCapture?.unreachableCount,
+          "0",
+        )} unreachable signal(s).`,
+        details: compactDetails([
+          warnings[0] ?? null,
+        ]),
+      },
+      {
+        id: "research-change-pack",
+        title: "Change Pack",
+        status:
+          changePack?.degradationResilient === true || Number(changePack?.durableSignalCount ?? 0) > 0
+            ? "ready"
+            : "watching",
+        summary: `Surfaces: ${normalizeStringList(changePack?.surfaces, 3).join(", ") || "none recorded"} with ${str(
+          changePack?.durableSignalCount,
+          "0",
+        )} durable signal(s).`,
+        details: compactDetails([
+          `Degradation resilient: ${changePack?.degradationResilient === true ? "yes" : "no"}.`,
+        ]),
+      },
+      {
+        id: "research-routing",
+        title: "Handoff And Confidence",
+        status: str(raw.networkPosture, "healthy") === "degraded" ? "watching" : "ready",
+        summary:
+          handoffPackage
+            ? `Route ${str(handoffPackage.payloadType, "market-change-pack")} to ${str(
+                handoffPackage.targetAgentId,
+                "next-agent",
+              )} with confidence ${str(raw.confidence, "unknown")}.`
+            : `Confidence ${str(raw.confidence, "unknown")} with no downstream handoff package.`,
+        details: compactDetails([
+          handoffPackage?.recommendedTaskType
+            ? `Recommended task: ${str(handoffPackage.recommendedTaskType, "integration-workflow")}.`
+            : null,
+          `Network posture: ${str(raw.networkPosture, "healthy")}.`,
+        ]),
+      },
+    ],
+  };
+}
+
 function buildOperatorSignalDeckVM(runType: string | null | undefined, runResult?: unknown) {
   const raw = asRecord(runResult);
   if (!runType || !raw) return null;
 
+  if (runType === "integration-workflow") return buildIntegrationSignalDeck(raw);
+  if (runType === "build-refactor") return buildBuildRefactorSignalDeck(raw);
+  if (runType === "drift-repair") return buildDocSpecialistSignalDeck(raw);
+  if (runType === "content-generate") return buildContentSignalDeck(raw);
+  if (runType === "summarize-content") return buildSummarizationSignalDeck(raw);
+  if (runType === "reddit-response") return buildRedditSignalDeck(raw);
+  if (runType === "data-extraction") return buildDataExtractionSignalDeck(raw);
+  if (runType === "normalize-data") return buildNormalizationSignalDeck(raw);
+  if (runType === "market-research") return buildMarketResearchSignalDeck(raw);
   if (runType === "qa-verification") return buildQaSignalDeck(raw);
   if (runType === "security-audit") return buildSecuritySignalDeck(raw);
   if (runType === "system-monitor") return buildSystemMonitorSignalDeck(raw);
