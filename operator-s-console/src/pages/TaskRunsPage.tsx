@@ -45,6 +45,23 @@ export default function TaskRunsPage() {
       const status = str(run.budget?.status, "");
       return status === "at-risk" || status === "blocked" || status === "exhausted";
     }).length;
+    const operatorGuidanceCount = vm.runs.filter((run) => run.operatorPreview !== null).length;
+    const needsReviewCount = vm.runs.filter((run) => {
+      const status = str(run.operatorPreview?.status, "");
+      return (
+        status === "watching" ||
+        status === "blocked" ||
+        status === "escalate" ||
+        status === "refused" ||
+        run.operatorPreview?.reviewRecommended === true
+      );
+    }).length;
+    const freshnessWarningCount = vm.runs.filter(
+      (run) => (run.operatorPreview?.knowledgeWarnings.length ?? 0) > 0,
+    ).length;
+    const nextActionCount = vm.runs.filter(
+      (run) => (run.operatorPreview?.recommendedNextActions.length ?? 0) > 0,
+    ).length;
     const localRunCount = vm.runs.filter((run) => run.accounting?.metered !== true).length;
     const meteredProviders = Array.from(
       new Set(
@@ -67,6 +84,10 @@ export default function TaskRunsPage() {
     return {
       approvalWaitingCount,
       budgetConcernCount,
+      operatorGuidanceCount,
+      needsReviewCount,
+      freshnessWarningCount,
+      nextActionCount,
       localRunCount,
       meteredProviders,
       avgLatencyMs,
@@ -267,6 +288,19 @@ export default function TaskRunsPage() {
                 <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mt-1">Retried Runs</p>
               </div>
             </div>
+            <div className="console-inset p-3 rounded-sm">
+              <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-[0.12em]">Operator Guidance</p>
+              <p className="text-[11px] font-mono text-foreground mt-2 leading-relaxed">
+                {ledgerSummary.operatorGuidanceCount > 0
+                  ? `${ledgerSummary.operatorGuidanceCount} visible run${ledgerSummary.operatorGuidanceCount === 1 ? " carries" : "s carry"} adapted operator guidance.`
+                  : "No visible run is carrying adapted operator guidance in the current filter."}
+              </p>
+              <p className="text-[10px] font-mono text-muted-foreground mt-2 leading-relaxed">
+                {ledgerSummary.operatorGuidanceCount > 0
+                  ? `${ledgerSummary.needsReviewCount} need review or escalation · ${ledgerSummary.freshnessWarningCount} carry freshness warnings · ${ledgerSummary.nextActionCount} expose explicit next actions.`
+                  : "Open a run detail once a specialist lane emits summary, next actions, or freshness posture."}
+              </p>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(ledgerSummary.statusCounts).length > 0 ? (
                 Object.entries(ledgerSummary.statusCounts).map(([status, count]) => (
@@ -418,6 +452,37 @@ export default function TaskRunsPage() {
                   <Eye className="w-3 h-3 text-muted-foreground" />
                 </div>
               </div>
+              {run.operatorPreview && (
+                <div className="px-3 pb-3 pt-1 relative z-10">
+                  <div className="console-inset p-3 rounded-sm space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-[0.12em]">
+                        Operator Guidance
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StatusBadge label={run.operatorPreview.status} size="sm" />
+                        <StatusBadge label={run.operatorPreview.workflowStage} size="sm" />
+                        {run.operatorPreview.knowledgeFreshnessStatus && (
+                          <StatusBadge label={run.operatorPreview.knowledgeFreshnessStatus} size="sm" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-mono text-foreground leading-relaxed">
+                      {run.operatorPreview.operatorSummary || "No operator summary recorded for this run."}
+                    </p>
+                    {run.operatorPreview.recommendedNextActions.length > 0 && (
+                      <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                        Next: {run.operatorPreview.recommendedNextActions[0]}
+                      </p>
+                    )}
+                    {run.operatorPreview.knowledgeWarnings.length > 0 && (
+                      <p className="text-[10px] font-mono text-status-warning leading-relaxed">
+                        Freshness: {run.operatorPreview.knowledgeWarnings[0]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {vm.runs.length === 0 && (

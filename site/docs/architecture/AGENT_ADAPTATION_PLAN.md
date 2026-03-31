@@ -362,6 +362,24 @@ What this sprint must not do:
 - add new specialist agents
 - widen tool or network boundaries just to make the UI look richer
 
+### Live Usage Refinement Sprint 1
+
+After the adaptation-adoption sprints, the next real usage refinement is to
+make the existing operator surfaces cheaper to use in day-to-day triage.
+
+Current focus:
+
+- promote adapted operator guidance into the execution ledger, not only the
+  single-run detail page
+- surface next-action and knowledge-freshness posture before deep drill-down
+- keep run detail as the full evidence page while making the run list better
+  for queue-style triage
+
+Guardrail:
+
+- do not add new task lanes or widen runtime scope under the label of usage
+  refinement
+
 ## Per-Agent First Slices
 
 ### `integration-agent`

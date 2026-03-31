@@ -57,6 +57,17 @@ export interface RunRowVM {
   events: Array<Record<string, unknown>>;
   workflowGraph: Record<string, unknown> | null;
   proofLinks: Array<Record<string, unknown>>;
+  operatorPreview: RunOperatorPreviewVM | null;
+}
+
+export interface RunOperatorPreviewVM {
+  status: string;
+  workflowStage: string;
+  operatorSummary: string;
+  recommendedNextActions: string[];
+  knowledgeFreshnessStatus: string | null;
+  knowledgeWarnings: string[];
+  reviewRecommended: boolean;
 }
 
 export interface RunTimelineEvent {
@@ -65,6 +76,57 @@ export interface RunTimelineEvent {
   detail: string;
   timestamp: string | null;
   tone: "healthy" | "warning" | "error" | "info" | "neutral";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+export function buildRunOperatorPreview(result: unknown): RunOperatorPreviewVM | null {
+  const raw = asRecord(result);
+  if (!raw) return null;
+
+  const contract = asRecord(raw.specialistContract);
+  const operatorSummary = str(contract?.operatorSummary ?? raw.operatorSummary, "").trim();
+  const recommendedNextActions = toArray<string>(
+    contract?.recommendedNextActions ?? raw.recommendedNextActions,
+  )
+    .map((entry) => str(entry, "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const knowledgeFreshness = asRecord(raw.knowledgeFreshness);
+  const knowledgeWarnings = toArray<string>(knowledgeFreshness?.warnings)
+    .map((entry) => str(entry, "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  const knowledgeFreshnessStatus = knowledgeFreshness
+    ? str(knowledgeFreshness.status, "unknown")
+    : null;
+  const reviewRecommended = knowledgeFreshness?.reviewRecommended === true;
+  const status = str(contract?.status, "unknown");
+  const workflowStage = str(contract?.workflowStage, "runtime");
+
+  if (
+    !operatorSummary &&
+    recommendedNextActions.length === 0 &&
+    knowledgeWarnings.length === 0 &&
+    !knowledgeFreshnessStatus &&
+    !contract
+  ) {
+    return null;
+  }
+
+  return {
+    status,
+    workflowStage,
+    operatorSummary,
+    recommendedNextActions,
+    knowledgeFreshnessStatus,
+    knowledgeWarnings,
+    reviewRecommended,
+  };
 }
 
 export function buildRunRows(data: any): { runs: RunRowVM[]; total: number; hasMore: boolean } {
@@ -145,6 +207,7 @@ export function buildRunRows(data: any): { runs: RunRowVM[]; total: number; hasM
         ? (r.workflowGraph as Record<string, unknown>)
         : null,
     proofLinks: toArray<Record<string, unknown>>(r?.proofLinks),
+    operatorPreview: buildRunOperatorPreview(r?.result),
   }));
 
   return {
@@ -235,6 +298,7 @@ export function buildRunDetail(data: any): RunRowVM | null {
         ? (r.workflowGraph as Record<string, unknown>)
         : null,
     proofLinks: toArray<Record<string, unknown>>(r?.proofLinks),
+    operatorPreview: buildRunOperatorPreview(r?.result),
   };
 }
 

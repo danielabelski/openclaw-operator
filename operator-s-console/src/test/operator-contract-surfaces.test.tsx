@@ -9,6 +9,7 @@ import PublicProofPage from "@/pages/PublicProofPage";
 import SystemHealthPage from "@/pages/SystemHealthPage";
 import TasksPage from "@/pages/TasksPage";
 import GovernancePage from "@/pages/GovernancePage";
+import TaskRunsPage from "@/pages/TaskRunsPage";
 import { TaskRunDetailContent } from "@/components/console/TaskRunDetailContent";
 import * as consoleHooks from "@/hooks/use-console-api";
 import * as publicSurfaceHooks from "@/hooks/use-public-surface-api";
@@ -574,7 +575,7 @@ describe("operator contract surfaces", () => {
 
     expect(screen.getByText("Operator Summary")).toBeInTheDocument();
     expect(screen.getByText("Knowledge Freshness")).toBeInTheDocument();
-    expect(screen.getByText("docs-ahead-of-pack")).toBeInTheDocument();
+    expect(screen.getByText("Docs Ahead")).toBeInTheDocument();
     expect(
       screen.getAllByText(/Run drift-repair so reddit-helper drafts against the refreshed pack/i).length,
     ).toBeGreaterThan(0);
@@ -1220,6 +1221,89 @@ describe("operator contract surfaces", () => {
     expect(
       screen.getByDisplayValue(/Repair the bounded runtime\/operator issue inside this scope/i),
     ).toBeInTheDocument();
+  });
+
+  it("renders adapted operator guidance directly in the execution ledger", () => {
+    vi.mocked(consoleHooks.useTaskRuns).mockReturnValue({
+      data: {
+        generatedAt: "2026-03-11T10:00:00.000Z",
+        query: {},
+        total: 1,
+        page: { returned: 1, offset: 0, limit: 20, hasMore: false },
+        runs: [
+          {
+            runId: "run-reddit-1",
+            type: "reddit-response",
+            status: "success",
+            createdAt: "2026-03-11T10:00:00.000Z",
+            startedAt: "2026-03-11T10:00:01.000Z",
+            completedAt: "2026-03-11T10:00:05.000Z",
+            model: "gpt-4.1-mini",
+            cost: 0.012,
+            latency: 650,
+            usage: { promptTokens: 120, completionTokens: 60, totalTokens: 180 },
+            workflow: {
+              stage: "completed",
+              graphStatus: "completed",
+              stopClassification: "completed",
+              awaitingApproval: false,
+              retryScheduled: false,
+              eventCount: 2,
+              nodeCount: 3,
+              edgeCount: 2,
+            },
+            approval: { required: false, status: null },
+            events: [],
+            workflowGraph: null,
+            proofLinks: [],
+            result: {
+              operatorSummary:
+                "Prepared a review-postured draft because the knowledge pack is behind the latest docs mirror.",
+              recommendedNextActions: [
+                "Run drift-repair before reusing this draft broadly.",
+              ],
+              specialistContract: {
+                role: "Reddit Community Builder",
+                workflowStage: "community-review",
+                status: "watching",
+              },
+              knowledgeFreshness: {
+                status: "docs-ahead-of-pack",
+                reviewRecommended: true,
+                warnings: [
+                  "The docs mirror changed after the latest knowledge pack was generated.",
+                ],
+              },
+            },
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useTaskRuns>);
+
+    render(
+      <MemoryRouter>
+        <TaskRunsPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Execution Ledger")).toBeInTheDocument();
+    expect(screen.getByText("Run Ledger")).toBeInTheDocument();
+    expect(screen.getByText("1 visible run carries adapted operator guidance.")).toBeInTheDocument();
+    expect(screen.getByText("1 need review or escalation · 1 carry freshness warnings · 1 expose explicit next actions.")).toBeInTheDocument();
+    expect(screen.getAllByText("Operator Guidance").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        "Prepared a review-postured draft because the knowledge pack is behind the latest docs mirror.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Next: Run drift-repair before reusing this draft broadly.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Freshness: The docs mirror changed after the latest knowledge pack was generated."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Docs Ahead")).toBeInTheDocument();
   });
 
   it("renders integration-workflow as a bounded default-or-shorthand workflow lane", () => {
