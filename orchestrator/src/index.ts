@@ -9541,17 +9541,110 @@ async function bootstrap() {
     }
   };
 
-  await flushState(["runtime-state", "knowledge-state"]);
-  if (recoveredRetryCount > 0) {
-    console.warn(
-      `[orchestrator] recovered ${recoveredRetryCount} interrupted retry task(s) as failed after restart`,
+  let startupTasksInitialized = false;
+  const completeDeferredStartup = async () => {
+    if (startupTasksInitialized) {
+      return;
+    }
+    startupTasksInitialized = true;
+
+    await flushState(["runtime-state", "knowledge-state"]);
+    if (recoveredRetryCount > 0) {
+      console.warn(
+        `[orchestrator] recovered ${recoveredRetryCount} interrupted retry task(s) as failed after restart`,
+      );
+    }
+    if (staleRecoveryCount > 0) {
+      console.warn(
+        `[orchestrator] dropped ${staleRecoveryCount} stale persisted retry recovery record(s) during startup reconciliation`,
+      );
+    }
+
+    if (state.taskRetryRecoveries.length > 0) {
+      for (const recovery of state.taskRetryRecoveries) {
+        scheduleRetryRecovery(recovery);
+      }
+      console.log(
+        `[orchestrator] scheduled ${state.taskRetryRecoveries.length} persisted retry recovery task(s) after startup`,
+      );
+    }
+
+    for (const indexer of indexers) {
+      indexer.watch((doc) => {
+        queue.enqueue("doc-change", {
+          path: doc.path,
+          lastModified: doc.lastModified,
+        });
+      });
+    }
+
+    // CRON SCHEDULING (replaces setInterval)
+
+    // 11:00 PM UTC: Nightly batch (doc-sync + mark high-confidence items for drafting)
+    cron.schedule(config.nightlyBatchSchedule || "0 23 * * *", () => {
+      console.log("[cron] nightly-batch triggered");
+      queue.enqueue("nightly-batch", { reason: "scheduled" });
+    });
+
+    // 6:00 AM UTC: Send morning digest notification
+    cron.schedule(config.morningNotificationSchedule || "0 6 * * *", () => {
+      console.log("[cron] send-digest triggered");
+      queue.enqueue("send-digest", { reason: "scheduled" });
+    });
+
+    // 5-minute heartbeat for health checks (keeps background monitoring)
+    let lastHeartbeatTime = Date.now();
+    cron.schedule("*/5 * * * *", () => {
+      lastHeartbeatTime = Date.now();
+      queue.enqueue("heartbeat", { reason: "periodic" });
+    });
+
+    // Monitor heartbeat failures (detect if orchestrator is hung)
+    setInterval(
+      () => {
+        const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
+        const heartbeatThreshold = 15 * 60 * 1000; // 15 minutes
+
+        if (timeSinceLastHeartbeat > heartbeatThreshold) {
+          alertManager.critical(
+            "orchestrator",
+            "Heartbeat missed - orchestrator may be hung",
+            {
+              timeSinceLastHeartbeatMs: timeSinceLastHeartbeat,
+            },
+          );
+        }
+      },
+      10 * 60 * 1000,
+    ); // Check every 10 minutes
+
+    // Cleanup old alerts periodically
+    setInterval(
+      () => {
+        alertManager.cleanup(48); // Keep alerts for 48 hours
+      },
+      6 * 60 * 60 * 1000,
+    ); // Clean up every 6 hours
+
+    console.log("[orchestrator] 🔔 Alerts configured and monitoring started");
+    console.log(
+      "[orchestrator] Scheduled 3 cron jobs: nightly-batch (11pm), send-digest (6am), heartbeat (5min)",
     );
-  }
-  if (staleRecoveryCount > 0) {
-    console.warn(
-      `[orchestrator] dropped ${staleRecoveryCount} stale persisted retry recovery record(s) during startup reconciliation`,
-    );
-  }
+
+    // ============================================================
+    // Phase 5: Knowledge Base Automation
+    // ============================================================
+
+    if (!fastStartMode) {
+      await knowledgeIntegration.start();
+    } else {
+      console.log(
+        "[orchestrator] fast-start: skipping knowledge integration startup",
+      );
+    }
+
+    queue.enqueue("startup", { reason: "orchestrator boot" });
+  };
 
   const taskHistoryLimit = Number.isFinite(config.taskHistoryLimit)
     ? Math.max(
@@ -11013,89 +11106,6 @@ async function bootstrap() {
       await flushState();
     }
   });
-
-  if (state.taskRetryRecoveries.length > 0) {
-    for (const recovery of state.taskRetryRecoveries) {
-      scheduleRetryRecovery(recovery);
-    }
-    console.log(
-      `[orchestrator] scheduled ${state.taskRetryRecoveries.length} persisted retry recovery task(s) after startup`,
-    );
-  }
-
-  for (const indexer of indexers) {
-    indexer.watch((doc) => {
-      queue.enqueue("doc-change", {
-        path: doc.path,
-        lastModified: doc.lastModified,
-      });
-    });
-  }
-
-  // CRON SCHEDULING (replaces setInterval)
-
-  // 11:00 PM UTC: Nightly batch (doc-sync + mark high-confidence items for drafting)
-  cron.schedule(config.nightlyBatchSchedule || "0 23 * * *", () => {
-    console.log("[cron] nightly-batch triggered");
-    queue.enqueue("nightly-batch", { reason: "scheduled" });
-  });
-
-  // 6:00 AM UTC: Send morning digest notification
-  cron.schedule(config.morningNotificationSchedule || "0 6 * * *", () => {
-    console.log("[cron] send-digest triggered");
-    queue.enqueue("send-digest", { reason: "scheduled" });
-  });
-
-  // 5-minute heartbeat for health checks (keeps background monitoring)
-  let lastHeartbeatTime = Date.now();
-  cron.schedule("*/5 * * * *", () => {
-    lastHeartbeatTime = Date.now();
-    queue.enqueue("heartbeat", { reason: "periodic" });
-  });
-
-  // Monitor heartbeat failures (detect if orchestrator is hung)
-  setInterval(
-    () => {
-      const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
-      const heartbeatThreshold = 15 * 60 * 1000; // 15 minutes
-
-      if (timeSinceLastHeartbeat > heartbeatThreshold) {
-        alertManager.critical(
-          "orchestrator",
-          "Heartbeat missed - orchestrator may be hung",
-          {
-            timeSinceLastHeartbeatMs: timeSinceLastHeartbeat,
-          },
-        );
-      }
-    },
-    10 * 60 * 1000,
-  ); // Check every 10 minutes
-
-  // Cleanup old alerts periodically
-  setInterval(
-    () => {
-      alertManager.cleanup(48); // Keep alerts for 48 hours
-    },
-    6 * 60 * 60 * 1000,
-  ); // Clean up every 6 hours
-
-  console.log("[orchestrator] 🔔 Alerts configured and monitoring started");
-  console.log(
-    "[orchestrator] Scheduled 3 cron jobs: nightly-batch (11pm), send-digest (6am), heartbeat (5min)",
-  );
-
-  // ============================================================
-  // Phase 5: Knowledge Base Automation
-  // ============================================================
-
-  if (!fastStartMode) {
-    await knowledgeIntegration.start();
-  } else {
-    console.log(
-      "[orchestrator] fast-start: skipping knowledge integration startup",
-    );
-  }
 
   // ============================================================
   // Setup HTTP Server for Metrics & Alert Webhooks (Phase 2, 3, 5)
@@ -12952,6 +12962,9 @@ async function bootstrap() {
     console.log(`[orchestrator] HTTP server listening on port ${PORT}`);
     void warmDocumentIndexInBackground();
     scheduleAgentOperationalOverviewWarm(state, 1000);
+    void completeDeferredStartup().catch((error) => {
+      console.error("[orchestrator] deferred startup failed:", error);
+    });
     console.log(
       `[orchestrator] ⚠️  AUTHENTICATION ENABLED - API key required for protected endpoints`,
     );
@@ -13016,8 +13029,6 @@ async function bootstrap() {
     console.log("[orchestrator] Received SIGINT, initiating shutdown...");
     process.emit("SIGTERM");
   });
-
-  queue.enqueue("startup", { reason: "orchestrator boot" });
 }
 
 if (process.env.OPENCLAW_SKIP_BOOTSTRAP !== "true") {
