@@ -6,6 +6,20 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import { str, toArray, toNullableString } from "@/lib/safe-render";
 import { useMemo } from "react";
 
+interface OperatorSignalCardVM {
+  id: string;
+  title: string;
+  status: string;
+  summary: string;
+  details: string[];
+}
+
+interface OperatorSignalDeckVM {
+  title: string;
+  summary: string;
+  cards: OperatorSignalCardVM[];
+}
+
 function TimelineTone({ tone }: { tone: "healthy" | "warning" | "error" | "info" | "neutral" }) {
   const className =
     tone === "healthy"
@@ -79,6 +93,409 @@ function buildKnowledgeFreshnessVM(runResult?: unknown) {
   };
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function normalizeStringList(value: unknown, limit = 3) {
+  return toArray<string>(value)
+    .map((entry) => str(entry, "").trim())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function compactDetails(details: Array<string | null | undefined | false>, limit = 3) {
+  return details
+    .filter((detail): detail is string => typeof detail === "string" && detail.trim().length > 0)
+    .slice(0, limit);
+}
+
+function mapQaClosureStatus(allowClosure: boolean, decision: string) {
+  if (allowClosure) return "ready";
+  if (decision === "escalate") return "blocked";
+  return "watching";
+}
+
+function mapReproducibilityStatus(value: string) {
+  if (value === "verified") return "ready";
+  if (value === "unproven") return "watching";
+  return "blocked";
+}
+
+function mapSignalPresenceStatus(count: number, blocked = false) {
+  if (blocked) return "blocked";
+  return count > 0 ? "watching" : "ready";
+}
+
+function buildQaSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const closureRecommendation = asRecord(raw.closureRecommendation);
+  const acceptanceCoverage = asRecord(raw.acceptanceCoverage);
+  const verificationAuthority = asRecord(raw.verificationAuthority);
+  const reproducibilityProfile = asRecord(raw.reproducibilityProfile);
+  const closureContract = asRecord(raw.closureContract);
+
+  if (
+    !closureRecommendation &&
+    !acceptanceCoverage &&
+    !verificationAuthority &&
+    !reproducibilityProfile &&
+    !closureContract
+  ) {
+    return null;
+  }
+
+  const decision = str(closureRecommendation?.decision, "keep-open");
+  const allowClosure = closureRecommendation?.allowClosure === true;
+  const authorityLevel = str(verificationAuthority?.authorityLevel, "advisory");
+  const closeAllowed = closureContract?.closeAllowed === true;
+  const unresolvedSignals =
+    typeof closureContract?.unresolvedSignals === "number" ? closureContract.unresolvedSignals : 0;
+  const recommendedEvidence = normalizeStringList(verificationAuthority?.requiredEvidence, 2);
+  const followups = normalizeStringList(closureContract?.requiredFollowups, 2);
+
+  return {
+    title: "Verification Control Deck",
+    summary: "Closure, evidence, and reproducibility posture for this verification run.",
+    cards: [
+      {
+        id: "qa-closure",
+        title: "Closure Decision",
+        status: mapQaClosureStatus(allowClosure, decision),
+        summary: str(
+          closureRecommendation?.summary,
+          "No closure recommendation was recorded for this verification run.",
+        ),
+        details: compactDetails([
+          `Authority: ${authorityLevel} for ${str(verificationAuthority?.targetKind, "workspace")}.`,
+          `Coverage: ${str(acceptanceCoverage?.closureReadiness, "needs-evidence")} via ${str(
+            acceptanceCoverage?.acceptanceMode,
+            "evidence-review",
+          )}.`,
+          recommendedEvidence.length > 0
+            ? `Evidence still expected: ${recommendedEvidence.join(", ")}.`
+            : null,
+        ]),
+      },
+      {
+        id: "qa-reproducibility",
+        title: "Reproducibility",
+        status: mapReproducibilityStatus(str(reproducibilityProfile?.reproducibility, "unproven")),
+        summary: `Evidence quality is ${str(
+          reproducibilityProfile?.evidenceQuality,
+          "minimal",
+        )} with ${str(reproducibilityProfile?.regressionRisk, "unknown")} regression risk.`,
+        details: compactDetails([
+          `Workflow stop signals: ${str(reproducibilityProfile?.workflowStopSignals, "0")}.`,
+          `Repairs referenced: ${str(reproducibilityProfile?.repairCount, "0")} · relationships carried: ${str(
+            reproducibilityProfile?.relationshipCount,
+            "0",
+          )}.`,
+          `Priority incidents in scope: ${str(reproducibilityProfile?.priorityIncidentCount, "0")}.`,
+        ]),
+      },
+      {
+        id: "qa-contract",
+        title: "Closure Contract",
+        status: closeAllowed ? "ready" : unresolvedSignals > 0 ? "blocked" : "watching",
+        summary: closeAllowed
+          ? "The verification contract allows closure if downstream evidence stays intact."
+          : "The verification contract still carries unresolved signals or follow-up work.",
+        details: compactDetails([
+          `Target: ${str(closureContract?.targetKind, "workspace")} ${str(
+            closureContract?.targetId,
+            "pending",
+          )}.`,
+          `Reopen on failure: ${closureContract?.reopenOnFailure === true ? "yes" : "no"} · unresolved signals: ${unresolvedSignals}.`,
+          followups.length > 0 ? `Follow-ups: ${followups.join(", ")}.` : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildSecuritySignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const remediationClosure = asRecord(raw.remediationClosure);
+  const regressionReview = asRecord(raw.regressionReview);
+  const remediationDepth = asRecord(raw.remediationDepth);
+  const routeBoundaryWatch = asRecord(raw.routeBoundaryWatch);
+  const exploitabilityRanking = toArray<Record<string, unknown>>(raw.exploitabilityRanking);
+
+  if (
+    !remediationClosure &&
+    !regressionReview &&
+    !remediationDepth &&
+    !routeBoundaryWatch &&
+    exploitabilityRanking.length === 0
+  ) {
+    return null;
+  }
+
+  const topExploitability = exploitabilityRanking[0];
+  const closureBlockers = normalizeStringList(remediationClosure?.closureBlockers, 2);
+
+  return {
+    title: "Security Closure Deck",
+    summary: "Trust-boundary closure, exploitability ranking, and remediation depth for this audit.",
+    cards: [
+      {
+        id: "security-closure",
+        title: "Remediation Closure",
+        status: str(remediationClosure?.status, "watching"),
+        summary: `High-risk findings: ${str(remediationClosure?.highRiskCount, "0")} · ownerless priorities: ${str(
+          remediationClosure?.ownerlessPriorityCount,
+          "0",
+        )}.`,
+        details: compactDetails([
+          `Verifier recommended: ${remediationClosure?.verifierRecommended === true ? "yes" : "no"}.`,
+          closureBlockers.length > 0 ? `Blockers: ${closureBlockers.join(", ")}.` : null,
+        ]),
+      },
+      {
+        id: "security-exploitability",
+        title: "Exploitability Ranking",
+        status: exploitabilityRanking.length > 0 ? "watching" : "ready",
+        summary: topExploitability
+          ? `${str(topExploitability.severity, "HIGH")} finding ${str(
+              topExploitability.findingId,
+              "finding",
+            )} leads the queue at ${str(topExploitability.location, "unknown location")}.`
+          : "No exploitability ranking was emitted for this run.",
+        details: compactDetails([
+          topExploitability
+            ? `Top boundary: ${str(topExploitability.trustBoundary, "general")} · combined score ${str(
+                topExploitability.combinedScore,
+                "0",
+              )}.`
+            : null,
+          topExploitability
+            ? `Containment: ${str(topExploitability.containment, "No containment guidance recorded.")}.`
+            : null,
+          exploitabilityRanking.length > 1
+            ? `${exploitabilityRanking.length - 1} more ranked finding(s) remain in the review queue.`
+            : null,
+        ]),
+      },
+      {
+        id: "security-regression",
+        title: "Regression Review",
+        status: str(regressionReview?.status, "watching"),
+        summary: `Permission drift incidents: ${str(
+          regressionReview?.permissionDriftCount,
+          "0",
+        )} · recurring boundary incidents: ${str(regressionReview?.recurringBoundaryCount, "0")}.`,
+        details: compactDetails([
+          `Rollback-ready fixes: ${str(regressionReview?.rollbackReadyFixCount, "0")}.`,
+          routeBoundaryWatch
+            ? `Route boundary watch is ${str(routeBoundaryWatch.status, "nominal")} with ${str(
+                routeBoundaryWatch.unprotectedRouteCount,
+                "0",
+              )} unprotected route(s).`
+            : null,
+          remediationDepth
+            ? `Remediation depth is ${str(remediationDepth.status, "watching")} with ${str(
+                remediationDepth.rollbackSensitiveFixCount,
+                "0",
+              )} rollback-sensitive fix(es).`
+            : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildSystemMonitorSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const operationalDiagnosis = asRecord(raw.operationalDiagnosis);
+  const dependencyHealth = asRecord(raw.dependencyHealth);
+  const operatorClosureEvidence = asRecord(raw.operatorClosureEvidence);
+  const operatorActions = toArray<Record<string, unknown>>(raw.operatorActions);
+  const earlyWarnings = toArray<Record<string, unknown>>(raw.earlyWarnings);
+
+  if (
+    !operationalDiagnosis &&
+    !dependencyHealth &&
+    !operatorClosureEvidence &&
+    operatorActions.length === 0 &&
+    earlyWarnings.length === 0
+  ) {
+    return null;
+  }
+
+  const topAction = operatorActions[0];
+  const topWarning = earlyWarnings[0];
+
+  return {
+    title: "Monitoring Control Deck",
+    summary: "Operational diagnosis, dependency health, and closure-readiness guidance for this runtime pass.",
+    cards: [
+      {
+        id: "monitor-diagnosis",
+        title: "Operational Diagnosis",
+        status: str(operationalDiagnosis?.status, "watching"),
+        summary: `Dominant risk: ${str(operationalDiagnosis?.dominantRisk, "none recorded")} · ${str(
+          operationalDiagnosis?.diagnosisCount,
+          "0",
+        )} diagnosis item(s) active.`,
+        details: compactDetails([
+          `Dependency health: ${str(operationalDiagnosis?.dependencyStatus, str(dependencyHealth?.status, "healthy"))}.`,
+          `Trust boundary posture: ${str(operationalDiagnosis?.trustBoundaryStatus, "nominal")} · budget posture: ${str(
+            operationalDiagnosis?.budgetStatus,
+            "unknown",
+          )}.`,
+          `Prioritized operator actions: ${str(operationalDiagnosis?.operatorActionCount, "0")} · remediation queue depth: ${str(
+            operationalDiagnosis?.remediationQueueDepth,
+            "0",
+          )}.`,
+        ]),
+      },
+      {
+        id: "monitor-actions",
+        title: "Operator Actions",
+        status: mapSignalPresenceStatus(
+          operatorActions.length,
+          str(topAction?.priority, "") === "critical",
+        ),
+        summary: topAction
+          ? str(topAction.summary, "No operator action summary recorded.")
+          : "No prioritized operator actions were emitted for this monitoring pass.",
+        details: compactDetails([
+          topAction ? `Highest priority owner: ${str(topAction.owner, "operator")}.` : null,
+          topWarning
+            ? `Nearest warning: ${str(topWarning.summary, "warning")} → ${str(
+                topWarning.predictedImpact,
+                "impact not recorded",
+              )}.`
+            : null,
+          operatorActions.length > 1
+            ? `${operatorActions.length - 1} more action(s) remain in the queue.`
+            : null,
+        ]),
+      },
+      {
+        id: "monitor-closure",
+        title: "Closure Readiness",
+        status: str(operatorClosureEvidence?.status, "watching"),
+        summary: `Open critical incidents: ${str(
+          operatorClosureEvidence?.openCriticalIncidents,
+          "0",
+        )} · verifier-sensitive incidents: ${str(operatorClosureEvidence?.verifierSensitiveIncidents, "0")}.`,
+        details: compactDetails([
+          `Ownerless incidents: ${str(operatorClosureEvidence?.ownerlessIncidents, "0")} · proof freshness: ${str(
+            operatorClosureEvidence?.proofFreshness,
+            "empty",
+          )}.`,
+          dependencyHealth
+            ? `Blocked workflows: ${str(dependencyHealth.blockedWorkflowCount, "0")} · retry recoveries: ${str(
+                dependencyHealth.retryRecoveryCount,
+                "0",
+              )}.`
+            : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildSkillAuditSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const trustPosture = asRecord(raw.trustPosture);
+  const policyHandoff = asRecord(raw.policyHandoff);
+  const telemetryHandoff = asRecord(raw.telemetryHandoff);
+  const restartSafetySummary = asRecord(raw.restartSafetySummary);
+
+  if (!trustPosture && !policyHandoff && !telemetryHandoff && !restartSafetySummary) {
+    return null;
+  }
+
+  const pendingReviewSkills = normalizeStringList(policyHandoff?.pendingReviewSkills, 3);
+  const metadataOnlySkills = normalizeStringList(policyHandoff?.metadataOnlySkills, 2);
+  const riskySkillIds = normalizeStringList(telemetryHandoff?.riskySkillIds, 2);
+  const missingSkillIds = normalizeStringList(telemetryHandoff?.missingSkillIds, 2);
+
+  return {
+    title: "Governance Adoption Deck",
+    summary: "Trust posture, policy handoff, telemetry pressure, and restart safety for this audit.",
+    cards: [
+      {
+        id: "skill-trust",
+        title: "Trust Posture",
+        status: str(trustPosture?.status, "watching"),
+        summary: `Pending review: ${str(trustPosture?.pendingReviewCount, "0")} · approved: ${str(
+          trustPosture?.approvedCount,
+          "0",
+        )}.`,
+        details: compactDetails([
+          `Restart-safe approved: ${str(trustPosture?.restartSafeApprovedCount, "0")} · metadata-only: ${str(
+            trustPosture?.metadataOnlyCount,
+            "0",
+          )}.`,
+          `Missing registry entries: ${str(trustPosture?.missingRegistryCount, "0")}.`,
+        ]),
+      },
+      {
+        id: "skill-policy",
+        title: "Policy Handoff",
+        status: str(policyHandoff?.status, "clear"),
+        summary:
+          pendingReviewSkills.length > 0
+            ? `Pending review skills: ${pendingReviewSkills.join(", ")}.`
+            : "No pending-review skills are blocking policy handoff.",
+        details: compactDetails([
+          metadataOnlySkills.length > 0
+            ? `Metadata-only skills: ${metadataOnlySkills.join(", ")}.`
+            : null,
+        ]),
+      },
+      {
+        id: "skill-telemetry",
+        title: "Telemetry Handoff",
+        status:
+          str(telemetryHandoff?.status, "quiet") === "alert"
+            ? "blocked"
+            : str(telemetryHandoff?.status, "quiet") === "watch"
+              ? "watching"
+              : "ready",
+        summary:
+          riskySkillIds.length > 0
+            ? `Risky skill activity surfaced for ${riskySkillIds.join(", ")}.`
+            : "No risky governed skill telemetry needs intervention right now.",
+        details: compactDetails([
+          missingSkillIds.length > 0
+            ? `Missing telemetry coverage: ${missingSkillIds.join(", ")}.`
+            : null,
+        ]),
+      },
+      {
+        id: "skill-restart",
+        title: "Restart Safety",
+        status: str(restartSafetySummary?.status, "stable"),
+        summary: `Restart-safe skills: ${str(
+          restartSafetySummary?.restartSafeCount,
+          "0",
+        )} · needs review: ${str(restartSafetySummary?.needsReviewCount, "0")}.`,
+        details: compactDetails([
+          `Executable approved: ${str(restartSafetySummary?.executableApprovedCount, "0")} · pending review: ${str(
+            restartSafetySummary?.pendingReviewCount,
+            "0",
+          )}.`,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildOperatorSignalDeckVM(runType: string | null | undefined, runResult?: unknown) {
+  const raw = asRecord(runResult);
+  if (!runType || !raw) return null;
+
+  if (runType === "qa-verification") return buildQaSignalDeck(raw);
+  if (runType === "security-audit") return buildSecuritySignalDeck(raw);
+  if (runType === "system-monitor") return buildSystemMonitorSignalDeck(raw);
+  if (runType === "skill-audit") return buildSkillAuditSignalDeck(raw);
+
+  return null;
+}
+
 export function TaskRunDetailContent({
   run,
   runResult,
@@ -91,6 +508,10 @@ export function TaskRunDetailContent({
   const timelineEvents = useMemo(() => (run ? buildTimelineEvents(run) : []), [run]);
   const specialistContract = useMemo(() => buildSpecialistContractVM(runResult), [runResult]);
   const knowledgeFreshness = useMemo(() => buildKnowledgeFreshnessVM(runResult), [runResult]);
+  const operatorSignalDeck = useMemo(
+    () => buildOperatorSignalDeckVM(run?.type, runResult),
+    [run?.type, runResult],
+  );
 
   if (isLoading) {
     return (
@@ -353,6 +774,44 @@ export function TaskRunDetailContent({
                 <p key={`freshness-warning-${index}`} className="text-[10px] font-mono text-status-warning leading-relaxed">
                   {warning}
                 </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {operatorSignalDeck && operatorSignalDeck.cards.length > 0 && (
+          <div className="console-inset p-3 rounded-sm space-y-3">
+            <div className="space-y-1">
+              <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+                {operatorSignalDeck.title}
+              </p>
+              <p className="text-[10px] font-mono text-foreground leading-relaxed">
+                {operatorSignalDeck.summary}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+              {operatorSignalDeck.cards.map((card) => (
+                <div key={card.id} className="activity-cell p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-mono font-semibold uppercase tracking-wide text-foreground">
+                      {card.title}
+                    </p>
+                    <StatusBadge label={card.status} size="sm" />
+                  </div>
+                  <p className="text-[10px] font-mono text-foreground leading-relaxed">{card.summary}</p>
+                  {card.details.length > 0 && (
+                    <div className="space-y-1">
+                      {card.details.map((detail, index) => (
+                        <p
+                          key={`${card.id}-detail-${index}`}
+                          className="text-[10px] font-mono text-muted-foreground leading-relaxed"
+                        >
+                          {detail}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>

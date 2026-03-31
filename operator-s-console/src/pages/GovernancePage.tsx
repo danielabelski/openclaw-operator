@@ -42,6 +42,19 @@ interface AuditRowVM {
   timestamp: string;
 }
 
+interface OperatorFocusItemVM {
+  label: string;
+  status: string;
+  detail: string;
+}
+
+interface OperatorFocusVM {
+  status: string;
+  summary: string;
+  items: OperatorFocusItemVM[];
+  nextActions: string[];
+}
+
 function buildGovMetrics(dashboard: any): GovMetricsVM {
   const g = dashboard?.governance ?? {};
   return {
@@ -98,6 +111,105 @@ function buildAuditRows(data: any): { records: AuditRowVM[]; total: number; hasM
   };
 }
 
+function buildOperatorFocusVM(args: {
+  govMetrics: GovMetricsVM;
+  policyVM: PolicyVM | null;
+  telemetryVM: TelemetryVM | null;
+  registryVM: { skills: SkillRowVM[]; total: number };
+}): OperatorFocusVM {
+  const pendingReviewSkills = args.registryVM.skills
+    .filter((skill) => skill.trustStatus === "pending-review")
+    .map((skill) => skill.name);
+  const metadataOnlySkills = args.registryVM.skills
+    .filter((skill) => skill.persistenceMode === "metadata-only")
+    .map((skill) => skill.name);
+
+  const pendingReviewCount = args.policyVM?.pendingReviewCount ?? pendingReviewSkills.length;
+  const deniedCount = args.telemetryVM?.deniedCount ?? 0;
+  const approvals = args.govMetrics.approvals;
+  const retryRecoveries = args.govMetrics.taskRetryRecoveries;
+  const registryCount = args.registryVM.total;
+
+  const items: OperatorFocusItemVM[] = [
+    {
+      label: "Review Backlog",
+      status: pendingReviewCount > 0 ? "review-required" : "ready",
+      detail:
+        pendingReviewCount > 0
+          ? `${pendingReviewCount} governed skill(s) still need review before you widen trust.`
+          : "No governed skill review backlog is blocking promotion right now.",
+    },
+    {
+      label: "Telemetry Pressure",
+      status: deniedCount > 0 ? "alert" : "quiet",
+      detail:
+        deniedCount > 0
+          ? `${deniedCount} invocation(s) were denied; confirm those policy blocks are intentional.`
+          : "Denied governed skill activity is quiet right now.",
+    },
+    {
+      label: "Approval Queue",
+      status: approvals > 0 ? "watching" : "ready",
+      detail:
+        approvals > 0
+          ? `${approvals} approval request(s) are holding governed workflows in place.`
+          : "No approvals are currently holding the governance path open.",
+    },
+    {
+      label: "Registry Posture",
+      status: metadataOnlySkills.length > 0 ? "watch" : "ready",
+      detail:
+        metadataOnlySkills.length > 0
+          ? `${metadataOnlySkills.length} metadata-only skill(s) still need executable trust decisions.`
+          : registryCount > 0
+            ? `Governed registry covers ${registryCount} skill(s) with no metadata-only drift.`
+            : "No governed skills are registered yet.",
+    },
+  ];
+
+  const nextActions = [
+    pendingReviewCount > 0
+      ? `Review ${pendingReviewCount} governed skill(s) before widening automation access.`
+      : null,
+    pendingReviewSkills.length > 0
+      ? `Start with: ${pendingReviewSkills.slice(0, 3).join(", ")}.`
+      : null,
+    deniedCount > 0
+      ? `Inspect ${deniedCount} denied skill invocation(s) to confirm policy blocks are intentional.`
+      : null,
+    approvals > 0
+      ? `Clear ${approvals} pending approval request(s) so governed workflows can proceed.`
+      : null,
+    retryRecoveries > 0
+      ? `Review ${retryRecoveries} retry recovery event(s) for recurring governance or permission drift.`
+      : null,
+    metadataOnlySkills.length > 0
+      ? `Decide whether ${metadataOnlySkills.slice(0, 2).join(", ")} should stay metadata-only or graduate to restart-safe execution.`
+      : null,
+  ].filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+
+  const status =
+    pendingReviewCount > 0 || deniedCount > 0
+      ? "blocked"
+      : approvals > 0 || retryRecoveries > 0 || metadataOnlySkills.length > 0
+        ? "watching"
+        : "ready";
+
+  const summary =
+    status === "blocked"
+      ? "Governed skill posture needs operator review before you broaden automation or treat the trust model as settled."
+      : status === "watching"
+        ? "Governance is usable, but there is still review or approval pressure worth clearing before it turns into drift."
+        : "Governed skill posture is quiet. No immediate review, denial, or approval backlog is blocking operator confidence.";
+
+  return {
+    status,
+    summary,
+    items,
+    nextActions,
+  };
+}
+
 export default function GovernancePage() {
   const { data: dashboard, isLoading: dashLoading } = useDashboardOverview();
   const { data: policy } = useSkillsPolicy();
@@ -112,6 +224,16 @@ export default function GovernancePage() {
   const telemetryVM = useMemo(() => buildTelemetryVM(telemetry), [telemetry]);
   const registryVM = useMemo(() => buildSkillRows(registry), [registry]);
   const auditVM = useMemo(() => buildAuditRows(audit), [audit]);
+  const operatorFocus = useMemo(
+    () =>
+      buildOperatorFocusVM({
+        govMetrics,
+        policyVM,
+        telemetryVM,
+        registryVM,
+      }),
+    [govMetrics, policyVM, telemetryVM, registryVM],
+  );
 
   if (dashLoading || !dashboard) {
     return (
@@ -136,6 +258,49 @@ export default function GovernancePage() {
           Governance posture and backlog pressure. Visibility surface — not a full control plane.
         </p>
       </div>
+
+      <SummaryCard
+        title="Operator Focus"
+        icon={<ShieldCheck className="w-4 h-4" />}
+        variant={operatorFocus.status === "ready" ? "highlight" : "warning"}
+        headerAction={<StatusBadge label={operatorFocus.status} size="sm" />}
+      >
+        <div className="space-y-3">
+          <p className="text-[11px] font-mono text-foreground leading-relaxed">
+            {operatorFocus.summary}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+            {operatorFocus.items.map((item) => (
+              <div key={item.label} className="activity-cell p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-mono font-semibold uppercase tracking-wide text-foreground">
+                    {item.label}
+                  </p>
+                  <StatusBadge label={item.status} size="sm" />
+                </div>
+                <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                  {item.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+          {operatorFocus.nextActions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+                Operator Actions
+              </p>
+              {operatorFocus.nextActions.map((action, index) => (
+                <p
+                  key={`governance-action-${index}`}
+                  className="text-[10px] font-mono text-foreground leading-relaxed"
+                >
+                  {index + 1}. {action}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      </SummaryCard>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <MetricModule

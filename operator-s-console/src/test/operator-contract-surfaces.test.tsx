@@ -8,6 +8,7 @@ import KnowledgePage from "@/pages/KnowledgePage";
 import PublicProofPage from "@/pages/PublicProofPage";
 import SystemHealthPage from "@/pages/SystemHealthPage";
 import TasksPage from "@/pages/TasksPage";
+import GovernancePage from "@/pages/GovernancePage";
 import { TaskRunDetailContent } from "@/components/console/TaskRunDetailContent";
 import * as consoleHooks from "@/hooks/use-console-api";
 import * as publicSurfaceHooks from "@/hooks/use-public-surface-api";
@@ -494,6 +495,230 @@ describe("operator contract surfaces", () => {
     expect(screen.getByText("Heartbeat proof published.")).toBeInTheDocument();
     expect(screen.getByText("Ingress")).toBeInTheDocument();
     expect(screen.getByText("Stop Classification")).toBeInTheDocument();
+  });
+
+  it("renders verification control signals in run detail for qa-verification", () => {
+    render(
+      <TaskRunDetailContent
+        isLoading={false}
+        run={{
+          runId: "run-qa-1",
+          type: "qa-verification",
+          status: "success",
+          createdAt: "2026-03-11T10:00:00.000Z",
+          startedAt: "2026-03-11T10:00:01.000Z",
+          completedAt: "2026-03-11T10:00:08.000Z",
+          model: "gpt-4.1-mini",
+          cost: 0.01,
+          latency: 700,
+          usage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+          budget: null,
+          accounting: null,
+          error: null,
+          lastHandledAt: "2026-03-11T10:00:08.000Z",
+          repair: null,
+          history: [],
+          attempt: 1,
+          maxRetries: 1,
+          workflow: {
+            stage: "completed",
+            graphStatus: "completed",
+            currentStage: "proof",
+            blockedStage: null,
+            stopReason: null,
+            stopClassification: "completed",
+            awaitingApproval: false,
+            retryScheduled: false,
+            nextRetryAt: null,
+            repairStatus: null,
+            eventCount: 2,
+            latestEventAt: "2026-03-11T10:00:08.000Z",
+            stageDurations: {},
+            timingBreakdown: {},
+            nodeCount: 3,
+            edgeCount: 2,
+          },
+          approval: {
+            required: false,
+            status: null,
+            requestedAt: null,
+            decidedAt: null,
+            decidedBy: null,
+            note: null,
+          },
+          events: [],
+          workflowGraph: null,
+          proofLinks: [],
+        }}
+        runResult={{
+          operatorSummary:
+            "Verification can close the incident once the final verifier note is attached to the repair record.",
+          recommendedNextActions: ["Attach the verifier note to the incident before closing it."],
+          specialistContract: {
+            role: "Reality Checker",
+            workflowStage: "closure-review",
+            status: "watching",
+            operatorSummary:
+              "Verification can close the incident once the final verifier note is attached to the repair record.",
+            recommendedNextActions: ["Attach the verifier note to the incident before closing it."],
+          },
+          closureRecommendation: {
+            decision: "keep-open",
+            allowClosure: false,
+            summary:
+              "Verification passed the bounded checks, but the incident should stay open until the verifier note is attached.",
+            nextActions: ["Attach verifier note", "Close incident once evidence is linked"],
+          },
+          acceptanceCoverage: {
+            closureReadiness: "needs-evidence",
+            acceptanceMode: "hybrid",
+            evidenceAnchorsSupplied: 2,
+            runtimeSignals: 4,
+          },
+          verificationAuthority: {
+            authorityLevel: "conditional",
+            targetKind: "incident",
+            targetId: "inc-42",
+            requiredEvidence: ["verifier note", "repair link"],
+          },
+          reproducibilityProfile: {
+            reproducibility: "verified",
+            evidenceQuality: "strong",
+            regressionRisk: "low",
+            workflowStopSignals: 0,
+            repairCount: 1,
+            relationshipCount: 2,
+            priorityIncidentCount: 1,
+          },
+          closureContract: {
+            targetKind: "incident",
+            targetId: "inc-42",
+            closeAllowed: false,
+            reopenOnFailure: true,
+            unresolvedSignals: 1,
+            requiredFollowups: ["Attach verifier note"],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Verification Control Deck")).toBeInTheDocument();
+    expect(screen.getByText("Closure Decision")).toBeInTheDocument();
+    expect(screen.getByText("Reproducibility")).toBeInTheDocument();
+    expect(screen.getByText("Closure Contract")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Verification passed the bounded checks, but the incident should stay open until the verifier note is attached.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Evidence still expected: verifier note, repair link.")).toBeInTheDocument();
+    expect(screen.getByText("Follow-ups: Attach verifier note.")).toBeInTheDocument();
+  });
+
+  it("renders operator focus actions on the governance page", () => {
+    vi.mocked(consoleHooks.useDashboardOverview).mockReturnValue({
+      data: {
+        governance: {
+          approvals: 2,
+          taskRetryRecoveries: 1,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useDashboardOverview>);
+
+    vi.mocked(consoleHooks.useSkillsPolicy).mockReturnValue({
+      data: {
+        policy: {
+          totalCount: 5,
+          pendingReviewCount: 2,
+          approvedCount: 3,
+          restartSafeCount: 2,
+        },
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useSkillsPolicy>);
+
+    vi.mocked(consoleHooks.useSkillsTelemetry).mockReturnValue({
+      data: {
+        telemetry: {
+          totalInvocations: 20,
+          allowedCount: 17,
+          deniedCount: 3,
+        },
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useSkillsTelemetry>);
+
+    vi.mocked(consoleHooks.useSkillsRegistry).mockReturnValue({
+      data: {
+        total: 2,
+        skills: [
+          {
+            skillId: "skill-a",
+            name: "Skill A",
+            trustStatus: "pending-review",
+            intakeSource: "agent-config",
+            persistenceMode: "metadata-only",
+            description: "Needs review",
+          },
+          {
+            skillId: "skill-b",
+            name: "Skill B",
+            trustStatus: "review-approved",
+            intakeSource: "agent-config",
+            persistenceMode: "restart-safe",
+            description: "Approved",
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof consoleHooks.useSkillsRegistry>);
+
+    vi.mocked(consoleHooks.useSkillsAudit).mockReturnValue({
+      data: {
+        records: [],
+        total: 0,
+        page: {
+          hasMore: false,
+          returned: 0,
+        },
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof consoleHooks.useSkillsAudit>);
+
+    render(
+      <MemoryRouter>
+        <GovernancePage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Operator Focus")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Governed skill posture needs operator review before you broaden automation or treat the trust model as settled.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Review 2 governed skill\(s\) before widening automation access\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Inspect 3 denied skill invocation\(s\) to confirm policy blocks are intentional\./i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Decide whether Skill A should stay metadata-only or graduate to restart-safe execution\./i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders build-refactor as an operator-usable bounded surgery lane", () => {
