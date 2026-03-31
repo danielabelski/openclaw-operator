@@ -4,12 +4,12 @@ This is the fastest way to get the repo running as a self-hosted operator
 workspace. The recommended first run is the root local-dev path, which starts
 the orchestrator and serves the canonical operator console at `/operator`.
 
-## Two Deployment Paths
+## Deployment Paths
 
 ### Path A: Recommended First Run (Root Local Dev)
 
 ```bash
-cd workspace
+cd openclaw-operator
 npm install
 cp orchestrator/.env.example orchestrator/.env
 # fill in the required vars in orchestrator/.env
@@ -18,45 +18,60 @@ npm run dev
 
 Open `http://127.0.0.1:3000/operator`.
 
-Config: `workspace/orchestrator_config.json` (repo-relative paths for local dev)
+Config: `./orchestrator_config.json` (repo-relative paths for local dev)
 
-**Systemd service**: `workspace/systemd/orchestrator.service`
+**Systemd service**: `./systemd/orchestrator.service`
 
 ---
 
-### Path B: Docker Compose (full stack)
+### Path B: Official Docker Demo Stack
 
-Brings up orchestrator + MongoDB + Redis + Prometheus.
+This is the supported public Docker path. It brings up the orchestrator,
+MongoDB, and Redis from the repo root and serves the operator console on a
+localhost-only port.
 
 ```bash
-cd workspace/orchestrator
-cp .env.example .env   # if not already done
+cd openclaw-operator
+docker compose up -d --build
+```
+
+Open `http://127.0.0.1:4300/operator`.
+
+Demo bearer keys:
+
+- viewer: `demo-viewer-key-local-only`
+- operator: `demo-operator-key-local-only`
+- admin: `demo-admin-key-local-only`
+
+The Docker quickstart uses `./orchestrator/orchestrator_config.json`
+inside the container image and keeps the default host exposure on
+`127.0.0.1:4300` so it does not collide with the common repo-native dev port.
+
+If you want real provider keys, different ports, or non-demo credentials:
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+# edit docker-compose.override.yml
+docker compose up -d --build
+```
+
+### Path C: Advanced Observability Stack
+
+Use `./orchestrator/docker-compose.yml` only when you intentionally
+want the heavier stack with Prometheus, Grafana, and Alertmanager.
+
+```bash
+cd openclaw-operator/orchestrator
+cp .env.example .env
 # fill in all required vars (see below)
-docker-compose up -d
+docker compose up -d --build
 ```
-
-Config: `workspace/orchestrator/orchestrator_config.json` (container resolves
-workspace paths under `/workspace/*`)
-
-### Path C: Docker Compose (minimal container only)
-
-Use this when you already have dependency targets provisioned outside the
-container stack and want the orchestrator container plus `/operator` only.
-
-```bash
-cd workspace
-cp orchestrator/.env.example orchestrator/.env
-docker-compose -f docker-compose.yml up -d --build
-```
-
-This path is proven in the current workspace, but it does not launch MongoDB,
-Redis, Prometheus, or Grafana for you.
 
 ---
 
 ## Environment Variables
 
-All vars live in `workspace/orchestrator/.env`.
+Local root dev vars live in `./orchestrator/.env`.
 
 | Variable | Required | Notes |
 |---|---|---|
@@ -71,6 +86,14 @@ All vars live in `workspace/orchestrator/.env`.
 | `ANTHROPIC_API_KEY` | Optional | Needed only for Anthropic-backed paths you enable |
 | `SLACK_ERROR_WEBHOOK` | Optional | Alert delivery to Slack |
 
+Docker demo note:
+
+- the official root Docker path ships demo-local auth/database/cache
+  credentials directly in `docker-compose.yml`
+- that makes first boot easy, but those values are only for localhost try-outs
+- replace them through `docker-compose.override.yml` before any shared or
+  non-local deployment
+
 ---
 
 ## Verify OpenClaw Operator Is Running
@@ -78,9 +101,12 @@ All vars live in `workspace/orchestrator/.env`.
 ```bash
 curl http://127.0.0.1:3000/health
 curl http://127.0.0.1:3000/api/knowledge/summary
+curl http://127.0.0.1:4300/health
 ```
 
-Then open `http://127.0.0.1:3000/operator` and confirm the console loads.
+Then open `http://127.0.0.1:3000/operator` for root local dev or
+`http://127.0.0.1:4300/operator` for the Docker demo and confirm the console
+loads.
 
 ---
 
@@ -112,7 +138,9 @@ Public read-only surfaces:
 
 ## Troubleshooting
 
-**Operator won't start** — missing `API_KEY_ROTATION` or `API_KEY`, or `WEBHOOK_SECRET` in `.env`.
+**Operator won't start** — for root local dev, check `orchestrator/.env` for
+`API_KEY_ROTATION` or `API_KEY`, `WEBHOOK_SECRET`, `DATABASE_URL`, and
+`REDIS_URL`. For Docker demo, run `docker compose logs -f orchestrator`.
 
 **Public proof looks stale** — check `/api/milestones/latest`, `/api/milestones/dead-letter`, and `/api/command-center/overview` before assuming a queue or UI problem.
 
@@ -125,20 +153,20 @@ curl -X POST "$SLACK_ERROR_WEBHOOK" -d '{"text":"test"}'
 
 ## Deployment Checklist
 
-- [ ] `.env` created with all required vars
-- [ ] `npm install` run in `workspace/` (root `postinstall` installs orchestrator and operator console deps)
-- [ ] `npm run dev` rebuilds the operator console bundle and starts the orchestrator from `workspace/`
-- [ ] `http://127.0.0.1:3000/operator` loads the canonical operator console
+- [ ] `.env` created with all required vars for Path A or Path C
+- [ ] `npm install` run in the repo root (root `postinstall` installs orchestrator and operator console deps)
+- [ ] `npm run dev` rebuilds the operator console bundle and starts the orchestrator from the repo root
+- [ ] `http://127.0.0.1:3000/operator` or `http://127.0.0.1:4300/operator` loads the canonical operator console
 - [ ] `/operator` loads the built operator console instead of a fixture bundle
 - [ ] Public proof routes respond from the orchestrator: `/api/milestones/latest` and `/api/command-center/overview`
 
 ## Root Command Hub
 
-The root `workspace/package.json` is now the default command hub for the active
+The root `package.json` is now the default command hub for the active
 control plane:
 
 ```bash
-cd workspace
+cd openclaw-operator
 npm run build
 npm run typecheck
 npm run test

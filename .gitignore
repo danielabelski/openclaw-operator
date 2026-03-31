@@ -36,6 +36,7 @@ npm-debug.log*
 
 # Docker
 .docker/
+docker-compose.override.yml
 
 # deps/build
 **/node_modules/

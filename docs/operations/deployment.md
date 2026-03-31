@@ -15,7 +15,7 @@ This runbook is configuration-driven. Do not hardcode state/log locations in ope
 
 ## Resolve Runtime Paths First
 
-Run from workspace root:
+Run from the repo root:
 
 ```bash
 STATE_FILE=$(jq -r '.stateFile' orchestrator_config.json)
@@ -31,13 +31,12 @@ echo "COOKBOOK_PATH=$COOKBOOK_PATH"
 
 ## Choose Deployment Mode (Non-Interchangeable)
 
-### Mode A: Root Minimal Compose
+### Mode A: Official Public Docker Demo
 
-Use when you only want orchestrator container runtime and already have the
-dependency targets from `orchestrator/.env` available:
+Use the repo-root `docker-compose.yml` when you want the supported public
+container path:
 
 ```bash
-cp orchestrator/.env.example orchestrator/.env
 docker compose -f docker-compose.yml config --services
 docker compose -f docker-compose.yml up -d --build
 docker compose -f docker-compose.yml ps
@@ -45,17 +44,25 @@ docker compose -f docker-compose.yml ps
 
 Operational truth for Mode A:
 
-- fast-start orchestrator only
-- no MongoDB / Redis / Prometheus / Grafana / Alertmanager containers
-- still requires the normal security/env posture from `orchestrator/.env`
-- live-validated in this workspace on `2026-03-20`: container reached healthy
-  `/health` in fast-start mode on port `3000`
-- also serves the canonical `/operator` console from the containerized
-  orchestrator on port `3000`
+- brings up `orchestrator`, `mongo`, and `redis`
+- serves the canonical `/operator` console on `127.0.0.1:4300`
+- ships demo-local auth/database/cache credentials directly in compose so a
+  new user can boot without creating `orchestrator/.env`
+- keeps host exposure localhost-only by default
+- should be treated as a try-it path, not a production credential posture
 
-### Mode B: Full Orchestrator Stack Compose
+Before any shared or non-local deployment:
 
-Use when you need MongoDB + Redis + Prometheus + Grafana + Alertmanager:
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+# edit docker-compose.override.yml with real keys, passwords, and ports
+docker compose -f docker-compose.yml up -d --build
+```
+
+### Mode B: Advanced Observability Compose
+
+Use `orchestrator/docker-compose.yml` only when you intentionally need the
+heavier stack with Prometheus, Grafana, and Alertmanager:
 
 ```bash
 cp orchestrator/.env.example orchestrator/.env
@@ -70,9 +77,7 @@ Operational truth for Mode B:
   the host `.env` used outside Docker points at an external database
 - MongoDB and Redis image versions must stay compatible with any existing named
   volumes on the host
-- compose config resolves cleanly in this workspace on `2026-03-20`
-- this remains the recommended self-contained Docker install path because it
-  bundles the dependency stack instead of relying on external services
+- this is the advanced stack, not the first-run public path
 
 Do not run both modes simultaneously on the same host without port planning.
 If you already have named Docker volumes from newer MongoDB or Redis images,
@@ -85,19 +90,23 @@ compatible with the stored data or reset those volumes intentionally.
 - [ ] `npm --prefix orchestrator run test:integration`
 - [ ] `bash scripts/check-doc-drift.sh`
 - [ ] `jq . orchestrator_config.json >/dev/null`
-- [ ] Required env vars prepared for selected mode:
-  - `API_KEY_ROTATION` or `API_KEY`
-  - `WEBHOOK_SECRET`
-  - `MONGO_USERNAME`
-  - `MONGO_PASSWORD`
-  - `REDIS_PASSWORD`
+- [ ] Required env vars prepared for the selected mode:
+  - Mode A: override file created if you are replacing the built-in demo-local
+    credentials or provider keys
+  - Mode B: `API_KEY_ROTATION` or `API_KEY`
+  - Mode B: `WEBHOOK_SECRET`
+  - Mode B: `MONGO_USERNAME`
+  - Mode B: `MONGO_PASSWORD`
+  - Mode B: `REDIS_PASSWORD`
   - `OPENCLAW_MODEL_PRICING_JSON` if you want to override the built-in model pricing catalog for runtime cost accounting
 
 ## Post-Deployment Verification
 
 - [ ] API health:
   ```bash
-  curl -fsS http://localhost:3000/health
+  curl -fsS http://127.0.0.1:4300/health
+  # or for Mode B:
+  # curl -fsS http://localhost:3000/health
   ```
 - [ ] State file exists at config path:
   ```bash
@@ -160,9 +169,9 @@ If deployment fails:
 
 1. Stop service/stack:
    ```bash
-   docker compose -f orchestrator/docker-compose.yml down
-   # or for root mode:
-   # docker compose -f docker-compose.yml down
+   docker compose -f docker-compose.yml down
+   # or for advanced mode:
+   # docker compose -f orchestrator/docker-compose.yml down
    ```
 2. Checkout a known-good tag or commit (non-destructive):
    ```bash
@@ -180,6 +189,8 @@ If deployment fails:
 
 - Use [RUNBOOK_BOUNDARIES.md](../../operations/RUNBOOK_BOUNDARIES.md) to keep mode decisions consistent.
 - Use [backup-recovery.md](./backup-recovery.md) for state/config backup policy.
+- The official public compose path is the repo-root demo stack on `4300`.
+- The advanced observability stack lives under `orchestrator/docker-compose.yml`.
 - Docker Compose in this repo is orchestrator-only. The retired
   `openclawdbot` package is not part of either compose mode.
 - If docs and code conflict, code/config is canonical and docs must be updated in the same change set.

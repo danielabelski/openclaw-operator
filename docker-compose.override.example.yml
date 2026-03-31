@@ -1,0 +1,17 @@
+services:
+  orchestrator:
+    ports:
+      - "127.0.0.1:4312:3000"
+    environment:
+      API_KEY_ROTATION: >-
+        [{"key":"replace-viewer-key","label":"viewer-key","roles":["viewer"],"expiresAt":"2030-01-01T00:00:00.000Z"},{"key":"replace-operator-key","label":"operator-key","roles":["operator"],"expiresAt":"2030-01-01T00:00:00.000Z"},{"key":"replace-admin-key","label":"admin-key","roles":["admin"],"expiresAt":"2030-01-01T00:00:00.000Z"}]
+      WEBHOOK_SECRET: replace-with-a-real-webhook-secret
+      MONGO_PASSWORD: replace-with-a-real-mongo-password
+      DATABASE_URL: mongodb://demo-orchestrator:replace-with-a-real-mongo-password@mongo:27017/orchestrator?authSource=admin
+      REDIS_PASSWORD: replace-with-a-real-redis-password
+      REDIS_URL: redis://:replace-with-a-real-redis-password@redis:6379/0
+      OPENAI_API_KEY: your-openai-api-key
+      ANTHROPIC_API_KEY: your-anthropic-api-key
+      GITHUB_ACTIONS_MONITOR_ENABLED: "true"
+      GITHUB_ACTIONS_MONITOR_REPO: AyobamiH/openclaw-operator
+      GITHUB_ACTIONS_MONITOR_BRANCH: main

@@ -10,25 +10,28 @@ and serves both the protected operator surface and the public proof surface.
 - `src/taskHandlers.ts`: task allowlist and dispatch logic
 - `src/openapi.ts`: machine-readable route contract for public and protected APIs
 - `orchestrator_config.json`: local runtime configuration
-- `docker-compose.yml`: full local stack for orchestrator + dependencies
+- `docker-compose.yml`: advanced local stack for orchestrator + dependencies
 
 For product-level orientation, start with `../README.md` and
 `../OPENCLAW_CONTEXT_ANCHOR.md`. This README is the internal runtime guide for
 the control plane itself.
 
-## Canonical Local Compose
+## Compose Modes
 
-Use `orchestrator/docker-compose.yml` when you need the full local development
-stack, including the orchestrator and its supporting services.
+The canonical public Docker quickstart now lives at the repo root in
+`../docker-compose.yml`. It is the easiest localhost-only demo path and ships
+demo-local credentials so a new user can boot the product without first
+creating a private `.env`.
 
-The repo root also contains `../docker-compose.yml`, but that file is a smaller
-alternative and is not a drop-in replacement for this one.
+Use `orchestrator/docker-compose.yml` only when you intentionally need the
+heavier local development stack, including Prometheus, Grafana, and
+Alertmanager.
 
-Before using either compose mode, create `orchestrator/.env` from
-`.env.example`. The container startup posture requires
-`API_KEY_ROTATION`/`API_KEY`, `WEBHOOK_SECRET`, `MONGO_USERNAME`,
-`MONGO_PASSWORD`, and `REDIS_PASSWORD`; compose passes those through from the
-env file instead of hardcoding them in YAML.
+For this advanced compose mode, create `orchestrator/.env` from `.env.example`
+first. The container startup posture requires `API_KEY_ROTATION`/`API_KEY`,
+`WEBHOOK_SECRET`, `MONGO_USERNAME`, `MONGO_PASSWORD`, and `REDIS_PASSWORD`;
+compose passes those through from the env file instead of hardcoding them in
+YAML.
 
 The full compose stack intentionally overrides `DATABASE_URL` inside the
 orchestrator container so it always uses the local `mongo` service. That keeps

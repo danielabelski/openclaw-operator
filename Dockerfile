@@ -15,6 +15,7 @@ WORKDIR /workspace/orchestrator
 COPY orchestrator/package.json orchestrator/package-lock.json ./
 RUN npm ci
 
+COPY agents/shared /workspace/agents/shared
 COPY orchestrator ./
 RUN npm run build
 

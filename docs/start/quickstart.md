@@ -41,22 +41,37 @@ Open:
 ```bash
 curl http://127.0.0.1:3000/health
 curl http://127.0.0.1:3000/api/knowledge/summary
+curl http://127.0.0.1:4300/health
 ```
 
 Then authenticate in `/operator` with your bearer token.
 
-## Docker Shortcut
+## Docker Demo Path
 
-If you want the self-contained container stack instead:
+If you want the official public container path instead:
 
 ```bash
-cd orchestrator
-cp .env.example .env
 docker compose up -d --build
 ```
 
-That path uses `orchestrator/orchestrator_config.json` and serves the same
-operator console at `/operator`.
+Open:
+
+- `http://127.0.0.1:4300/operator`
+
+Demo bearer keys:
+
+- viewer: `demo-viewer-key-local-only`
+- operator: `demo-operator-key-local-only`
+- admin: `demo-admin-key-local-only`
+
+This path is localhost-only by default and already carries demo-local auth,
+MongoDB, and Redis credentials so first boot does not require a private `.env`
+file. Before any shared or non-local deployment, copy
+`docker-compose.override.example.yml` to `docker-compose.override.yml` and
+replace the demo values.
+
+If you intentionally want the heavier observability stack instead, use
+`orchestrator/docker-compose.yml` plus `orchestrator/.env`.
 
 ## Important Notes
 

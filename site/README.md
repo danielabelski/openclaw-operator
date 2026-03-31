@@ -251,31 +251,44 @@ Important local note:
   without path rewrites. Change those values only if you intentionally move the
   runtime roots.
 
-## Docker / Cloud Quick Start
+## Docker Quick Start
 
-Use this path when you want a self-contained stack with orchestrator, MongoDB,
-Redis, and Prometheus.
+Use this path when you want the official public demo stack: one compose file at
+the repo root, localhost-only by default, with MongoDB and Redis included.
 
 ```bash
 git clone https://github.com/AyobamiH/openclaw-operator.git
-cd openclaw-operator/orchestrator
-cp .env.example .env
-# fill in .env
-docker compose build
-docker compose up -d
+cd openclaw-operator
+docker compose up -d --build
 ```
 
 Open:
 
-- `http://<your-host>:3000/operator`
+- `http://127.0.0.1:4300/operator`
 
-For containerized deployments, the runtime uses
-[orchestrator/orchestrator_config.json](./orchestrator/orchestrator_config.json),
-which is already shaped for `/workspace/...` paths.
+Local demo bearer keys:
 
-If you only want the bounded operator container and already have external
-dependency services, use the root
-[docker-compose.yml](./docker-compose.yml) instead.
+- viewer: `demo-viewer-key-local-only`
+- operator: `demo-operator-key-local-only`
+- admin: `demo-admin-key-local-only`
+
+Important Docker truth:
+
+- the root [docker-compose.yml](./docker-compose.yml) is now the official
+  public quickstart
+- it is intentionally localhost-only and uses demo-local credentials so a new
+  user can boot the product without first creating a private `.env`
+- provider-backed lanes will stay degraded until you add real provider keys
+- for anything beyond a throwaway local try-out, copy
+  [docker-compose.override.example.yml](./docker-compose.override.example.yml)
+  to `docker-compose.override.yml` and replace the demo credentials before you
+  expose the stack anywhere
+
+Advanced note:
+
+- [orchestrator/docker-compose.yml](./orchestrator/docker-compose.yml) still
+  exists as the heavier observability-focused stack with Prometheus, Grafana,
+  and Alertmanager, but it is no longer the first-run public path
 
 ## Core Product Boundary
 
@@ -344,10 +357,12 @@ After startup, these are the fastest checks:
 ```bash
 curl http://127.0.0.1:3000/health
 curl http://127.0.0.1:3000/api/knowledge/summary
+curl http://127.0.0.1:4300/health
 ```
 
 Then open `/operator`, authenticate with your bearer token, and verify the
-console loads real backend data.
+console loads real backend data. Use `3000` for repo-native local dev and
+`4300` for the Docker demo path.
 
 For a first real workflow, use:
 

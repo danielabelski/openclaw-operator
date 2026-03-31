@@ -6,8 +6,8 @@ one operator UI entrypoint: the orchestrator serves the built
 `operator-s-console` bundle at `/operator`.
 
 > **Two Docker Compose files exist — use the right one:**
-> - `workspace/orchestrator/docker-compose.yml` — **Primary**. Full stack: orchestrator + MongoDB + Redis + Prometheus. Run from `workspace/orchestrator/`.
-> - `workspace/docker-compose.yml` — Minimal workspace-level compose for the bounded operator container. Proven, but not the primary self-contained deployment path.
+> - `./docker-compose.yml` — **Official public quickstart**. Root localhost-only demo stack with orchestrator + MongoDB + Redis.
+> - `./orchestrator/docker-compose.yml` — Advanced observability stack with Prometheus, Grafana, and Alertmanager. Run from `./orchestrator/`.
 
 ## Quick Start (systemd)
 
@@ -19,7 +19,7 @@ one operator UI entrypoint: the orchestrator serves the built
 
 1. **Build the operator workspace:**
 ```bash
-cd workspace
+cd openclaw-operator
 npm install
 npm run build
 ```
@@ -50,83 +50,79 @@ sudo systemctl is-active orchestrator
 
 ---
 
-## Docker Deployment (Primary)
+## Docker Deployment (Official Public Path)
 
-Uses `workspace/orchestrator/docker-compose.yml`. Brings up orchestrator + MongoDB + Redis + Prometheus.
+Uses `./docker-compose.yml`. Brings up orchestrator + MongoDB + Redis.
 The operator console is served by that same orchestrator process at `/operator`;
 there is no second UI server to deploy.
 
 ### Prerequisites
 
-Set all required env vars in `workspace/orchestrator/.env`:
+The official public Docker path ships with demo-local auth/database/cache
+credentials already in `./docker-compose.yml`, so you do not need to
+create `orchestrator/.env` for a first localhost run.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `API_KEY_ROTATION` or `API_KEY` | ✅ | Bearer auth for protected operator APIs |
-| `WEBHOOK_SECRET` | ✅ | Security posture — orchestrator won't start without it |
-| `MONGO_USERNAME` | ✅ | MongoDB auth |
-| `MONGO_PASSWORD` | ✅ | MongoDB auth |
-| `REDIS_PASSWORD` | ✅ | Redis auth |
-| `DATABASE_URL` | ✅ | Full MongoDB URL |
-| `REDIS_URL` | ✅ | Full Redis URL |
-| `OPENAI_API_KEY` | Usually | Needed for the common agent mix |
-| `OPENCLAW_MODEL_PRICING_JSON` | Optional | JSON override for model input/output pricing used by runtime cost accounting |
-| `ANTHROPIC_API_KEY` | Optional | Needed only for Anthropic-backed paths you enable |
-| `SLACK_ERROR_WEBHOOK` | optional | Alert delivery |
+If you want real keys, different ports, or non-demo credentials:
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+# edit docker-compose.override.yml
+```
 
 ### Build and Start
 
 ```bash
-cd workspace/orchestrator
-cp .env.example .env   # then fill in all required vars
-docker-compose build
-docker-compose up -d
+cd openclaw-operator
+docker compose up -d --build
 ```
 
 ### Run with Docker Compose
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View orchestrator logs
-docker-compose logs -f orchestrator
+docker compose logs -f orchestrator
 
 # Check health
 docker ps
-curl http://localhost:3000/health
+curl http://127.0.0.1:4300/health
 ```
 
-### Minimal Container Path (Proven, Not Self-Contained)
-
-Use the root `workspace/docker-compose.yml` when you already have your
-dependency targets provisioned and only want the bounded operator container:
+### Advanced Observability Path
 
 ```bash
-cd workspace
-cp orchestrator/.env.example orchestrator/.env
-docker-compose -f docker-compose.yml up -d --build
-docker-compose -f docker-compose.yml ps
+cd openclaw-operator/orchestrator
+cp .env.example .env
+docker compose up -d --build
+docker compose ps
 curl http://localhost:3000/health
 ```
 
-This path is proven in the current workspace and serves `/operator`, but it is
-fast-start orchestrator only. It does not launch MongoDB, Redis, Prometheus,
-Grafana, or Alertmanager for you.
+Use this only when you intentionally need Prometheus, Grafana, and
+Alertmanager in addition to the core control plane services.
 
 ### Build a standalone image (without compose)
 
+Only use this when you already have external MongoDB and Redis targets
+available. The official first-run Docker path is still `docker compose up` from
+the repo root.
+
 ```bash
-cd workspace
-cp orchestrator/.env.example orchestrator/.env
+cd openclaw-operator
 docker build -f Dockerfile -t openclaw-operator:latest .
 
 docker run -d \
   --name openclaw-operator \
-  -p 127.0.0.1:3000:3000 \
-  --env-file orchestrator/.env \
-  -v "$(pwd)/logs:/workspace/logs" \
-  -v "$(pwd)/orchestrator/data:/workspace/orchestrator/data" \
+  -p 127.0.0.1:4300:3000 \
+  -e API_KEY_ROTATION='[{"key":"demo-operator-key-local-only","label":"operator-key","roles":["operator"],"expiresAt":"2030-01-01T00:00:00.000Z"}]' \
+  -e WEBHOOK_SECRET=demo-local-only-webhook-secret \
+  -e MONGO_USERNAME=demo-orchestrator \
+  -e MONGO_PASSWORD=demo-local-only-mongo-password \
+  -e DATABASE_URL='mongodb://demo-orchestrator:demo-local-only-mongo-password@host.docker.internal:27017/orchestrator?authSource=admin' \
+  -e REDIS_PASSWORD=demo-local-only-redis-password \
+  -e REDIS_URL='redis://:demo-local-only-redis-password@host.docker.internal:6379/0' \
   openclaw-operator:latest
 ```
 

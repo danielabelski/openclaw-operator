@@ -4,56 +4,69 @@
 
 Computed service lists:
 
-- Root stack (`docker-compose -f docker-compose.yml config --services`): `orchestrator`.
-- Full orchestrator stack (`docker-compose -f orchestrator/docker-compose.yml config --services`): `mongo`, `redis`, `orchestrator`, `prometheus`, `grafana`, `alertmanager`.
+- Public demo stack (`docker compose -f docker-compose.yml config --services`): `orchestrator`, `mongo`, `redis`
+- Advanced observability stack (`docker compose -f orchestrator/docker-compose.yml config --services`): `mongo`, `redis`, `orchestrator`, `prometheus`, `grafana`, `alertmanager`
 
-Evidence: [docker-compose.yml](../docker-compose.yml#L3-L29), [orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L3-L174)
+The public first-run path is now the repo-root Docker stack, not the advanced
+observability profile.
 
 ---
 
 ## 1) What is running
 
-## A. Root stack (single service)
+## A. Public demo stack
 
 ### Service: orchestrator
-- Purpose: Run orchestrator app container from `./orchestrator` build context. ([docker-compose.yml](../docker-compose.yml#L4-L8))
-- Image/build: built from `context: ./orchestrator`, `dockerfile: Dockerfile`. ([docker-compose.yml](../docker-compose.yml#L5-L8))
-- Ports: `3000:3000`. ([docker-compose.yml](../docker-compose.yml#L17-L18))
+- Purpose: main API + scheduler + task runtime, served from the repo-root image build.
+- Image/build: built from repo root `Dockerfile`.
+- Ports: `127.0.0.1:4300:3000` so the demo path stays local-only and does not collide with the usual repo-native dev port.
 - Env vars:
-  - `NODE_ENV=production`: runtime mode.
-  - `LOG_LEVEL=info`: logging verbosity.
-  ([docker-compose.yml](../docker-compose.yml#L14-L16))
+  - `NODE_ENV=production`
+  - `LOG_LEVEL=info`
+  - `ORCHESTRATOR_FAST_START=true`
+  - demo-local `API_KEY_ROTATION`, `WEBHOOK_SECRET`, `DATABASE_URL`, and `REDIS_URL`
+  - `GITHUB_ACTIONS_MONITOR_ENABLED=false` by default in the demo stack
 - Volumes:
-  - `./orchestrator/logs:/app/logs` (runtime logs)
-  - `./orchestrator/data:/app/data` (runtime data)
-  - `./orchestrator/orchestrator_config.json:/app/orchestrator_config.json:ro` (read-only config)
-  ([docker-compose.yml](../docker-compose.yml#L10-L13))
-- Healthcheck: file-based check for `/app/orchestrator_state.json` every 30s, 10s timeout, 3 retries, 40s start period. ([docker-compose.yml](../docker-compose.yml#L20-L25))
-- Depends on: none declared. ([docker-compose.yml](../docker-compose.yml#L3-L29))
+  - named volume for `/workspace/logs`
+  - named volume for `/workspace/orchestrator/data`
+- Healthcheck: `curl -fsS http://localhost:3000/health`
+- Dependencies: waits for healthy `mongo` and `redis`
 
-## B. Full orchestrator stack
+### Service: mongo
+- Purpose: persistent database for state, audit trail, and run history in the public demo stack.
+- Image/build: `mongo:7`
+- Host ports: none published; reachable only inside the compose network.
+- Auth posture: demo-local root username and password, intended only for localhost try-outs.
+- Volumes: named data volume
+- Healthcheck: `mongosh ... db.adminCommand('ping')`
+
+### Service: redis
+- Purpose: cache and coordination store in the public demo stack.
+- Image/build: `redis:7-alpine`
+- Host ports: none published; reachable only inside the compose network.
+- Auth posture: demo-local password with `--requirepass`
+- Volumes: named append-only data volume
+- Healthcheck: `redis-cli -a <password> ping`
+
+## B. Advanced observability stack
 
 ### Service: orchestrator
-- Purpose: main API + scheduler + task runtime. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L5-L44), [orchestrator/src/index.ts](../orchestrator/src/index.ts#L375-L383))
-- Image/build: built from `context: .`, `dockerfile: Dockerfile`. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L6-L8))
-- Ports: `3000:3000`. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L10-L11))
+- Purpose: main API + scheduler + task runtime with the heavier observability sidecars.
+- Image/build: built from repo root `Dockerfile`.
+- Ports: `3000:3000`
 - Env vars:
   - `NODE_ENV`, `LOG_LEVEL`, `PORT` (runtime mode/logging/listen port)
   - `OPENAI_API_KEY` (**secret**), `ANTHROPIC_API_KEY` (**secret**) (LLM credentials)
   - `DATABASE_URL` (Mongo connection URI)
   - `REDIS_URL` (Redis connection URI)
   - `PROMETHEUS_ENABLED`, `PROMETHEUS_PORT`, `GRAFANA_ENABLED`, `GRAFANA_PORT` (monitoring toggles/ports)
-  ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L12-L27))
 - Additional runtime-required secrets from app startup checks:
   - `API_KEY` (**secret**), `WEBHOOK_SECRET` (**secret**), `MONGO_PASSWORD` (**secret**), `REDIS_PASSWORD` (**secret**), `MONGO_USERNAME` (credential)
-  ([orchestrator/src/index.ts](../orchestrator/src/index.ts#L27-L35))
 - Volumes:
-  - `./logs:/app/logs`
-  - `./data:/app/data`
-  - `./src:/app/src`
-  ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L33-L36))
-- Healthcheck: `curl -f http://localhost:3000/health`, interval 30s, timeout 10s, retries 3, start period 40s. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L40-L44))
-- Dependencies: waits for healthy `mongo` and `redis`. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L28-L32))
+  - `./logs:/workspace/logs`
+  - `./data:/workspace/orchestrator/data`
+- Healthcheck: `curl -f http://localhost:3000/health`
+- Dependencies: waits for healthy `mongo` and `redis`
 
 ### Service: mongo
 - Purpose: persistent database for state/audit/history. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L48-L76))
@@ -127,19 +140,19 @@ Evidence: [docker-compose.yml](../docker-compose.yml#L3-L29), [orchestrator/dock
 
 ## 2) How to start/stop
 
-Use root stack (single orchestrator):
-- Start: `docker-compose -f docker-compose.yml up -d`
-- Logs: `docker-compose -f docker-compose.yml logs -f`
-- Stop/remove containers + network: `docker-compose -f docker-compose.yml down`
-- Stop/remove including named volumes: `docker-compose -f docker-compose.yml down -v`
-  - Data loss warning: removes named volumes in that compose project; for root file this is mostly bind-mounted paths (`./orchestrator/logs`, `./orchestrator/data`) so host files remain, but any named volumes in scope would be deleted. ([docker-compose.yml](../docker-compose.yml#L10-L13))
+Use the public demo stack:
+- Start: `docker compose -f docker-compose.yml up -d --build`
+- Logs: `docker compose -f docker-compose.yml logs -f`
+- Stop/remove containers + network: `docker compose -f docker-compose.yml down`
+- Stop/remove including named volumes: `docker compose -f docker-compose.yml down -v`
+  - Data loss warning: removes the demo stack's named volumes, including demo Mongo, Redis, logs, and state.
 
-Use full stack:
-- Start: `docker-compose -f orchestrator/docker-compose.yml up -d`
-- Logs: `docker-compose -f orchestrator/docker-compose.yml logs -f`
-- Stop/remove containers + network: `docker-compose -f orchestrator/docker-compose.yml down`
-- Stop/remove including data volumes: `docker-compose -f orchestrator/docker-compose.yml down -v`
-  - Data loss warning: deletes named persistent volumes `mongo-data`, `redis-data`, `prometheus-data`, `grafana-data`, `alertmanager-data`. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L160-L170))
+Use the advanced observability stack:
+- Start: `docker compose -f orchestrator/docker-compose.yml up -d --build`
+- Logs: `docker compose -f orchestrator/docker-compose.yml logs -f`
+- Stop/remove containers + network: `docker compose -f orchestrator/docker-compose.yml down`
+- Stop/remove including data volumes: `docker compose -f orchestrator/docker-compose.yml down -v`
+  - Data loss warning: deletes named persistent volumes `mongo-data`, `redis-data`, `prometheus-data`, `grafana-data`, `alertmanager-data`.
 
 Related app scripts:
 - Local app start (no compose): `npm run start` from orchestrator package. ([orchestrator/package.json](../orchestrator/package.json#L8-L9))
@@ -148,35 +161,35 @@ Related app scripts:
 
 ## 3) How to verify
 
-For full stack (host machine URLs):
+For the public demo stack:
+
+- Orchestrator health: `http://127.0.0.1:4300/health`
+  - Expected: JSON with `status: "healthy"` and endpoint hints for metrics/knowledge/persistence.
+- Operator console: `http://127.0.0.1:4300/operator`
+  - Expected: login screen that accepts `demo-operator-key-local-only`.
+
+For the advanced stack (host machine URLs):
 
 - Orchestrator health: `http://localhost:3000/health`
   - Expected: JSON with `status: "healthy"` and endpoint hints for metrics/knowledge/persistence.
-  - Evidence: route and response fields. ([orchestrator/src/index.ts](../orchestrator/src/index.ts#L242-L249))
 
 - Orchestrator knowledge summary: `http://localhost:3000/api/knowledge/summary`
   - Expected: JSON summary object; HTTP 200 means API path is serving.
-  - Evidence: public route registration. ([orchestrator/src/index.ts](../orchestrator/src/index.ts#L253-L261))
 
 - Orchestrator persistence health: `http://localhost:3000/api/persistence/health`
   - Expected: JSON with DB health plus coordination status (`redis` or `memory`); HTTP 200 indicates the persistence and coordination check path succeeded.
-  - Evidence: public route registration. ([orchestrator/src/index.ts](../orchestrator/src/index.ts#L264-L271))
 
 - Prometheus UI: `http://localhost:9090`
   - Expected: Prometheus web UI loads; target `orchestrator:9100` should be up in Targets page.
-  - Evidence: port mapping and scrape target. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L107-L108), [orchestrator/monitoring/prometheus.yml](../orchestrator/monitoring/prometheus.yml#L21-L24))
 
 - Grafana UI: `http://localhost:3001`
   - Expected: Grafana login page; credentials from `GF_SECURITY_ADMIN_USER` and `GF_SECURITY_ADMIN_PASSWORD`.
-  - Evidence: port and env keys. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L128-L133))
 
 - Alertmanager UI/API: `http://localhost:9093`
   - Expected: Alertmanager status page/API response.
-  - Evidence: port mapping. ([orchestrator/docker-compose.yml](../orchestrator/docker-compose.yml#L148-L149))
 
 Internal-only metric endpoint (inside compose network/container):
 - `http://orchestrator:9100/metrics` (scraped by Prometheus) and `http://orchestrator:9100/health`.
-- Evidence: metrics server binds port 9100 and exposes these routes. ([orchestrator/src/metrics/prometheus.ts](../orchestrator/src/metrics/prometheus.ts#L164-L176), [orchestrator/monitoring/prometheus.yml](../orchestrator/monitoring/prometheus.yml#L21-L27))
 
 ---
 
