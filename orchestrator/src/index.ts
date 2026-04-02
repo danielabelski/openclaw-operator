@@ -12133,10 +12133,9 @@ async function bootstrap() {
               config,
               state,
             });
-            const [persistence, agents, proofSnapshot] = await Promise.all([
+            const [persistence, agents] = await Promise.all([
               PersistenceIntegration.healthCheck(),
               buildAgentOperationalOverview(state),
-              buildPublicProofSnapshot(),
             ]);
             const incidents = buildRuntimeIncidentModel({
               config,
@@ -12151,17 +12150,57 @@ async function bootstrap() {
               includeIncidentDetails: false,
               reconcileLedger: false,
             }).model;
+            const truthLayers = buildRuntimeTruthLayers({
+              claimed: claimedTruthLayer,
+              config,
+              state,
+              fastStartMode,
+              persistenceStatus:
+                typeof persistence.status === "string" ? persistence.status : "unknown",
+              knowledgeRuntime,
+              queueQueued,
+              queueProcessing,
+              pendingApprovalsCount: pendingApprovals.length,
+              repairs: governance.repairs,
+              retryRecoveries: governance.taskRetryRecoveries,
+              agents,
+              githubWorkflowMonitor,
+            });
+            const proofMilestones = buildPublicProofMilestones({
+              state,
+              incidents,
+              truthLayers,
+              queueQueued,
+              queueProcessing,
+            });
+            const proofDeadLetter = buildPublicProofDeadLetter(proofMilestones);
+            const proofNodes = buildPublicProofNodes({
+              truthLayers,
+              incidents,
+              queueQueued,
+              queueProcessing,
+              milestones: proofMilestones,
+              deadLetter: proofDeadLetter,
+            });
+            const proofOverview = buildPublicProofOverview({
+              milestones: proofMilestones,
+              deadLetter: proofDeadLetter,
+              proofNodes,
+              generatedAt: new Date().toISOString(),
+              stateUpdatedAt: state.updatedAt ?? null,
+            });
             const classifications = buildDashboardIncidentClassifications(
               state.incidentLedger,
               5,
             );
             const dominantClassification = classifications[0]?.label ?? null;
             const proofStatus =
-              proofSnapshot.deadLetter.length > 0 || proofSnapshot.overview.riskCounts.blocked > 0
+              proofDeadLetter.length > 0 || proofOverview.riskCounts.blocked > 0
                 ? "degraded"
-                : proofSnapshot.overview.stale || proofSnapshot.overview.riskCounts.atRisk > 0
+                : proofOverview.stale || proofOverview.riskCounts.atRisk > 0
                   ? "watching"
                   : "healthy";
+            const generatedAt = new Date().toISOString();
             const mode = buildCompanionControlPlaneMode({
               openIncidentCount: incidents.openCount,
               criticalIncidentCount: incidents.bySeverity.critical,
@@ -12182,7 +12221,7 @@ async function bootstrap() {
               queueProcessing,
             });
             return {
-              generatedAt: new Date().toISOString(),
+              generatedAt,
               controlPlaneMode: mode,
               primaryOperatorMove,
               pressureStory: buildCompanionPressureStory({
@@ -12206,11 +12245,11 @@ async function bootstrap() {
               },
               publicProof: {
                 status: proofStatus,
-                stale: proofSnapshot.overview.stale,
-                latestTimestamp: proofSnapshot.overview.latest?.timestampUtc ?? null,
-                deadLetterCount: proofSnapshot.deadLetter.length,
-                blockedCount: proofSnapshot.overview.riskCounts.blocked,
-                atRiskCount: proofSnapshot.overview.riskCounts.atRisk,
+                stale: proofOverview.stale,
+                latestTimestamp: proofOverview.latest?.timestampUtc ?? null,
+                deadLetterCount: proofDeadLetter.length,
+                blockedCount: proofOverview.riskCounts.blocked,
+                atRiskCount: proofOverview.riskCounts.atRisk,
               },
               services: {
                 declaredCount: agents.length,
@@ -12219,9 +12258,9 @@ async function bootstrap() {
                 serviceAvailableCount: agents.filter((agent) => agent.serviceAvailable).length,
               },
               freshnessTimestamp:
-                proofSnapshot.overview.latest?.timestampUtc ??
+                proofOverview.latest?.timestampUtc ??
                 state.updatedAt ??
-                new Date().toISOString(),
+                generatedAt,
             };
           },
         });
