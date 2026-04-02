@@ -433,6 +433,76 @@ shipped honestly in open source:
 | Data Analytics Reporter | maybe later | `analytics-intelligence-agent` | durable metrics narration could be strong, but it should follow stronger deployment, test, and support surfaces |
 | Analytics Reporter | maybe later | `analytics-brief-agent` | likely useful as a compact reporting lane, but not ahead of the more operationally critical candidates |
 
+### What To Harvest Beyond Role Names
+
+The external repo is useful not only because it names roles, but because each
+role file tends to carry:
+
+- mission and ownership framing
+- critical rules and refusal boundaries
+- workflow stages and handoff patterns
+- technical deliverables and output shapes
+- quality bars and verification expectations
+
+Those are the parts worth adapting.
+
+The public repo should therefore treat the external catalog as a source of:
+
+- workflow and checklist patterns
+- operator-facing deliverable contracts
+- domain-specific verification rules
+- skill and tool expectations that can be rebuilt safely inside OpenClaw
+
+The public repo should not treat the external catalog as a source of:
+
+- executable modules to import directly
+- privileged scripts or automation to trust by default
+- opaque external integrations that bypass current governance and ToolGate
+
+### Safe Adaptation Rule For Skills And Tools
+
+When a prose agent suggests a useful tool or skill pattern, adapt it by
+building an OpenClaw-native equivalent.
+
+Do:
+
+- copy the idea, workflow shape, or validation rule
+- rebuild the implementation with local governed skills, manifests, and
+  runtime contracts
+- keep least-privilege access and explicit operator-facing proof
+
+Do not:
+
+- vendor external automation modules wholesale
+- trust external scripts just because the prose agent references them
+- import third-party execution surfaces in a way that would flatten the current
+  trust model or increase malware risk
+
+### Tool And Skill Harvest Targets For The Current Queue
+
+The next public-agent queue should be evaluated at the level of internal skills,
+tooling contracts, and deliverables, not just names.
+
+| Intended Public Shape | External Skill/Tool Patterns Worth Harvesting | OpenClaw-Native Build Rule |
+|---|---|---|
+| `deployment-ops-agent` | deploy-readiness checklist, rollback checklist, environment drift review, pipeline-failure triage, infra-doc parity checks | rebuild as governed deployment-readiness, workflow/log inspection, and rollback-planning skills; do not import external deploy scripts |
+| `code-index-agent` | indexing workflow, symbol coverage expectations, retrieval-quality checks, documentation-to-code linkage, search-gap diagnosis | rebuild as local indexing and retrieval contracts over current repos and knowledge packs; do not import foreign indexers or binaries blindly |
+| `test-intelligence-agent` | test-suite classification, failure clustering, flaky-test heuristics, evidence-window summaries, release-risk narration | rebuild as local result parsers and test-evidence summaries over governed test artifacts; do not import external test-processing modules wholesale |
+| `compliance-agent` | requirement matrixing, policy-to-artifact mapping, dependency/license review, release-blocker compliance posture | rebuild as bounded policy, manifest, and evidence-review skills; do not import external compliance frameworks as trusted runtime code |
+| `support-operations-agent` | response rubric, escalation rules, FAQ extraction, issue-to-answer handoff, trust-and-tone boundaries | rebuild as governed support drafting and FAQ-routing skills; do not import external support bots or automations |
+| `backlog-prioritization-agent` | backlog scoring rubric, sequencing heuristics, dependency-aware slicing, urgency-vs-value framing, release-window prioritization | rebuild as local backlog ranking and planning contracts using existing run, incident, approval, and repo truth; do not import external PM tooling logic blindly |
+
+### Practical Skill-Gap Lens
+
+For each future candidate, the key question is not only "do we want this role?"
+
+It is also:
+
+1. what workflow intelligence from the prose repo is actually useful?
+2. what internal skills or tool contracts do we not already have?
+3. can we build those safely inside OpenClaw with governed access?
+4. can the result produce operator-visible evidence instead of hidden magic?
+
 ### Explicit Public Deferrals
 
 These external roles are not current public backlog because they are too
