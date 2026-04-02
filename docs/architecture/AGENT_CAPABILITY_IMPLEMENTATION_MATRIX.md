@@ -60,6 +60,18 @@ Portfolio-growth boundary:
 - external prose or repo presence alone is never enough to count an agent as
   part of the public portfolio
 
+External-capability translation rule:
+
+- external role, workflow, skill, or tool ideas may inform the public roadmap,
+  but they must be translated into OpenClaw-native contracts before they count
+  as real capability
+- that translation must preserve the current execution model: bounded task
+  lanes, governed skills and manifests, approval boundaries, operator-visible
+  evidence, and tests
+- external modules, scripts, or automation should not be adopted wholesale just
+  because the source prose implies a capability; rebuild the useful idea inside
+  the existing trust model instead
+
 ## Documentation Maintenance
 
 Update this matrix whenever any of the following changes materially:
