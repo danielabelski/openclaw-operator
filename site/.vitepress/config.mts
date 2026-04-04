@@ -12,8 +12,16 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   ignoreDeadLinks: true,
+  head: [
+    ["link", { rel: "icon", type: "image/svg+xml", href: `${base}favicon.svg` }],
+    ["meta", { name: "theme-color", content: "#090c10" }],
+    ["meta", { property: "og:image", content: `${base}favicon.svg` }],
+    ["meta", { property: "og:image:type", content: "image/svg+xml" }],
+    ["meta", { property: "og:image:alt", content: "OpenClaw Operator lobster mark" }],
+    ["meta", { name: "twitter:image", content: `${base}favicon.svg` }],
+  ],
   themeConfig: {
-    logo: `${base}logo.svg`,
+    logo: `${base}favicon.svg`,
     nav: [
       { text: "Home", link: "/" },
       { text: "Start", link: "/docs/start/getting-started" },

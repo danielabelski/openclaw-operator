@@ -5,6 +5,9 @@ hero:
   name: OpenClaw Operator
   text: Bounded, Observable, Auditable AI Operations
   tagline: Self-hosted operator control plane for real client work, with a built-in console, governed task execution, approvals, run history, incidents, and public proof separation.
+  image:
+    src: /favicon.svg
+    alt: OpenClaw Operator lobster mark
   actions:
     - theme: brand
       text: Get Started
