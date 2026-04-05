@@ -21,6 +21,8 @@ operator console, then serves the UI at `/operator`.
 - `WEBHOOK_SECRET`
 - One model provider API key for the agent mix you plan to use
 
+You do not need Mongo or Redis for the default first boot.
+
 ## Installation
 
 ### 1. Clone or Navigate to Workspace
@@ -49,13 +51,11 @@ At minimum, set:
 
 - `API_KEY_ROTATION` or `API_KEY`
 - `WEBHOOK_SECRET`
-- `DATABASE_URL`
-- `MONGO_USERNAME`
-- `MONGO_PASSWORD`
-- `REDIS_PASSWORD`
 - `OPENAI_API_KEY`
 
 If you plan to enable Anthropic-backed paths, also set `ANTHROPIC_API_KEY`.
+If you want Mongo-backed historical persistence or Redis-backed shared
+coordination locally, also set `DATABASE_URL` and/or `REDIS_URL`.
 
 ### 4. Check Runtime Paths
 
@@ -63,7 +63,7 @@ If you plan to enable Anthropic-backed paths, also set `ANTHROPIC_API_KEY`.
 {
   "docsPath": "./openclaw-docs",
   "logsDir": "./logs",
-  "stateFile": "mongo:orchestrator-runtime-state",
+  "stateFile": "./orchestrator/data/orchestrator-state.json",
   "rssConfigPath": "./rss_filter_config.json",
   "redditDraftsPath": "./logs/reddit-drafts.jsonl"
 }
@@ -303,8 +303,9 @@ pkill -f "node.*orchestrator"
 
 ### "State file doesn't exist"
 
-This is normal when the runtime is using the default Mongo-backed
-`stateFile`. A local file only appears if you explicitly configure one:
+This is normal when the runtime is using a non-file-backed `stateFile` or has
+not written its first local snapshot yet. The repo-native default is
+file-backed:
 
 ```bash
 # Check the effective configured target

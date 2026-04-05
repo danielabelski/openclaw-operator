@@ -33,7 +33,8 @@ if operators choose to run them directly.
   - audit on registration via `orchestrator/src/skillAudit.ts`
   - authorization preflight via `orchestrator/src/toolGate.ts`
 - State and artifacts:
-  - `mongo:orchestrator-runtime-state`
+  - `./orchestrator/data/orchestrator-state.json` by default for repo-native local dev
+  - optional Mongo-backed runtime targets when explicitly configured
   - per-agent `serviceStatePath`
   - logs/artifacts under configured workspace paths
   - optional persistence integrations

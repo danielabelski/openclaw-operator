@@ -1,3 +1,4 @@
+import "./env-loader.js";
 import { loadConfig } from "./config.js";
 import { DocIndexer } from "./docIndexer.js";
 import { TaskQueue } from "./taskQueue.js";
@@ -129,12 +130,7 @@ import {
  * Ensures critical security requirements are met before startup
  */
 function verifySecurityPosture() {
-  const requiredEnvVars = [
-    "WEBHOOK_SECRET",
-    "MONGO_PASSWORD",
-    "REDIS_PASSWORD",
-    "MONGO_USERNAME",
-  ];
+  const requiredEnvVars = ["WEBHOOK_SECRET"];
 
   const missing = requiredEnvVars.filter((key) => !process.env[key]);
   if (missing.length > 0) {
@@ -9808,11 +9804,12 @@ function buildRuntimeIncidentModel({
 }
 
 async function bootstrap() {
-  // Verify security posture FIRST
-  verifySecurityPosture();
   const fastStartMode = process.env.ORCHESTRATOR_FAST_START === "true";
-
   const config = await loadConfig();
+  PersistenceIntegration.setCoreStateStoreKind(
+    isMongoStateTarget(config.stateFile) ? "mongo" : "file",
+  );
+  verifySecurityPosture();
   await mkdir(config.logsDir, { recursive: true });
   if (!isMongoStateTarget(config.stateFile)) {
     await mkdir(dirname(config.stateFile), { recursive: true });

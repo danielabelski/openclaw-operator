@@ -8,7 +8,7 @@ summary: "Current summary of the orchestrator runtime state object."
 The active orchestrator runtime state target is:
 
 ```text
-mongo:orchestrator-runtime-state
+./orchestrator/data/orchestrator-state.json
 ```
 
 The canonical schema lives in:

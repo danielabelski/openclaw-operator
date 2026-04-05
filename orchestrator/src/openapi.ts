@@ -423,6 +423,10 @@ const components = {
         database: {
           oneOf: [{ type: "boolean" }, { type: "string" }, { type: "null" }],
         },
+        store: {
+          type: "string",
+          enum: ["file", "mongo"],
+        },
         collections: {
           oneOf: [{ type: "integer" }, schemaRef("GenericObject"), { type: "null" }],
         },

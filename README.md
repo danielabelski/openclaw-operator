@@ -240,16 +240,21 @@ At minimum, set these env vars in `orchestrator/.env`:
 
 - `API_KEY_ROTATION` or `API_KEY`
 - `WEBHOOK_SECRET`
-- `DATABASE_URL`
-- `REDIS_URL`
 - usually `OPENAI_API_KEY`
+
+Optional for richer local setups:
+
+- `DATABASE_URL` for Mongo-backed historical persistence and exports
+- `REDIS_URL` for shared coordination and response caching
 
 Important local note:
 
 - [orchestrator_config.json](./orchestrator_config.json) now resolves relative
   path fields from the config file location, so a normal clone should boot
-  without path rewrites. Change those values only if you intentionally move the
-  runtime roots.
+  without path rewrites. The repo-native default now persists hot runtime state
+  to `./orchestrator/data/orchestrator-state.json`, so Path A does not require
+  Mongo or Redis just to boot. Change those values only if you intentionally
+  move the runtime roots.
 
 ## Docker Quick Start
 

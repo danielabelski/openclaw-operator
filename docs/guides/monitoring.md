@@ -17,7 +17,7 @@ The default configured paths are:
   older setups, but it is not the default current runtime target
 - logs directory: `logs/`
 - digest output: `logs/digests/`
-- runtime state target: `mongo:orchestrator-runtime-state`
+- runtime state target: `./orchestrator/data/orchestrator-state.json`
 
 When local configuration changes those paths, follow `orchestrator_config.json`.
 
@@ -31,8 +31,9 @@ grep "error\\|ERROR" logs/orchestrator.log
 
 ## State Checks
 
-The orchestrator persists current runtime state to the configured
-`mongo:orchestrator-runtime-state` target in Mongo `system_state`.
+The orchestrator persists current runtime state to the configured `stateFile`
+target. In the repo-native default posture, that is a local JSON file under
+`./orchestrator/data/`.
 
 ```bash
 curl -fsS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:3312/api/dashboard/overview | jq
@@ -193,7 +194,8 @@ curl -fsS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:3312/api/dashboar
 - Notification expected but nothing arrived:
   verify webhook/email configuration and look for notifier errors in the log.
 - State or log growth looks abnormal:
-  inspect Mongo `system_state`, queue-related arrays, and artifact retention.
+  inspect the configured `stateFile`, queue-related arrays, and artifact
+  retention.
 
 ## Escalation Rule
 

@@ -24,8 +24,6 @@ cp orchestrator/.env.example orchestrator/.env
 # 4. Fill in orchestrator/.env
 # - API_KEY_ROTATION or API_KEY
 # - WEBHOOK_SECRET
-# - DATABASE_URL
-# - REDIS_URL
 # - OPENAI_API_KEY (usually)
 
 # 5. Start the product
@@ -35,6 +33,9 @@ npm run dev
 Open:
 
 - `http://127.0.0.1:3000/operator`
+
+This path is local-file-backed by default, so Mongo and Redis are optional
+upgrades instead of first-boot requirements.
 
 If you want the always-on user-service path after the first local boot:
 
@@ -93,6 +94,8 @@ If you intentionally want the heavier observability stack instead, use
 
 - `orchestrator_config.json` at the repo root is the local runtime source of
   truth and now resolves relative path fields from the config file location.
+  The default repo-native `stateFile` is `./orchestrator/data/orchestrator-state.json`,
+  so first boot is file-backed by default.
 - `orchestrator/orchestrator_config.json` is the container-shaped config for
   Docker-based deployment.
 - `systemd/orchestrator.service` is the canonical always-on user-service unit

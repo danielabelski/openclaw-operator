@@ -121,7 +121,8 @@ export interface HealthResponse {
 // ── Persistence Health ──
 export interface PersistenceHealth {
   status: string;
-  database?: string;
+  store?: "file" | "mongo";
+  database?: boolean | string;
   collections?: unknown;
   coordination?: {
     status?: string;

@@ -232,7 +232,9 @@ function buildRuntimeSurfaceVM(
     livenessTimestamp: toNullableString(health?.timestamp),
     persistenceHealthStatus: str(persistenceHealth?.status, "unknown"),
     persistenceDatabaseLabel: str(
-      persistenceHealth?.database ?? persistenceSummary?.storage?.driver,
+      persistenceHealth?.store ??
+        persistenceSummary?.storage?.driver ??
+        persistenceHealth?.database,
       "database unknown",
     ),
     persistenceCollections: num(persistenceHealth?.collections),

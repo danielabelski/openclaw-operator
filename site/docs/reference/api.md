@@ -157,8 +157,9 @@ Operator Console contract truth:
   items.
 - `GET /api/auth/me`: protected auth identity surface.
 - `GET /api/persistence/health`: public persistence dependency truth, now
-  including first-slice coordination status for Redis-backed claims, locks, and
-  shared helper budgets.
+  including the active persistence store (`file` or `mongo`) plus first-slice
+  coordination status for Redis-backed claims, locks, and shared helper
+  budgets.
 - `GET /api/tasks/catalog`: protected operator capability surface for
   non-internal task types only.
 - `GET /api/tasks/runs`: protected task-run surface that hides internal task

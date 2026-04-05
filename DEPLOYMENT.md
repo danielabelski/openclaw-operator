@@ -210,7 +210,7 @@ systemctl --user restart orchestrator
 - **rss_filter_config.json** - RSS feed configuration and scoring weights
 
 - **stateFile target** - Runtime state target from `orchestrator_config.json`
-  (current default: `mongo:orchestrator-runtime-state`)
+  (current default: `./orchestrator/data/orchestrator-state.json`)
 
 ---
 

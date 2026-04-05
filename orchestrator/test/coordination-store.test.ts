@@ -96,6 +96,56 @@ describe("shared coordination store", () => {
 });
 
 describe("persistence health snapshot caching", () => {
+  it("treats file-backed local mode as healthy when mongo is intentionally unset", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    try {
+      PersistenceIntegration.setCoreStateStoreKind("file");
+
+      const coordinationSpy = vi
+        .spyOn(runtimeCoordination, "getRuntimeCoordinationHealth")
+        .mockResolvedValue({
+          status: "disabled",
+          store: "memory",
+          redisConfigured: false,
+          redisReachable: false,
+          detail:
+            "REDIS_URL is not configured; coordination is running in memory-only mode.",
+          checkedAt: new Date().toISOString(),
+          disabledUntil: null,
+        });
+
+      await PersistenceIntegration.initialize();
+      const health = await PersistenceIntegration.healthCheck();
+      const summary = await PersistenceIntegration.getOperatorSummary({
+        taskExecutions: [],
+        taskHistory: [],
+        taskRetryRecoveries: [],
+      });
+
+      expect(health).toMatchObject({
+        status: "healthy",
+        database: true,
+        store: "file",
+        collections: 0,
+      });
+      expect(summary).toMatchObject({
+        status: "healthy",
+        persistenceAvailable: true,
+        storage: { driver: "file", stateTarget: "local" },
+      });
+      expect(coordinationSpy).toHaveBeenCalled();
+
+      await PersistenceIntegration.close();
+    } finally {
+      if (originalDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      }
+    }
+  });
+
   it("deduplicates live dependency probes across concurrent and repeated reads", async () => {
     const mongoSpy = vi
       .spyOn(MongoConnection, "healthCheck")

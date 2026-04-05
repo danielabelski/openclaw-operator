@@ -113,7 +113,7 @@ npm start
    {
      "docsPath": "./openclaw-docs",
      "logsDir": "./logs",
-     "stateFile": "mongo:orchestrator-runtime-state"
+     "stateFile": "./orchestrator/data/orchestrator-state.json"
    }
    EOF
    ```

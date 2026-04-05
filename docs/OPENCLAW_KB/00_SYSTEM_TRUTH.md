@@ -114,12 +114,12 @@ Current limitation:
 
 Verified:
 
-- `orchestrator_config.json` now points runtime state at
-  `mongo:orchestrator-runtime-state`, and `state.ts` persists that key through
-  Mongo `system_state`.
-- The Mongo-backed runtime ledger carries governed skill durability through
+- `orchestrator_config.json` now points the repo-native default runtime state
+  at `./orchestrator/data/orchestrator-state.json`, and `state.ts` persists
+  that configured target through the state-store seam.
+- The configured runtime ledger carries governed skill durability through
   `governedSkillState`.
-- The Mongo-backed runtime ledger also carries persisted task retry recovery
+- The configured runtime ledger also carries persisted task retry recovery
   records through `taskRetryRecoveries`, so retryable tasks can be requeued
   after restart through the existing task path.
 - The protected `/api/dashboard/overview` route now also exposes a real

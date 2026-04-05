@@ -11,7 +11,7 @@ Environment=PORT=3312
 Environment=PROMETHEUS_PORT=9100
 Environment=ORCHESTRATOR_CONFIG=%h/openclaw-operator/orchestrator_config.json
 Environment=OPERATOR_UI_DIST_DIR=%h/openclaw-operator/operator-s-console/dist
-ExecStart=/usr/bin/env bash -lc 'exec node --import tsx --env-file=.env src/index.ts'
+ExecStart=%h/openclaw-operator/orchestrator/node_modules/.bin/tsx src/index.ts
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

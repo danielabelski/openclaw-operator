@@ -18,6 +18,9 @@ npm run dev
 
 Open `http://127.0.0.1:3000/operator`.
 
+Path A now uses the repo-local `./orchestrator/data/orchestrator-state.json`
+state target by default, so a first boot does not require Mongo or Redis.
+
 Config: `./orchestrator_config.json` (repo-relative paths for local dev)
 
 **Systemd service**: `./systemd/orchestrator.service`
@@ -93,11 +96,8 @@ Local root dev vars live in `./orchestrator/.env`.
 |---|---|---|
 | `API_KEY_ROTATION` or `API_KEY` | ✅ | Bearer auth for protected operator APIs |
 | `WEBHOOK_SECRET` | ✅ | Security posture check — orchestrator refuses to start without it |
-| `MONGO_USERNAME` | ✅ (Docker) | MongoDB auth |
-| `MONGO_PASSWORD` | ✅ (Docker) | MongoDB auth |
-| `REDIS_PASSWORD` | ✅ (Docker) | Redis auth |
-| `DATABASE_URL` | ✅ | Full MongoDB connection URL |
-| `REDIS_URL` | ✅ | Full Redis connection URL |
+| `DATABASE_URL` | Optional | Enables Mongo-backed historical persistence and export surfaces |
+| `REDIS_URL` | Optional | Enables Redis-backed coordination and response caching |
 | `OPENAI_API_KEY` | Usually | Needed for the common agent mix |
 | `ANTHROPIC_API_KEY` | Optional | Needed only for Anthropic-backed paths you enable |
 | `SLACK_ERROR_WEBHOOK` | Optional | Alert delivery to Slack |
@@ -157,7 +157,8 @@ Public read-only surfaces:
 ## Troubleshooting
 
 **Operator won't start** — for root local dev, check `orchestrator/.env` for
-`API_KEY_ROTATION` or `API_KEY`, `WEBHOOK_SECRET`, `DATABASE_URL`, and
+`API_KEY_ROTATION` or `API_KEY`, `WEBHOOK_SECRET`, and your model-provider key.
+If you intentionally enabled Mongo or Redis, also verify `DATABASE_URL` and
 `REDIS_URL`. For Docker demo, run `docker compose logs -f orchestrator`.
 
 **Public proof looks stale** — check `/api/milestones/latest`, `/api/milestones/dead-letter`, and `/api/command-center/overview` before assuming a queue or UI problem.
@@ -171,7 +172,7 @@ curl -X POST "$SLACK_ERROR_WEBHOOK" -d '{"text":"test"}'
 
 ## Deployment Checklist
 
-- [ ] `.env` created with all required vars for Path A or Path C
+- [ ] `.env` created with the required auth vars for Path A, or full service vars for Path C
 - [ ] `npm install` run in the repo root (root `postinstall` installs orchestrator and operator console deps)
 - [ ] `npm run dev` rebuilds the operator console bundle and starts the orchestrator from the repo root
 - [ ] `http://127.0.0.1:3000/operator`, `http://127.0.0.1:3312/operator`, or `http://127.0.0.1:4300/operator` loads the canonical operator console

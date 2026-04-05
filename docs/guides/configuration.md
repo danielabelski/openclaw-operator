@@ -35,12 +35,14 @@ These fields define the minimum runtime surface:
 {
   "docsPath": "./openclaw-docs",
   "logsDir": "./logs",
-  "stateFile": "mongo:orchestrator-runtime-state"
+  "stateFile": "./orchestrator/data/orchestrator-state.json"
 }
 ```
 
-`stateFile` is a runtime target, not only a filesystem path. In the live host
-posture it now points at a Mongo-backed state key.
+`stateFile` is a runtime target, not only a filesystem path. The repo-native
+default now points at a local JSON state file so first-run local dev can boot
+without Mongo. Docker or alternate host configs can still override it with a
+Mongo-backed target when needed.
 
 ## Common Operational Fields
 
@@ -83,9 +85,8 @@ Important orchestrator runtime variables include:
 ```bash
 API_KEY=...
 WEBHOOK_SECRET=...
-MONGO_USERNAME=...
-MONGO_PASSWORD=...
-REDIS_PASSWORD=...
+DATABASE_URL=...
+REDIS_URL=...
 ORCHESTRATOR_FAST_START=true|false
 ```
 
