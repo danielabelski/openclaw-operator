@@ -12,9 +12,11 @@ Before doing anything else:
 
 1. Read `SOUL.md` — this is who you are
 2. Read `USER.md` — this is who you're helping
-3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context. If either file is missing, create it immediately with a short placeholder or backfill note before continuing.
-4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
-5. Start the crash-safe memory guard before substantial work:
+3. Read `WORKBOARD.md` so current direction, recently finished work, parked work, and the next recommended slice are visible before exploring deeper docs.
+4. Read `ASSISTANT_WORKFLOW.md` so the permanent assistant sync workflow is loaded before making or shipping changes.
+5. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context. If either file is missing, create it immediately with a short placeholder or backfill note before continuing.
+6. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
+7. Start the crash-safe memory guard before substantial work:
    `bash scripts/memory_guard.sh start "<current focus>"`
 
 Don't ask permission. Just do it.
@@ -71,6 +73,8 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you change code or config materially → update the appropriate existing
   `.md` file in the same change set and reference the relevant paths where it
   helps prevent drift
+- When you change repo direction, shipped status, or the next intended slice
+  → update `WORKBOARD.md` and keep assistant entry points aligned with it
 - **Text > Brain** 📝
 
 ### Crash-Safe Memory Guard

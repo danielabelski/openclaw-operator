@@ -16,6 +16,26 @@ Expected flow:
 
 Do not treat `main` as the place where active work accumulates directly.
 
+## Assistant Sync Rule
+
+This repo now uses a shared assistant entry workflow for Codex and Copilot.
+
+Before committing or pushing a material change, make sure:
+
+1. [WORKBOARD.md](./WORKBOARD.md) still reflects what was just finished, what is
+   next, and what is intentionally parked.
+2. [ASSISTANT_WORKFLOW.md](./ASSISTANT_WORKFLOW.md) still matches how assistants
+   are expected to operate in this repo.
+3. [AGENTS.md](./AGENTS.md), [.github/copilot-instructions.md](./.github/copilot-instructions.md),
+   and [.github/code-instructions.md](./.github/code-instructions.md) are not
+   drifting into different starting assumptions.
+
+The goal is simple:
+
+- one repo state tracker
+- one assistant workflow
+- no Codex/Copilot divergence after ship
+
 ## What Belongs Here
 
 Open issues and pull requests here for:
