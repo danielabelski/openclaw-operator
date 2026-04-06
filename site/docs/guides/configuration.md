@@ -157,6 +157,8 @@ Read-first bridge behavior:
   `/orch runs`, and `/orch approvals`
 - `allowedTasks` controls which explicit write-side task dispatches remain
   available through `/orch run <task-type>` or `/orch <task-type>`
+- configure at least one of `allowedViews` or `allowedTasks`; a bridge with
+  neither is rejected
 - the bridge should use `/api/companion/*` for reads and keep
   `POST /api/tasks/trigger` as the only write path
 

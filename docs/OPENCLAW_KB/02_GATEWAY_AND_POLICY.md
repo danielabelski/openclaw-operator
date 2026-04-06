@@ -85,6 +85,10 @@ Current boundary:
 - The bridge now uses read-first companion routes on `http://127.0.0.1:3312`
   (`/api/companion/*`) and keeps `POST /api/tasks/trigger` as the only write
   path.
+- The `/orch` command surface is now a hard cutover to bounded companion reads:
+  `/orch status`, `/orch tasks`, `/orch incidents`, `/orch runs`, and
+  `/orch approvals` no longer scrape the older operator task/run routes.
+- A bridge config with neither `allowedViews` nor `allowedTasks` is rejected.
 - Auth defaults to a local operator-key discovery path from
   `workspace/orchestrator/.env`, with explicit `apiKey` or `apiKeyEnv` override
   support when needed.
