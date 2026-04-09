@@ -13,6 +13,7 @@ import { resolve, join } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { computeWebhookSignature } from '../src/middleware/auth.js';
 import { createDefaultState } from '../src/state.js';
+import { summarizeProofSurface } from '../../agents/shared/runtime-evidence.js';
 
 const TEST_API_KEY = 'integration-test-api-key';
 const TEST_WEBHOOK_SECRET = 'integration-test-webhook-secret';
@@ -92,6 +93,8 @@ async function waitForHealthy(baseUrl: string, timeoutMs = 30000): Promise<void>
 }
 
 describe('Runtime Integration: Live Middleware Chain', () => {
+  type PersistedRuntimeState = ReturnType<typeof createDefaultState>;
+  type PersistedTaskExecution = PersistedRuntimeState['taskExecutions'][number];
   let serverProcess: ChildProcessWithoutNullStreams | null = null;
   let baseUrl = '';
   let stdoutBuffer = '';
@@ -197,6 +200,22 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     throw new Error(`Task history record not found for taskId=${taskId}`);
   };
 
+  const readPersistedState = async (): Promise<PersistedRuntimeState> => {
+    const raw = await readFile(stateFilePath, 'utf-8');
+    return JSON.parse(raw) as PersistedRuntimeState;
+  };
+
+  const hasFreshIsoTimestamp = (value: string | null | undefined, cutoffMs: number) => {
+    const ts = Date.parse(value ?? '');
+    return Number.isFinite(ts) && ts >= cutoffMs;
+  };
+
+  const findPersistedExecutionByTaskId = (
+    state: PersistedRuntimeState,
+    taskId: string,
+  ): PersistedTaskExecution | null =>
+    state.taskExecutions.find((execution) => execution.taskId === taskId) ?? null;
+
   type TaskRunRecord = {
     taskId?: string;
     runId?: string;
@@ -246,6 +265,85 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     waitForCompletedTaskRun(taskId, ['success'], timeoutMs);
 
   const waitForTaskRun = waitForSuccessfulTaskRun;
+
+  const waitForPersistedReleaseReadinessInputs = async (
+    args: {
+      systemMonitorTaskId: string;
+      securityTaskId: string;
+      qaTaskId: string;
+      freshnessCutoffMs: number;
+      timeoutMs?: number;
+    },
+  ) => {
+    const deadline = Date.now() + (args.timeoutMs ?? 90000);
+    let latestState: PersistedRuntimeState | null = null;
+    let latestMonitorExecution: PersistedTaskExecution | null = null;
+    let latestSecurityExecution: PersistedTaskExecution | null = null;
+    let latestQaExecution: PersistedTaskExecution | null = null;
+    let latestMilestoneDeliveredAt: string | null = null;
+    let latestDemandDeliveredAt: string | null = null;
+
+    while (Date.now() < deadline) {
+      latestState = await readPersistedState();
+      latestMonitorExecution = findPersistedExecutionByTaskId(latestState, args.systemMonitorTaskId);
+      latestSecurityExecution = findPersistedExecutionByTaskId(latestState, args.securityTaskId);
+      latestQaExecution = findPersistedExecutionByTaskId(latestState, args.qaTaskId);
+
+      const milestoneProof = summarizeProofSurface(
+        {
+          workflowEvents: latestState.workflowEvents ?? [],
+          relationshipObservations: latestState.relationshipObservations ?? [],
+        },
+        'milestone',
+      );
+      const demandSummaryProof = summarizeProofSurface(
+        {
+          workflowEvents: latestState.workflowEvents ?? [],
+          relationshipObservations: latestState.relationshipObservations ?? [],
+        },
+        'demandSummary',
+      );
+
+      latestMilestoneDeliveredAt = milestoneProof.latestDeliveredAt;
+      latestDemandDeliveredAt = demandSummaryProof.latestDeliveredAt;
+
+      const hasPersistedSuccesses =
+        latestMonitorExecution?.status === 'success' &&
+        latestSecurityExecution?.status === 'success' &&
+        latestQaExecution?.status === 'success';
+      const hasFreshProof =
+        hasFreshIsoTimestamp(latestMilestoneDeliveredAt, args.freshnessCutoffMs) &&
+        hasFreshIsoTimestamp(latestDemandDeliveredAt, args.freshnessCutoffMs);
+
+      if (hasPersistedSuccesses && hasFreshProof) {
+        return {
+          state: latestState,
+          monitorExecution: latestMonitorExecution,
+          securityExecution: latestSecurityExecution,
+          qaExecution: latestQaExecution,
+          milestoneDeliveredAt: latestMilestoneDeliveredAt,
+          demandSummaryDeliveredAt: latestDemandDeliveredAt,
+        };
+      }
+
+      await sleep(250);
+    }
+
+    throw new Error(
+      [
+        'Persisted release-readiness preconditions were not observed.',
+        `systemMonitorStatus=${latestMonitorExecution?.status ?? 'null'}`,
+        `systemMonitorHandledAt=${latestMonitorExecution?.lastHandledAt ?? 'null'}`,
+        `securityStatus=${latestSecurityExecution?.status ?? 'null'}`,
+        `securityHandledAt=${latestSecurityExecution?.lastHandledAt ?? 'null'}`,
+        `qaStatus=${latestQaExecution?.status ?? 'null'}`,
+        `qaHandledAt=${latestQaExecution?.lastHandledAt ?? 'null'}`,
+        `milestoneDeliveredAt=${latestMilestoneDeliveredAt ?? 'null'}`,
+        `demandSummaryDeliveredAt=${latestDemandDeliveredAt ?? 'null'}`,
+        `freshnessCutoff=${new Date(args.freshnessCutoffMs).toISOString()}`,
+      ].join(' '),
+    );
+  };
 
   const waitForAgentRuntimeSignal = async (
     agentId: string,
@@ -1928,6 +2026,7 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     await waitForTaskHistoryRecord(controlPlaneTaskId);
     const controlPlaneRun = await waitForTaskRun(controlPlaneTaskId);
 
+    const wave4FreshnessCutoffMs = Date.now();
     const systemMonitorTaskId = await triggerTask('system-monitor', {
       type: 'health',
       agents: ['release-manager-agent'],
@@ -1953,6 +2052,13 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     });
     await waitForTaskHistoryRecord(qaTaskId);
     await waitForTaskRun(qaTaskId);
+
+    await waitForPersistedReleaseReadinessInputs({
+      systemMonitorTaskId,
+      securityTaskId,
+      qaTaskId,
+      freshnessCutoffMs: wave4FreshnessCutoffMs,
+    });
 
     const releaseTaskId = await triggerTask('release-readiness', {
       releaseTarget: 'wave4-runtime-readiness',
