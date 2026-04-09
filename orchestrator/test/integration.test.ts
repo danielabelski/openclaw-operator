@@ -197,71 +197,55 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     throw new Error(`Task history record not found for taskId=${taskId}`);
   };
 
-  const waitForTaskRun = async (taskId: string, timeoutMs = 90000) => {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const payload = await fetchProtected<{
-        runs: Array<{ taskId?: string; runId?: string }>;
-      }>('/api/tasks/runs?limit=100');
-      const found = payload.runs.find((run) => run.taskId === taskId);
-      if (found?.runId) {
-        return found;
-      }
-      await sleep(250);
-    }
-
-    throw new Error(`Task run not found for taskId=${taskId}`);
+  type TaskRunRecord = {
+    taskId?: string;
+    runId?: string;
+    status?: string;
+    createdAt?: string | null;
+    startedAt?: string | null;
+    completedAt?: string | null;
   };
 
-  const waitForRunWorkflowGraph = async (
-    runId: string,
-    predicate: (graph: {
-      crossRunLinks?: Array<{ relationship?: string }>;
-      relatedRuns?: Array<{ runId?: string }>;
-      dependencySummary?: {
-        dependencyLinkCount?: number;
-        handoffLinkCount?: number;
-      };
-    } | null | undefined) => boolean,
-    timeoutMs = 30000,
+  const waitForCompletedTaskRun = async (
+    taskId: string,
+    acceptedStatuses: string[] = ['success'],
+    timeoutMs = 90000,
   ) => {
     const deadline = Date.now() + timeoutMs;
-    let latestPayload: {
-      run?: {
-        workflowGraph?: {
-          crossRunLinks?: Array<{ relationship?: string }>;
-          relatedRuns?: Array<{ runId?: string }>;
-          dependencySummary?: {
-            dependencyLinkCount?: number;
-            handoffLinkCount?: number;
-          };
-        };
-      };
-    } | null = null;
+    let latestRun: TaskRunRecord | undefined;
 
     while (Date.now() < deadline) {
-      latestPayload = await fetchProtected<{
-        run?: {
-          workflowGraph?: {
-            crossRunLinks?: Array<{ relationship?: string }>;
-            relatedRuns?: Array<{ runId?: string }>;
-            dependencySummary?: {
-              dependencyLinkCount?: number;
-              handoffLinkCount?: number;
-            };
-          };
-        };
-      }>(`/api/tasks/runs/${encodeURIComponent(runId)}`);
-
-      if (predicate(latestPayload.run?.workflowGraph)) {
-        return latestPayload;
+      const payload = await fetchProtected<{
+        runs: TaskRunRecord[];
+      }>(`/api/tasks/runs?limit=100&pollTs=${Date.now()}`);
+      latestRun = payload.runs.find((run) => run.taskId === taskId);
+      if (
+        latestRun?.runId &&
+        acceptedStatuses.includes(String(latestRun.status ?? '')) &&
+        typeof latestRun.completedAt === 'string' &&
+        latestRun.completedAt.length > 0
+      ) {
+        return latestRun;
       }
-
       await sleep(250);
     }
 
-    return latestPayload;
+    throw new Error(
+      [
+        `Completed task run not observed for taskId=${taskId}.`,
+        `acceptedStatuses=${JSON.stringify(acceptedStatuses)}`,
+        `lastRunId=${latestRun?.runId ?? 'null'}`,
+        `lastStatus=${latestRun?.status ?? 'null'}`,
+        `lastCompletedAt=${latestRun?.completedAt ?? 'null'}`,
+        `lastStartedAt=${latestRun?.startedAt ?? 'null'}`,
+      ].join(' '),
+    );
   };
+
+  const waitForSuccessfulTaskRun = async (taskId: string, timeoutMs = 90000) =>
+    waitForCompletedTaskRun(taskId, ['success'], timeoutMs);
+
+  const waitForTaskRun = waitForSuccessfulTaskRun;
 
   const waitForAgentRuntimeSignal = async (
     agentId: string,
@@ -335,7 +319,18 @@ describe('Runtime Integration: Live Middleware Chain', () => {
       await sleep(250);
     }
 
-    return latestAgent;
+    const runtimeEvidence = latestAgent?.capability?.runtimeEvidence;
+    const signal = runtimeEvidence?.signals?.find((entry) => entry.key === key);
+    throw new Error(
+      [
+        `Runtime signal not observed for agentId=${agentId} key=${key}.`,
+        `latestSuccessfulRunId=${runtimeEvidence?.latestSuccessfulRunId ?? 'null'}`,
+        `latestSuccessfulTaskId=${runtimeEvidence?.latestSuccessfulTaskId ?? 'null'}`,
+        `latestHandledAt=${runtimeEvidence?.latestHandledAt ?? 'null'}`,
+        `highlightKeys=${JSON.stringify(runtimeEvidence?.highlightKeys ?? [])}`,
+        `signalPresent=${signal ? 'true' : 'false'}`,
+      ].join(' '),
+    );
   };
 
   const waitForRunResultSummaryKeys = async (
@@ -367,6 +362,62 @@ describe('Runtime Integration: Live Middleware Chain', () => {
 
       const keys = latestPayload.run?.resultSummary?.keys ?? [];
       if (expectedKeys.every((key) => keys.includes(key))) {
+        return latestPayload;
+      }
+
+      await sleep(250);
+    }
+
+    throw new Error(
+      [
+        `Run result summary keys not observed for runId=${runId}.`,
+        `expected=${JSON.stringify(expectedKeys)}`,
+        `actual=${JSON.stringify(latestPayload?.run?.resultSummary?.keys ?? [])}`,
+      ].join(' '),
+    );
+  };
+
+  const waitForRunWorkflowGraph = async (
+    runId: string,
+    predicate: (graph: {
+      crossRunLinks?: Array<{ relationship?: string }>;
+      relatedRuns?: Array<{ runId?: string }>;
+      dependencySummary?: {
+        dependencyLinkCount?: number;
+        handoffLinkCount?: number;
+      };
+    } | null | undefined) => boolean,
+    timeoutMs = 30000,
+  ) => {
+    const deadline = Date.now() + timeoutMs;
+    let latestPayload: {
+      run?: {
+        workflowGraph?: {
+          crossRunLinks?: Array<{ relationship?: string }>;
+          relatedRuns?: Array<{ runId?: string }>;
+          dependencySummary?: {
+            dependencyLinkCount?: number;
+            handoffLinkCount?: number;
+          };
+        };
+      };
+    } | null = null;
+
+    while (Date.now() < deadline) {
+      latestPayload = await fetchProtected<{
+        run?: {
+          workflowGraph?: {
+            crossRunLinks?: Array<{ relationship?: string }>;
+            relatedRuns?: Array<{ runId?: string }>;
+            dependencySummary?: {
+              dependencyLinkCount?: number;
+              handoffLinkCount?: number;
+            };
+          };
+        };
+      }>(`/api/tasks/runs/${encodeURIComponent(runId)}`);
+
+      if (predicate(latestPayload.run?.workflowGraph)) {
         return latestPayload;
       }
 
@@ -1907,7 +1958,7 @@ describe('Runtime Integration: Live Middleware Chain', () => {
       releaseTarget: 'wave4-runtime-readiness',
     });
     await waitForTaskHistoryRecord(releaseTaskId);
-    const releaseRun = await waitForTaskRun(releaseTaskId);
+    const releaseRun = await waitForCompletedTaskRun(releaseTaskId, ['success', 'failed']);
 
     const controlPlaneAgent = await waitForAgentRuntimeSignal(
       'operations-analyst-agent',
