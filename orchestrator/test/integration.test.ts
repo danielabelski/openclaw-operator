@@ -225,6 +225,15 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     completedAt?: string | null;
   };
 
+  type TaskRunDetailRecord = TaskRunRecord & {
+    lastError?: string | null;
+    resultSummary?: {
+      success?: boolean;
+      keys?: string[];
+      highlights?: Record<string, unknown>;
+    };
+  };
+
   const waitForCompletedTaskRun = async (
     taskId: string,
     acceptedStatuses: string[] = ['success'],
@@ -265,6 +274,25 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     waitForCompletedTaskRun(taskId, ['success'], timeoutMs);
 
   const waitForTaskRun = waitForSuccessfulTaskRun;
+
+  const summarizeDiagnosticList = (value: unknown) => {
+    if (Array.isArray(value)) {
+      return value
+        .filter((entry): entry is string => typeof entry === 'string')
+        .slice(0, 6);
+    }
+
+    if (value && typeof value === 'object') {
+      const sample = (value as { sample?: unknown }).sample;
+      if (Array.isArray(sample)) {
+        return sample
+          .filter((entry): entry is string => typeof entry === 'string')
+          .slice(0, 6);
+      }
+    }
+
+    return [];
+  };
 
   const waitForPersistedReleaseReadinessInputs = async (
     args: {
@@ -349,6 +377,10 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     agentId: string,
     key: string,
     timeoutMs = 45000,
+    diagnostics?: {
+      runId?: string | null;
+      taskId?: string | null;
+    },
   ) => {
     const deadline = Date.now() + timeoutMs;
     let latestAgent:
@@ -419,16 +451,66 @@ describe('Runtime Integration: Live Middleware Chain', () => {
 
     const runtimeEvidence = latestAgent?.capability?.runtimeEvidence;
     const signal = runtimeEvidence?.signals?.find((entry) => entry.key === key);
-    throw new Error(
-      [
-        `Runtime signal not observed for agentId=${agentId} key=${key}.`,
-        `latestSuccessfulRunId=${runtimeEvidence?.latestSuccessfulRunId ?? 'null'}`,
-        `latestSuccessfulTaskId=${runtimeEvidence?.latestSuccessfulTaskId ?? 'null'}`,
-        `latestHandledAt=${runtimeEvidence?.latestHandledAt ?? 'null'}`,
-        `highlightKeys=${JSON.stringify(runtimeEvidence?.highlightKeys ?? [])}`,
-        `signalPresent=${signal ? 'true' : 'false'}`,
-      ].join(' '),
-    );
+    const diagnosticParts = [
+      `Runtime signal not observed for agentId=${agentId} key=${key}.`,
+      `latestSuccessfulRunId=${runtimeEvidence?.latestSuccessfulRunId ?? 'null'}`,
+      `latestSuccessfulTaskId=${runtimeEvidence?.latestSuccessfulTaskId ?? 'null'}`,
+      `latestHandledAt=${runtimeEvidence?.latestHandledAt ?? 'null'}`,
+      `highlightKeys=${JSON.stringify(runtimeEvidence?.highlightKeys ?? [])}`,
+      `signalPresent=${signal ? 'true' : 'false'}`,
+    ];
+
+    if (typeof diagnostics?.taskId === 'string' && diagnostics.taskId.length > 0) {
+      diagnosticParts.push(`taskId=${diagnostics.taskId}`);
+    }
+
+    if (typeof diagnostics?.runId === 'string' && diagnostics.runId.length > 0) {
+      diagnosticParts.push(`runId=${diagnostics.runId}`);
+
+      try {
+        const runDetail = await fetchProtected<{
+          run?: TaskRunDetailRecord;
+        }>(`/api/tasks/runs/${encodeURIComponent(diagnostics.runId)}?pollTs=${Date.now()}`);
+        const run = runDetail.run;
+        const releaseReadiness =
+          run?.resultSummary?.highlights?.releaseReadiness &&
+          typeof run.resultSummary.highlights.releaseReadiness === 'object'
+            ? (run.resultSummary.highlights.releaseReadiness as Record<string, unknown>)
+            : null;
+
+        diagnosticParts.push(`runStatus=${run?.status ?? 'null'}`);
+        diagnosticParts.push(`runCompletedAt=${run?.completedAt ?? 'null'}`);
+        diagnosticParts.push(`runLastError=${run?.lastError ?? 'null'}`);
+        diagnosticParts.push(`resultSuccess=${String(run?.resultSummary?.success ?? null)}`);
+        diagnosticParts.push(`resultKeys=${JSON.stringify(run?.resultSummary?.keys ?? [])}`);
+
+        if (releaseReadiness) {
+          diagnosticParts.push(
+            `releaseDecision=${typeof releaseReadiness.decision === 'string' ? releaseReadiness.decision : 'null'}`,
+          );
+          diagnosticParts.push(
+            `releaseSummary=${typeof releaseReadiness.summary === 'string' ? JSON.stringify(releaseReadiness.summary) : 'null'}`,
+          );
+          diagnosticParts.push(
+            `releaseBlockers=${JSON.stringify(summarizeDiagnosticList(releaseReadiness.blockers))}`,
+          );
+          diagnosticParts.push(
+            `releaseFollowups=${JSON.stringify(summarizeDiagnosticList(releaseReadiness.followups))}`,
+          );
+        } else {
+          diagnosticParts.push('releaseDecision=null');
+          diagnosticParts.push('releaseSummary=null');
+          diagnosticParts.push('releaseBlockers=[]');
+          diagnosticParts.push('releaseFollowups=[]');
+        }
+      } catch (error) {
+        diagnosticParts.push(
+          `runDetailDiagnosticError=${JSON.stringify(error instanceof Error ? error.message : String(error))}`,
+        );
+      }
+    }
+
+    throw new Error(diagnosticParts.join(' '));
   };
 
   const waitForRunResultSummaryKeys = async (
@@ -2073,6 +2155,11 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     const releaseAgent = await waitForAgentRuntimeSignal(
       'release-manager-agent',
       'releaseReadiness',
+      45000,
+      {
+        runId: releaseRun.runId,
+        taskId: releaseTaskId,
+      },
     );
 
     const agentsPayload = await fetchProtected<{
