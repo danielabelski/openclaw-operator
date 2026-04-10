@@ -5,6 +5,7 @@ type OpenApiPath = Partial<Record<HttpMethod, OpenApiNode>>;
 
 const TASK_TYPE_ENUM = [
   "drift-repair",
+  "deployment-ops",
   "reddit-response",
   "security-audit",
   "summarize-content",

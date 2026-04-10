@@ -492,6 +492,168 @@ tooling contracts, and deliverables, not just names.
 | `support-operations-agent` | response rubric, escalation rules, FAQ extraction, issue-to-answer handoff, trust-and-tone boundaries | rebuild as governed support drafting and FAQ-routing skills; do not import external support bots or automations |
 | `backlog-prioritization-agent` | backlog scoring rubric, sequencing heuristics, dependency-aware slicing, urgency-vs-value framing, release-window prioritization | rebuild as local backlog ranking and planning contracts using existing run, incident, approval, and repo truth; do not import external PM tooling logic blindly |
 
+### Current Next-Candidate Contract: `deployment-ops-agent`
+
+This is the current implementation-ready contract for the first new public
+agent candidate.
+
+It is derived from the current repo code, not only from external prose:
+
+- `release-readiness` already owns bounded `go` / `hold` / `block` synthesis
+  over verification, security, monitor, build, incident, approval, and proof
+  freshness evidence
+- `agent-deploy` already owns the approval-gated mutating template deployment
+  path
+- the repo already has first-class deployment surfaces worth inspecting:
+  `systemd/orchestrator.service`, `docker-compose.yml`,
+  `.github/workflows/deploy.yml`, `.github/workflows/docker-demo-smoke.yml`,
+  `DEPLOYMENT.md`, `QUICKSTART.md`, and `docs/operations/deployment.md`
+
+The missing bounded lane is therefore not "do the deploy." The missing lane is
+"tell the operator whether the selected public deployment surface is actually
+ready, aligned, rollback-safe, and evidence-backed."
+
+#### Owned Lane
+
+- task type: `deployment-ops`
+- mission: synthesize bounded deployment posture across rollout surfaces,
+  rollback readiness, deployment/docs parity, and pipeline evidence for the
+  supported public deployment modes
+- lifecycle: `worker-first`
+- exposure target: `public-triggerable`
+- approval posture: `dynamic-only`
+
+#### What It Owns
+
+`deployment-ops-agent` should own read-only deployment posture synthesis for:
+
+- systemd host-service readiness
+- official public Docker demo readiness
+- dual-surface parity when both modes matter
+- deployment-doc and quickstart parity
+- deploy workflow and docker-demo smoke workflow presence
+- rollback readiness and deployment-surface drift review
+- bounded pipeline posture based on the latest relevant task evidence
+
+This lane should answer:
+
+1. is the selected rollout mode structurally present?
+2. is rollback posture credible for that mode?
+3. are deployment docs and workflow surfaces aligned with the repo?
+4. does recent bounded runtime evidence support or block deployment posture?
+
+#### What It Must Not Own
+
+This lane must not duplicate or absorb:
+
+- `release-readiness`
+  - release governance still belongs to `release-manager-agent`
+- `agent-deploy`
+  - mutating deployment actions still belong to the explicit approval-gated
+    deploy path
+- ad hoc remote host administration
+  - no service restarts, no remote shelling, no cloud-provider control-plane
+    actions
+
+#### Governed Access It Can Honestly Use Right Now
+
+Current honest governed skill access should stay narrow:
+
+- `documentParser`
+  - parse bounded deployment docs and runtime-evidence inputs
+
+Do not widen this first slice to require:
+
+- remote shell access
+- cloud-provider APIs
+- arbitrary deploy scripts
+- ungoverned network access
+
+The agent can still read local repo/runtime files directly inside the current
+worker model, but its governed skill contract should remain least-privilege and
+explicit.
+
+#### Minimum Operator-Visible Evidence
+
+The result contract should mirror the current bounded synthesis lanes and make
+deployment posture operator-legible at a glance.
+
+Required lane payload:
+
+- `deploymentOps.decision`
+  - `ready` | `watch` | `blocked`
+- `deploymentOps.rolloutMode`
+  - `service` | `docker-demo` | `dual`
+- `deploymentOps.summary`
+- `deploymentOps.blockers[]`
+- `deploymentOps.followups[]`
+- `deploymentOps.rollbackReadiness`
+- `deploymentOps.environmentDrift`
+- `deploymentOps.pipelinePosture`
+- `deploymentOps.surfaceChecks`
+
+Required shared fields:
+
+- `operatorSummary`
+- `recommendedNextActions[]`
+- `specialistContract`
+- `toolInvocations[]`
+- `handoffPackage`
+
+The runtime should also be able to promote a compact deployment-readiness
+signal into `/api/agents/overview` the same way the current bounded lanes
+promote `controlPlaneBrief` and `releaseReadiness`.
+
+#### Explicit Refusal / Block Rules
+
+`deployment-ops-agent` should explicitly refuse or block when asked to:
+
+- execute a deployment
+- restart services or mutate host state
+- claim release approval authority
+- bypass the approval model
+- validate remote/cloud deployment state it cannot observe locally
+- trust imported third-party deploy scripts as evidence
+
+It should block normally when:
+
+- critical runtime incidents are still open
+- required rollout surfaces for the selected mode are missing
+- rollback posture is missing for the selected mode
+- core bounded release, monitor, security, or verification evidence is blocked
+
+#### First Implementation Slice
+
+Status:
+
+- completed in repo code on `2026-04-09`
+- verified through focused task-catalog, operator-UI, and integration proof,
+  then through the full protected-branch `verify:main` contract
+- still needs a focused live-runtime canary before treating the new worker as
+  fully live-adopted
+
+Build this lane in the same bounded pattern as `control-plane-brief` and
+`release-readiness`:
+
+1. add `agents/deployment-ops-agent/` with a local-first state path and
+   worker-first config
+2. add `deploymentOpsHandler` and allowlist/catalog/task-profile wiring
+3. add focused contract proof for:
+   - `ready`
+   - `watch`
+   - `blocked`
+   - promoted runtime evidence
+4. add truthful docs and operator copy
+
+Immediate follow-up:
+
+1. run a focused live `deployment-ops` canary against the current public
+   runtime
+2. confirm promoted `deploymentOps` readiness evidence through
+   `/api/agents/overview`
+3. refresh operator capability wording only after live runtime proof matches
+   the repo-level proof
+
 ### Practical Skill-Gap Lens
 
 For each future candidate, the key question is not only "do we want this role?"

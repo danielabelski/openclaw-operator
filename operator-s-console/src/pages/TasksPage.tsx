@@ -71,6 +71,8 @@ interface TaskDraftState {
   monitorAgents: string;
   incidentTriageClassification: string;
   incidentTriageLimit: string;
+  deploymentOpsTarget: string;
+  deploymentOpsRolloutMode: "service" | "docker-demo" | "dual";
   contentType: string;
   contentSourceName: string;
   contentSourceDescription: string;
@@ -143,6 +145,8 @@ const DEFAULT_TASK_DRAFT: TaskDraftState = {
   monitorAgents: "",
   incidentTriageClassification: "",
   incidentTriageLimit: "8",
+  deploymentOpsTarget: "public-runtime",
+  deploymentOpsRolloutMode: "service",
   contentType: "readme",
   contentSourceName: "Project",
   contentSourceDescription: "Generated content",
@@ -213,6 +217,7 @@ function categorizeTask(taskType: string): TaskCategory {
     "qa-verification": "Repair",
     "system-monitor": "Repair",
     "incident-triage": "Repair",
+    "deployment-ops": "Governance",
     "build-refactor": "Sensitive",
     "market-research": "Research",
     "summarize-content": "Research",
@@ -302,6 +307,15 @@ function buildTaskPayload(taskType: string, draft: TaskDraftState): Record<strin
       ...(draft.controlPlaneFocus.trim()
         ? { focus: draft.controlPlaneFocus.trim() }
         : {}),
+    };
+  }
+
+  if (taskType === "deployment-ops") {
+    return {
+      ...(draft.deploymentOpsTarget.trim()
+        ? { target: draft.deploymentOpsTarget.trim() }
+        : {}),
+      rolloutMode: draft.deploymentOpsRolloutMode,
     };
   }
 
@@ -552,6 +566,10 @@ function buildExecutionPathCopy(task: TaskRowVM, draft: TaskDraftState) {
     return "Submission enters the orchestrator queue, the system-monitor worker clusters current incident pressure into acknowledgement, ownership, remediation, and verification priorities, then returns a ranked triage queue instead of a generic runtime monitor blob.";
   }
 
+  if (task.type === "deployment-ops") {
+    return "Submission enters the orchestrator queue, the deployment-ops worker inspects supported rollout surfaces, rollback posture, deployment/docs parity, and bounded pipeline evidence, then returns a read-only ready, watch, or blocked deployment posture.";
+  }
+
   if (task.type === "release-readiness") {
     return "Submission enters the orchestrator queue, the release-manager worker fuses verification, security, monitor, build, incident, approval, and proof freshness evidence into a bounded go, hold, or block release posture.";
   }
@@ -580,6 +598,10 @@ function buildNextStepCopy(task: TaskRowVM, draft: TaskDraftState) {
 
   if (task.type === "incident-triage") {
     return "Use this when the incident queue feels noisy and you need a ranked operator order. Add a classification only when you want to isolate one dominant incident family instead of the full open ledger.";
+  }
+
+  if (task.type === "deployment-ops") {
+    return "Use this before claiming a rollout surface is ready. Pick the rollout mode you actually care about, keep the target label honest, and treat blocked posture as real deployment evidence rather than an ops suggestion.";
   }
 
   if (task.type === "release-readiness") {
@@ -1464,6 +1486,52 @@ function renderTaskFields(
             onChange={(event) => updateDraft({ releaseTarget: event.target.value })}
             className="bg-panel-inset border-border font-mono text-sm"
             placeholder="main"
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (task.type === "deployment-ops") {
+    return (
+      <>
+        <div className="console-inset p-3 rounded-sm">
+          <p className="text-[10px] font-mono text-foreground leading-relaxed">
+            This lane produces a bounded deployment posture across supported rollout surfaces, rollback readiness, deployment/docs parity, and bounded pipeline evidence. It does not deploy or restart anything.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+            Rollout Mode
+          </label>
+          <Select
+            value={draft.deploymentOpsRolloutMode}
+            onValueChange={(value) =>
+              updateDraft({
+                deploymentOpsRolloutMode:
+                  value as TaskDraftState["deploymentOpsRolloutMode"],
+              })
+            }
+          >
+            <SelectTrigger className="bg-panel-inset border-border font-mono text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="service">service</SelectItem>
+              <SelectItem value="docker-demo">docker-demo</SelectItem>
+              <SelectItem value="dual">dual</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+            Target
+          </label>
+          <Input
+            value={draft.deploymentOpsTarget}
+            onChange={(event) => updateDraft({ deploymentOpsTarget: event.target.value })}
+            className="bg-panel-inset border-border font-mono text-sm"
+            placeholder="public-runtime"
           />
         </div>
       </>

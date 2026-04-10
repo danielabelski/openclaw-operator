@@ -1666,6 +1666,19 @@ describe("operator contract surfaces", () => {
             caveats: ["Treat hold or block output as operator guidance, not a background advisory."],
             telemetryOverlay: { totalRuns: 1, successRate: 1 },
           },
+          {
+            type: "deployment-ops",
+            label: "Deployment Ops",
+            purpose: "Produce a bounded deployment posture across supported rollout surfaces, rollback readiness, deployment/docs parity, and pipeline evidence.",
+            operationalStatus: "confirmed-working",
+            approvalGated: false,
+            exposeInV1: true,
+            dependencyClass: "worker",
+            dependencyRequirements: ["deployment-ops worker", "deployment surfaces"],
+            baselineConfidence: "medium",
+            caveats: ["This lane is read-only deployment posture synthesis; it does not deploy or restart services."],
+            telemetryOverlay: { totalRuns: 1, successRate: 1 },
+          },
         ],
       },
       isLoading: false,
@@ -1700,6 +1713,13 @@ describe("operator contract surfaces", () => {
       screen.getAllByText(/bounded go, hold, or block release posture/i).length,
     ).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("main")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Deployment Ops"));
+    expect(
+      screen.getAllByText(/bounded deployment posture across supported rollout surfaces/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue("public-runtime")).toBeInTheDocument();
+    expect(screen.getByText("Rollout Mode")).toBeInTheDocument();
   });
 
   it("renders reddit-response as a freshness-aware knowledge-pack lane", () => {

@@ -129,6 +129,12 @@ function mapSignalPresenceStatus(count: number, blocked = false) {
   return count > 0 ? "watching" : "ready";
 }
 
+function mapDeploymentStatus(value: string) {
+  if (value === "ready" || value === "aligned" || value === "healthy") return "ready";
+  if (value === "blocked" || value === "missing" || value === "drifting") return "blocked";
+  return "watching";
+}
+
 function buildQaSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
   const closureRecommendation = asRecord(raw.closureRecommendation);
   const acceptanceCoverage = asRecord(raw.acceptanceCoverage);
@@ -391,6 +397,89 @@ function buildSystemMonitorSignalDeck(raw: Record<string, unknown>): OperatorSig
                 "0",
               )}.`
             : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildDeploymentOpsSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const deploymentOps = asRecord(raw.deploymentOps);
+  const handoffPackage = asRecord(raw.handoffPackage);
+
+  if (!deploymentOps) {
+    return null;
+  }
+
+  const blockers = normalizeStringList(deploymentOps.blockers, 3);
+  const followups = normalizeStringList(deploymentOps.followups, 3);
+  const rollbackReadiness = asRecord(deploymentOps.rollbackReadiness);
+  const environmentDrift = asRecord(deploymentOps.environmentDrift);
+  const pipelinePosture = asRecord(deploymentOps.pipelinePosture);
+  const latestRuns = toArray<Record<string, unknown>>(pipelinePosture?.latestRuns);
+
+  return {
+    title: "Deployment Posture Deck",
+    summary: "Rollout mode, rollback readiness, and deployment-drift posture for this bounded deployment review.",
+    cards: [
+      {
+        id: "deployment-posture",
+        title: "Deployment Posture",
+        status: mapDeploymentStatus(str(deploymentOps.decision, "watch")),
+        summary: str(
+          deploymentOps.summary,
+          "No bounded deployment posture summary was recorded for this run.",
+        ),
+        details: compactDetails([
+          `Mode: ${str(deploymentOps.rolloutMode, "service")} for ${str(
+            deploymentOps.target,
+            "public-runtime",
+          )}.`,
+          blockers.length > 0 ? `Blockers: ${blockers.join(", ")}.` : null,
+          handoffPackage
+            ? `Handoff: ${str(handoffPackage.targetAgentId, "next-agent")} via ${str(
+                handoffPackage.payloadType,
+                "deployment-ops",
+              )}.`
+            : null,
+        ]),
+      },
+      {
+        id: "deployment-rollback",
+        title: "Rollback Readiness",
+        status: mapDeploymentStatus(str(rollbackReadiness?.status, "watching")),
+        summary: `Rollback posture is ${str(rollbackReadiness?.status, "unknown")} with ${normalizeStringList(
+          rollbackReadiness?.signals,
+          3,
+        ).length} supporting signal(s).`,
+        details: compactDetails(
+          normalizeStringList(rollbackReadiness?.signals, 3).map((entry) => `${entry}.`),
+        ),
+      },
+      {
+        id: "deployment-drift",
+        title: "Drift And Pipeline",
+        status:
+          mapDeploymentStatus(str(environmentDrift?.status, "watching")) === "blocked" ||
+          mapDeploymentStatus(str(pipelinePosture?.status, "watching")) === "blocked"
+            ? "blocked"
+            : mapDeploymentStatus(str(environmentDrift?.status, "watching")) === "ready" &&
+                mapDeploymentStatus(str(pipelinePosture?.status, "watching")) === "ready"
+              ? "ready"
+              : "watching",
+        summary: `Environment drift is ${str(environmentDrift?.status, "unknown")} and pipeline posture is ${str(
+          pipelinePosture?.status,
+          "unknown",
+        )}.`,
+        details: compactDetails([
+          normalizeStringList(environmentDrift?.signals, 2).join(" ") || null,
+          latestRuns.length > 0
+            ? `Latest runs: ${latestRuns
+                .slice(0, 3)
+                .map((run) => `${str(run.type, "unknown")}=${str(run.status, "unknown")}`)
+                .join(", ")}.`
+            : null,
+          followups.length > 0 ? `Follow-ups: ${followups.join(", ")}.` : null,
         ]),
       },
     ],
@@ -1245,6 +1334,7 @@ function buildOperatorSignalDeckVM(runType: string | null | undefined, runResult
   if (runType === "security-audit") return buildSecuritySignalDeck(raw);
   if (runType === "system-monitor") return buildSystemMonitorSignalDeck(raw);
   if (runType === "skill-audit") return buildSkillAuditSignalDeck(raw);
+  if (runType === "deployment-ops") return buildDeploymentOpsSignalDeck(raw);
 
   return null;
 }

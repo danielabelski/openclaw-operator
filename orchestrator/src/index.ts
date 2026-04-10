@@ -986,6 +986,28 @@ const OPERATOR_TASK_PROFILES: OperatorTaskProfile[] = [
     ],
   },
   {
+    type: "deployment-ops",
+    label: "Deployment Ops",
+    purpose: "Produce a bounded deployment posture across supported rollout surfaces, rollback readiness, deployment/docs parity, and pipeline evidence.",
+    internalOnly: false,
+    publicTriggerable: true,
+    approvalGated: false,
+    operationalStatus: "confirmed-working",
+    dependencyClass: "worker",
+    baselineConfidence: "medium",
+    dependencyRequirements: [
+      "deployment-ops worker",
+      "deployment surfaces",
+      "release and monitor evidence",
+      "deployment docs parity",
+    ],
+    exposeInV1: true,
+    caveats: [
+      "This lane is read-only deployment posture synthesis; it does not deploy or restart services.",
+      "Treat blocked posture as real rollout evidence, not a background advisory.",
+    ],
+  },
+  {
     type: "send-digest",
     label: "Send Digest",
     purpose: "Send digest notifications for queued lead work.",
@@ -1240,6 +1262,7 @@ const AGENT_CAPABILITY_RUNTIME_SIGNAL_KEYS: Partial<Record<string, string[]>> = 
   "market-research-agent": ["deltaCapture"],
   "operations-analyst-agent": ["controlPlaneBrief"],
   "release-manager-agent": ["releaseReadiness"],
+  "deployment-ops-agent": ["deploymentOps"],
 };
 
 const TASK_AGENT_SKILL_REQUIREMENTS: Record<
@@ -1293,6 +1316,10 @@ const TASK_AGENT_SKILL_REQUIREMENTS: Record<
     agentId: "release-manager-agent",
     skillId: "documentParser",
   },
+  "deployment-ops": {
+    agentId: "deployment-ops-agent",
+    skillId: "documentParser",
+  },
 };
 
 const TASK_IMPACT_SURFACES: Record<string, string[]> = {
@@ -1314,6 +1341,12 @@ const TASK_IMPACT_SURFACES: Record<string, string[]> = {
     "system-health",
     "release-posture",
   ],
+  "deployment-ops": [
+    "deployment-surfaces",
+    "rollback-posture",
+    "deployment-docs",
+    "pipeline-evidence",
+  ],
   startup: ["control-plane"],
   "doc-change": ["document-watchers", "pending-doc-buffer"],
 };
@@ -1322,6 +1355,7 @@ const CONFIRMED_WORKER_AGENTS = new Set([
   "build-refactor-agent",
   "market-research-agent",
   "reddit-helper",
+  "deployment-ops-agent",
 ]);
 const PARTIAL_WORKER_AGENTS = new Set(["doc-specialist"]);
 
@@ -1485,6 +1519,17 @@ const AGENT_CAPABILITY_TARGETS: Record<
       "security posture review",
       "proof freshness release checks",
       "bounded release follow-up guidance",
+    ],
+  },
+  "deployment-ops-agent": {
+    role: "Deployment posture synthesizer",
+    spine: "execution",
+    targetCapabilities: [
+      "deployment mode synthesis",
+      "rollback readiness review",
+      "deployment drift review",
+      "pipeline posture triage",
+      "bounded rollout follow-up guidance",
     ],
   },
   "skill-audit-agent": {
@@ -3246,6 +3291,31 @@ function summarizeAgentCapabilityRuntimeSignal(args: {
       `open-incidents:${openIncidents}`,
       `pending-approvals:${pendingApprovals}`,
     ];
+  } else if (agentId === "deployment-ops-agent" && key === "deploymentOps") {
+    const deployment = record as Record<string, any>;
+    const decision =
+      typeof deployment?.decision === "string" ? deployment.decision : "unknown";
+    const rolloutMode =
+      typeof deployment?.rolloutMode === "string"
+        ? deployment.rolloutMode
+        : "service";
+    const target =
+      typeof deployment?.target === "string" ? deployment.target : "public-runtime";
+    const pipelineStatus =
+      typeof deployment?.pipelinePosture?.status === "string"
+        ? deployment.pipelinePosture.status
+        : "unknown";
+    const blockerCount = Array.isArray(deployment?.blockers)
+      ? deployment.blockers.length
+      : 0;
+    summary = `Deployment posture is ${decision} for ${target} in ${rolloutMode} mode with pipeline ${pipelineStatus} and ${blockerCount} blocker(s).`;
+    evidence = [
+      `decision:${decision}`,
+      `rollout-mode:${rolloutMode}`,
+      `target:${target}`,
+      `pipeline-status:${pipelineStatus}`,
+      `blocker-count:${blockerCount}`,
+    ];
   } else if (record) {
     evidence = Object.entries(record)
       .slice(0, 5)
@@ -3510,7 +3580,8 @@ export function buildAgentCapabilityReadiness(args: {
         agent.id === "normalization-agent" ||
         agent.id === "market-research-agent" ||
         agent.id === "operations-analyst-agent" ||
-        agent.id === "release-manager-agent"
+        agent.id === "release-manager-agent" ||
+        agent.id === "deployment-ops-agent"
       ) &&
       (verifierHandoffCount > 0 || memoryReportedRelationships || memoryReportedHandoff)
     ) ||
@@ -3522,7 +3593,9 @@ export function buildAgentCapabilityReadiness(args: {
         ) &&
       effectiveSuccessfulTaskRuns > 0
     ) ||
-    ((agent.id === "operations-analyst-agent" || agent.id === "release-manager-agent") &&
+    ((agent.id === "operations-analyst-agent" ||
+      agent.id === "release-manager-agent" ||
+      agent.id === "deployment-ops-agent") &&
       runtimeSignals.length > 0);
 
   const pushEvidenceProfile = (profile: AgentCapabilityEvidenceProfile) => {
@@ -3631,10 +3704,14 @@ export function buildAgentCapabilityReadiness(args: {
                   ? memoryReportedRelationships || memoryReportedHandoff
                     ? "memory-backed control-plane handoff evidence observed"
                     : `${runtimeSignals.length} control-plane readiness signal(s) support bounded follow-up guidance`
-                  : agent.id === "release-manager-agent"
+                : agent.id === "release-manager-agent"
+                  ? memoryReportedRelationships || memoryReportedHandoff
+                    ? "memory-backed release follow-up evidence observed"
+                    : `${runtimeSignals.length} release-readiness signal(s) support bounded follow-up guidance`
+                  : agent.id === "deployment-ops-agent"
                     ? memoryReportedRelationships || memoryReportedHandoff
-                      ? "memory-backed release follow-up evidence observed"
-                      : `${runtimeSignals.length} release-readiness signal(s) support bounded follow-up guidance`
+                      ? "memory-backed deployment follow-up evidence observed"
+                      : `${runtimeSignals.length} deployment posture signal(s) support bounded rollout guidance`
                 : `${verifierHandoffCount} downstream handoff relationship(s) observed`,
     );
     presentCapabilities.push("verification or repair evidence");

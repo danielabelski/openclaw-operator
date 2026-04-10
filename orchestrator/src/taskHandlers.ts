@@ -52,6 +52,7 @@ export const ALLOWED_TASK_TYPES = [
   "doc-change",
   "doc-sync",
   "drift-repair",
+  "deployment-ops",
   "control-plane-brief",
   "incident-triage",
   "release-readiness",
@@ -91,6 +92,10 @@ const SPAWNED_AGENT_PERMISSION_REQUIREMENTS: Partial<
   "build-refactor": {
     agentId: "build-refactor-agent",
     skillId: "workspacePatch",
+  },
+  "deployment-ops": {
+    agentId: "deployment-ops-agent",
+    skillId: "documentParser",
   },
   "control-plane-brief": {
     agentId: "operations-analyst-agent",
@@ -218,6 +223,11 @@ const RUN_RESULT_HIGHLIGHT_PRIORITY = [
   "artifactCoverage",
   "comparisonReadiness",
   "deltaCapture",
+  "deploymentOps",
+  "rollbackReadiness",
+  "environmentDrift",
+  "pipelinePosture",
+  "surfaceChecks",
   "handoffPackage",
   "publicationPolicy",
   "claimDiscipline",
@@ -348,6 +358,41 @@ function buildIntegrationWorkflowSummaryResult(result: Record<string, unknown>) 
   };
 }
 
+function buildDeploymentOpsSummaryResult(result: Record<string, unknown>) {
+  const deploymentOps =
+    result.deploymentOps && typeof result.deploymentOps === "object"
+      ? (result.deploymentOps as Record<string, unknown>)
+      : null;
+
+  if (!deploymentOps) {
+    return result;
+  }
+
+  return {
+    ...result,
+    rollbackReadiness:
+      deploymentOps.rollbackReadiness &&
+      typeof deploymentOps.rollbackReadiness === "object"
+        ? deploymentOps.rollbackReadiness
+        : undefined,
+    environmentDrift:
+      deploymentOps.environmentDrift &&
+      typeof deploymentOps.environmentDrift === "object"
+        ? deploymentOps.environmentDrift
+        : undefined,
+    pipelinePosture:
+      deploymentOps.pipelinePosture &&
+      typeof deploymentOps.pipelinePosture === "object"
+        ? deploymentOps.pipelinePosture
+        : undefined,
+    surfaceChecks:
+      deploymentOps.surfaceChecks &&
+      typeof deploymentOps.surfaceChecks === "object"
+        ? deploymentOps.surfaceChecks
+        : undefined,
+  };
+}
+
 function normalizeTaskExecutionSummaryResult(args: {
   taskType?: string | null;
   agentId?: string | null;
@@ -357,6 +402,10 @@ function normalizeTaskExecutionSummaryResult(args: {
 
   if (taskType === "integration-workflow" || agentId === "integration-agent") {
     return buildIntegrationWorkflowSummaryResult(result);
+  }
+
+  if (taskType === "deployment-ops" || agentId === "deployment-ops-agent") {
+    return buildDeploymentOpsSummaryResult(result);
   }
 
   return result;
@@ -381,6 +430,7 @@ function recordTaskExecutionResultSummary(
   execution.resultSummary = buildTaskExecutionResultSummary(
     normalizeTaskExecutionSummaryResult({
       taskType: task.type,
+      agentId: null,
       result,
     }),
   );
@@ -2513,6 +2563,48 @@ const controlPlaneBriefHandler: TaskHandler = async (task, context) => {
   }
 };
 
+const deploymentOpsHandler: TaskHandler = async (task, context) => {
+  await assertToolGatePermission(task, context, "deployment-ops");
+  const payload = {
+    id: randomUUID(),
+    type: "deployment-ops",
+    target:
+      typeof task.payload.target === "string" ? task.payload.target : undefined,
+    rolloutMode:
+      typeof task.payload.rolloutMode === "string"
+        ? task.payload.rolloutMode
+        : undefined,
+  };
+
+  try {
+    const result = await runSpawnedAgentJob(
+      "deployment-ops-agent",
+      payload,
+      "DEPLOYMENT_OPS_AGENT_RESULT_FILE",
+      context.logger,
+    );
+    recordTaskExecutionResultSummary(context, task, result);
+    assertSpawnedAgentReportedSuccess(result, "deployment ops");
+    observeSpawnedAgentResult({
+      context,
+      task,
+      sourceAgentId: "deployment-ops-agent",
+      result,
+    });
+    const deploymentOps =
+      typeof result.deploymentOps === "object" && result.deploymentOps !== null
+        ? (result.deploymentOps as Record<string, unknown>)
+        : null;
+    const decision =
+      deploymentOps && typeof deploymentOps.decision === "string"
+        ? deploymentOps.decision
+        : "unknown";
+    return `deployment ops complete (${decision})`;
+  } catch (error) {
+    throwTaskFailure("deployment ops", error);
+  }
+};
+
 const incidentTriageHandler: TaskHandler = async (task, context) => {
   await assertToolGatePermission(task, context, "incident-triage");
   const payload = {
@@ -3696,6 +3788,7 @@ export const taskHandlers: Record<string, TaskHandler> = {
   "doc-change": docChangeHandler,
   "doc-sync": docSyncHandler,
   "drift-repair": driftRepairHandler,
+  "deployment-ops": deploymentOpsHandler,
   "control-plane-brief": controlPlaneBriefHandler,
   "incident-triage": incidentTriageHandler,
   "release-readiness": releaseReadinessHandler,

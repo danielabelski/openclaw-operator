@@ -27,7 +27,8 @@ The public repo is in a shippable state.
   snapshots, not just early reads
 - current portfolio productization is mostly done for the shipped operator
   product
-- broader external-catalog agent growth has not started yet
+- the first broader external-catalog growth slice is now built in repo code as
+  the bounded `deployment-ops` lane
 - an uncommitted governance spike was reviewed against current code truth and
   intentionally dropped instead of being carried forward as local drift
 
@@ -79,20 +80,32 @@ The public repo is in a shippable state.
      completion conditions and isolation from ambient host artifacts for
      integration tests
 
+8. The first new-agent adoption contract is now implemented in repo code.
+   - `deployment-ops-agent` now exists as a worker-first, read-only
+     deployment posture lane rather than a deploy executor
+   - the public runtime, operator UI, task catalog, run-detail deck, and
+     integration proof now all include `deployment-ops`
+   - the lane sits between `release-readiness` and the approval-gated
+     `agent-deploy` mutator without absorbing deploy authority
+
 ## Current Recommended Next Move
 
-Do one bounded adoption-contract pass for the first queued external-catalog
-candidate:
+Close the first bounded external-catalog adoption slice with live runtime proof:
 
 - `DevOps Automator -> deployment-ops-agent`
 
-That pass should answer only:
+The build slice is now landed in repo code. The next closure step should prove
+the lane on the live runtime and refresh capability evidence from the running
+operator surface rather than only from tests.
 
-1. what exact task lane it owns
-2. whether it is `worker-first` or `service-expected`
-3. what governed skills it can honestly use right now
-4. what operator-visible evidence it must emit
-5. what it must explicitly refuse
+Current implementation target:
+
+1. run a focused `deployment-ops` canary on the live runtime
+2. confirm `/api/agents/overview` and `/operator/agents` promote
+   `deploymentOps` runtime evidence for the new worker
+3. refresh docs/workboard wording only if the live capability posture differs
+   from the current contract
+4. only then decide whether to move to the next external-catalog candidate
 
 Do not start by bulk-researching many candidates or importing external repo
 structure wholesale.

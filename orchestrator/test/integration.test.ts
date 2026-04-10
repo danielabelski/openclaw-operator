@@ -1139,6 +1139,9 @@ describe('Runtime Integration: Live Middleware Chain', () => {
 
     expect(Array.isArray(catalog.tasks)).toBe(true);
     expect(
+      catalog.tasks.some((task: any) => task.type === 'deployment-ops'),
+    ).toBe(true);
+    expect(
       catalog.tasks.some((task: any) => task.type === 'control-plane-brief'),
     ).toBe(true);
     expect(
@@ -2402,6 +2405,93 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     expect(releaseDetail.run?.resultSummary?.keys).toContain('releaseReadiness');
     expect(releaseDetail.run?.resultSummary?.keys).toContain('toolInvocations');
     expect(releaseDetail.run?.resultSummary?.keys).toContain('handoffPackage');
+  });
+
+  it('surfaces deployment-ops posture through task runs and agent overview', { timeout: 120000 }, async () => {
+    await resetRuntimeToSeededState();
+
+    const systemMonitorTaskId = await triggerTask('system-monitor', {
+      type: 'health',
+      agents: ['deployment-ops-agent'],
+    });
+    await waitForTaskHistoryRecord(systemMonitorTaskId);
+    await waitForTaskRun(systemMonitorTaskId);
+
+    const securityTaskId = await triggerTask('security-audit', {
+      type: 'scan',
+      scope: 'workspace',
+    });
+    await waitForTaskHistoryRecord(securityTaskId);
+    await waitForTaskRun(securityTaskId);
+
+    const deploymentTaskId = await triggerTask('deployment-ops', {
+      target: 'public-runtime',
+      rolloutMode: 'service',
+      maxRetries: 0,
+    });
+    await waitForTaskHistoryRecord(deploymentTaskId);
+    const deploymentRun = await waitForTaskRun(deploymentTaskId);
+
+    const deploymentDetail = await waitForRunResultSummaryKeys(
+      String(deploymentRun.runId),
+      ['deploymentOps', 'rollbackReadiness', 'environmentDrift', 'pipelinePosture', 'surfaceChecks'],
+    ) as {
+      run?: {
+        resultSummary?: {
+          keys?: string[];
+          highlights?: {
+            deploymentOps?: {
+              decision?: string;
+              rolloutMode?: string;
+              target?: string;
+            };
+          };
+        };
+        result?: {
+          success?: boolean;
+          deploymentOps?: {
+            decision?: string;
+            rolloutMode?: string;
+            target?: string;
+          };
+        };
+      };
+    };
+
+    expect(deploymentDetail.run?.resultSummary?.keys).toContain('deploymentOps');
+    expect(deploymentDetail.run?.resultSummary?.keys).toContain('rollbackReadiness');
+    expect(deploymentDetail.run?.resultSummary?.keys).toContain('environmentDrift');
+    expect(deploymentDetail.run?.resultSummary?.keys).toContain('pipelinePosture');
+    expect(deploymentDetail.run?.resultSummary?.keys).toContain('surfaceChecks');
+    expect(deploymentDetail.run?.result?.success).toBe(true);
+    expect(
+      deploymentDetail.run?.result?.deploymentOps?.decision === 'ready' ||
+        deploymentDetail.run?.result?.deploymentOps?.decision === 'watch',
+    ).toBe(true);
+    expect(deploymentDetail.run?.result?.deploymentOps?.rolloutMode).toBe('service');
+    expect(deploymentDetail.run?.result?.deploymentOps?.target).toBe('public-runtime');
+
+    const deploymentAgent = await waitForAgentRuntimeSignal(
+      'deployment-ops-agent',
+      'deploymentOps',
+      45000,
+      {
+        runId: String(deploymentRun.runId),
+        taskId: deploymentTaskId,
+      },
+    );
+
+    expect(
+      deploymentAgent?.capability?.runtimeEvidence?.signals?.some(
+        (entry) => entry.key === 'deploymentOps',
+      ),
+    ).toBe(true);
+    expect(
+      deploymentAgent?.capability?.presentCapabilities,
+    ).toContain('promoted runtime readiness evidence');
+    expect(
+      deploymentAgent?.capability?.presentCapabilities,
+    ).toContain('tool execution evidence');
   });
 
   it('closes public proof linkage across incident, remediation, and run workflow detail', async () => {

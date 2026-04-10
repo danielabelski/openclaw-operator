@@ -19,6 +19,9 @@ Telemetry helpers live under [`shared/`](./shared). New agents should start from
 - [`content-agent/`](./content-agent) - repository-backed content generation
 - [`data-extraction-agent/`](./data-extraction-agent) - structured extraction
   from local files
+- [`deployment-ops-agent/`](./deployment-ops-agent) - bounded deployment
+  posture synthesis across rollout surfaces, rollback readiness, and pipeline
+  evidence
 - [`integration-agent/`](./integration-agent) - multi-step workflow handoffs
 - [`market-research-agent/`](./market-research-agent) - approved external
   research collection
@@ -63,6 +66,7 @@ Current runtime truth:
 - **Focused contract-proven spawned workers in the current public expansion slice:**
   - [`operations-analyst-agent/`](./operations-analyst-agent) (`2026-04-02`; bounded `control-plane-brief` plus companion-overview proof)
   - [`release-manager-agent/`](./release-manager-agent) (`2026-04-02`; bounded `release-readiness` proof)
+  - [`deployment-ops-agent/`](./deployment-ops-agent) (`2026-04-09`; bounded `deployment-ops` proof)
 - **Confirmed working as spawned workers in the latest validation sweep (service availability is separate from worker proof):**
   - [`build-refactor-agent/`](./build-refactor-agent)
   - [`market-research-agent/`](./market-research-agent) (query-only mode)
