@@ -4869,6 +4869,28 @@ function buildOperatorTaskCatalog(
   });
 }
 
+function buildTaskCatalogCacheKeyData(
+  config: Awaited<ReturnType<typeof loadConfig>>,
+  state: OrchestratorState,
+) {
+  return {
+    approvalRequiredTaskTypes: config.approvalRequiredTaskTypes ?? [],
+    taskProfiles: buildOperatorTaskCatalog(config, state).map((task) => ({
+      type: task.type,
+      label: task.label,
+      internalOnly: task.internalOnly,
+      publicTriggerable: task.publicTriggerable,
+      approvalGated: task.approvalGated,
+      exposeInV1: task.exposeInV1,
+      operationalStatus: task.operationalStatus,
+      dependencyClass: task.dependencyClass,
+      baselineConfidence: task.baselineConfidence,
+      dependencyRequirements: task.dependencyRequirements,
+      caveats: task.caveats,
+    })),
+  };
+}
+
 function buildCompanionControlPlaneMode(args: {
   openIncidentCount: number;
   criticalIncidentCount: number;
@@ -12441,14 +12463,13 @@ async function bootstrap() {
     auditProtectedAction("tasks.catalog.read"),
     async (req, res) => {
       try {
+        const taskCatalogCacheKeyData = buildTaskCatalogCacheKeyData(config, state);
         await respondWithCachedJson(req, res, {
           namespace: "tasks.catalog",
           ttlSeconds: readCacheTtls.tasksCatalog,
           tags: [],
           scope: "protected",
-          keyData: {
-            approvalRequiredTaskTypes: config.approvalRequiredTaskTypes ?? [],
-          },
+          keyData: taskCatalogCacheKeyData,
           compute: () => ({
             generatedAt: new Date().toISOString(),
             tasks: buildOperatorTaskCatalog(config, state).filter(
@@ -12635,14 +12656,13 @@ async function bootstrap() {
     auditProtectedAction("companion.catalog.read"),
     async (req, res) => {
       try {
+        const taskCatalogCacheKeyData = buildTaskCatalogCacheKeyData(config, state);
         await respondWithCachedJson(req, res, {
           namespace: "companion.catalog",
           ttlSeconds: readCacheTtls.tasksCatalog,
           tags: ["runtime-state"],
           scope: "protected",
-          keyData: {
-            approvalRequiredTaskTypes: config.approvalRequiredTaskTypes ?? [],
-          },
+          keyData: taskCatalogCacheKeyData,
           compute: () => buildCompanionCatalogPayload(config, state),
         });
       } catch (error: any) {

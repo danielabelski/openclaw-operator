@@ -492,7 +492,7 @@ tooling contracts, and deliverables, not just names.
 | `support-operations-agent` | response rubric, escalation rules, FAQ extraction, issue-to-answer handoff, trust-and-tone boundaries | rebuild as governed support drafting and FAQ-routing skills; do not import external support bots or automations |
 | `backlog-prioritization-agent` | backlog scoring rubric, sequencing heuristics, dependency-aware slicing, urgency-vs-value framing, release-window prioritization | rebuild as local backlog ranking and planning contracts using existing run, incident, approval, and repo truth; do not import external PM tooling logic blindly |
 
-### Current Next-Candidate Contract: `deployment-ops-agent`
+### Completed Contract: `deployment-ops-agent`
 
 This is the current implementation-ready contract for the first new public
 agent candidate.
@@ -629,8 +629,11 @@ Status:
 - completed in repo code on `2026-04-09`
 - verified through focused task-catalog, operator-UI, and integration proof,
   then through the full protected-branch `verify:main` contract
-- still needs a focused live-runtime canary before treating the new worker as
-  fully live-adopted
+- confirmed on the live `3312` runtime on `2026-04-10`
+- `/api/agents/overview` now promotes current-run `deploymentOps` runtime
+  evidence for the worker on the live surface
+- protected task-catalog surfaces now vary their cache key with the live task
+  profile set so new lanes cannot stay hidden behind a stale Redis snapshot
 
 Build this lane in the same bounded pattern as `control-plane-brief` and
 `release-readiness`:
@@ -645,14 +648,8 @@ Build this lane in the same bounded pattern as `control-plane-brief` and
    - promoted runtime evidence
 4. add truthful docs and operator copy
 
-Immediate follow-up:
-
-1. run a focused live `deployment-ops` canary against the current public
-   runtime
-2. confirm promoted `deploymentOps` readiness evidence through
-   `/api/agents/overview`
-3. refresh operator capability wording only after live runtime proof matches
-   the repo-level proof
+Immediate follow-up is now closed. The next contract pass should move to
+`code-index-agent`.
 
 ### Practical Skill-Gap Lens
 
@@ -711,17 +708,19 @@ The next practical move after this board is not to add all candidates at once.
 It is to take the first `adapt next` candidate, define its bounded lane, and
 productize it end to end before opening the next one.
 
-Current recommended first candidate:
+Current recommended next candidate:
 
-- DevOps Automator -> `deployment-ops-agent`
+- LSP/Index Engineer -> `code-index-agent`
 
-Why first:
+Why next:
 
-- it strengthens public deployment and runtime operations directly
-- it fits the control-plane/operator theme cleanly
-- it has a clearer owned lane than the more abstract later candidates
-- it can produce operator-visible proof without flattening the current trust
-  model
+- `deployment-ops-agent` is now implemented and live-confirmed on the running
+  operator surface
+- searchable code and knowledge indexing fits the current product directly and
+  complements the existing knowledge-pack workflow
+- it can produce operator-visible proof without widening deployment or approval
+  authority
+- it is more immediately reusable than the broader later candidates
 
 ### Sprint 1: Trust And Governance Adoption
 

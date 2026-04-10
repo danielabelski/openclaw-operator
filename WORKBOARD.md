@@ -88,24 +88,34 @@ The public repo is in a shippable state.
    - the lane sits between `release-readiness` and the approval-gated
      `agent-deploy` mutator without absorbing deploy authority
 
+9. `deployment-ops` is now live-confirmed on the running operator surface.
+   - a focused live canary succeeded on `3312` on `2026-04-10`
+   - `/api/agents/overview` promoted current-run `deploymentOps` runtime
+     evidence for `deployment-ops-agent`
+   - `/api/tasks/catalog` and `/api/companion/catalog` now vary their
+     protected cache key on the live operator task profile set, which closes
+     the stale-post-restart catalog gap that initially hid the new lane
+
 ## Current Recommended Next Move
 
-Close the first bounded external-catalog adoption slice with live runtime proof:
+Open the second bounded external-catalog adoption slice with a contract-first
+pass:
 
-- `DevOps Automator -> deployment-ops-agent`
+- `LSP/Index Engineer -> code-index-agent`
 
-The build slice is now landed in repo code. The next closure step should prove
-the lane on the live runtime and refresh capability evidence from the running
-operator surface rather than only from tests.
+`deployment-ops-agent` is now implemented and live-confirmed. The next useful
+candidate is the indexing lane because it is productizable, operator-visible,
+and fits the current knowledge-pack and repo-truth workflow without widening
+deploy or approval authority.
 
 Current implementation target:
 
-1. run a focused `deployment-ops` canary on the live runtime
-2. confirm `/api/agents/overview` and `/operator/agents` promote
-   `deploymentOps` runtime evidence for the new worker
-3. refresh docs/workboard wording only if the live capability posture differs
-   from the current contract
-4. only then decide whether to move to the next external-catalog candidate
+1. define the bounded `code-index-agent` owned lane from current repo/runtime
+   needs, not external prose alone
+2. keep it worker-first and read-only on the first slice
+3. make its outputs operator-visible and evidence-backed before widening scope
+4. only then decide whether the follow-on candidate should be
+   `test-intelligence-agent` or another queue entry
 
 Do not start by bulk-researching many candidates or importing external repo
 structure wholesale.
