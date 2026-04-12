@@ -420,9 +420,9 @@ shipped honestly in open source:
 
 | External Role | Queue Status | Intended Public Shape | Why It Belongs |
 |---|---|---|---|
-| DevOps Automator | adapt next | `deployment-ops-agent` | bounded deploy, rollback, release-ops, and service-runtime guidance fit the operator product directly |
-| LSP/Index Engineer | adapt next | `code-index-agent` | searchable code and knowledge indexing is productizable, operator-visible, and useful beyond the maintainer's private lab |
-| Test Results Analyzer | adapt next | `test-intelligence-agent` | multi-suite test evidence synthesis is a real public control-plane workflow that complements, rather than duplicates, verification |
+| DevOps Automator | completed | `deployment-ops-agent` | bounded deploy, rollback, release-ops, and service-runtime guidance fit the operator product directly |
+| LSP/Index Engineer | completed | `code-index-agent` | searchable code and knowledge indexing is productizable, operator-visible, and useful beyond the maintainer's private lab |
+| Test Results Analyzer | completed | `test-intelligence-agent` | multi-suite test evidence synthesis is now productized as a bounded public control-plane lane with live canary proof |
 | Legal Compliance Checker | adapt next | `compliance-agent` | bounded compliance, policy, and dependency-posture review is open-source shippable and useful for releases and operator decisions |
 | Support Responder | adapt next | `support-operations-agent` | support and FAQ response quality can be productized without turning the public repo into a private customer-ops layer |
 | Sprint Prioritizer | adapt next | `backlog-prioritization-agent` | bounded sequencing, scoping, and priority guidance is productizable for open-source workflow management |
@@ -651,6 +651,267 @@ Build this lane in the same bounded pattern as `control-plane-brief` and
 Immediate follow-up is now closed. The next contract pass should move to
 `code-index-agent`.
 
+### Completed Contract: `code-index-agent`
+
+This is the current implementation-ready contract for the second new public
+agent candidate.
+
+It is derived from the current repo code, not only from external prose:
+
+- `orchestrator/src/docIndexer.ts` already indexes markdown, code, config,
+  notebooks, and asset-manifest clues across local roots using a bounded
+  local-first crawler
+- `GET /api/knowledge/summary` already exposes indexed-entry counts plus
+  freshness and contradiction signals sourced from runtime truth
+- `POST /api/knowledge/query` already exposes bounded retrieval over the
+  current local index
+- `doc-specialist` already generates knowledge packs and repair drafts from
+  local mirrors using governed `documentParser` access
+- `operator-s-console` already has the launcher, run-detail, knowledge
+  summary, and agent-overview surfaces needed to expose an indexing lane
+  without inventing a new console shell first
+
+The missing bounded lane is therefore not "be Codex" and not "import a foreign
+LSP stack wholesale." The missing lane is "tell the operator whether current
+local repo and knowledge indexing is fresh, linked, searchable, and trustworthy
+enough for downstream retrieval and diagnosis."
+
+#### Owned Lane
+
+- task type: `code-index`
+- mission: synthesize bounded local indexing posture across repo/code/docs
+  coverage, documentation-to-code linkage, search-gap diagnosis, and freshness
+  for the current workspace mirrors and knowledge-pack workflow
+- lifecycle: `worker-first`
+- exposure target: `public-triggerable`
+- approval posture: `dynamic-only`
+
+#### What It Owns
+
+`code-index-agent` should own read-only indexing posture synthesis for:
+
+- local repo/code/docs index coverage
+- documentation-to-code and code-to-doc linkage review
+- knowledge-pack and index freshness review
+- retrieval-readiness posture for downstream operator and companion workflows
+- search-gap diagnosis across canonical docs, runtime code, and agent docs
+- bounded symbol and reference coverage expectations grounded in the current
+  local index, not an implied full semantic language server
+
+This lane should answer:
+
+1. are the current repo and mirror roots indexed enough for downstream
+   retrieval work?
+2. where are the strongest doc-to-code or code-to-doc linkage gaps?
+3. what freshness or contradiction gaps will mislead operators or downstream
+   agents?
+4. is the current local index trustworthy enough for bounded retrieval, or
+   should the operator refresh or repair first?
+
+#### What It Must Not Own
+
+This lane must not duplicate or absorb:
+
+- `drift-repair`
+  - documentation repair and pack regeneration still belong to
+    `doc-specialist`
+- `build-refactor`
+  - code edits, patches, and mutating refactors still belong to the explicit
+    code-change lane
+- `deployment-ops` or `release-readiness`
+  - deployment and release posture remain separate bounded synthesis lanes
+- ad hoc unrestricted repo analysis
+  - no arbitrary shell execution, no generic "run Codex on the repo" authority,
+    and no implied remote repo crawling
+
+#### Governed Access It Can Honestly Use Right Now
+
+Current honest governed skill access should stay narrow:
+
+- `documentParser`
+  - parse bounded local docs, code/config files, and knowledge-pack artifacts
+    already visible in the workspace
+
+Do not widen this first slice to require:
+
+- `workspacePatch`
+- `testRunner`
+- `sourceFetch`
+- external LSP daemons or imported third-party index binaries
+- arbitrary shell execution
+- network access
+
+If richer repo intelligence is needed later, add a bounded local
+index/search-oriented skill explicitly. Do not collapse the current
+manifest/ToolGate model into unrestricted Codex-equivalent authority.
+
+#### Minimum Operator-Visible Evidence
+
+The result contract should mirror the current bounded synthesis lanes and make
+index posture operator-legible at a glance.
+
+Required lane payload:
+
+- `codeIndex.decision`
+  - `ready` | `refresh` | `blocked`
+- `codeIndex.summary`
+- `codeIndex.indexScope`
+- `codeIndex.indexCoverage`
+- `codeIndex.docLinks`
+- `codeIndex.searchGaps`
+- `codeIndex.freshness`
+- `codeIndex.retrievalReadiness`
+- `codeIndex.evidenceSources`
+
+Required shared fields:
+
+- `operatorSummary`
+- `recommendedNextActions[]`
+- `specialistContract`
+- `toolInvocations[]`
+- `handoffPackage`
+
+The runtime should also be able to promote a compact indexing-readiness signal
+into `/api/agents/overview` the same way the current bounded lanes promote
+`controlPlaneBrief`, `releaseReadiness`, and `deploymentOps`.
+
+#### Explicit Refusal / Block Rules
+
+`code-index-agent` should explicitly refuse or block when asked to:
+
+- edit code or docs
+- claim full semantic/LSP certainty it cannot produce from the current local
+  text-first index
+- execute builds, tests, or shell commands
+- fetch external repos, networks, or cloud sources as index inputs
+- bypass `drift-repair` when freshness or contradiction repair is the real next
+  step
+
+It should block normally when:
+
+- required local index roots are missing or unreadable
+- current freshness or contradiction signals indicate stale or conflicting
+  source truth
+- requested targets fall outside the manifest read scope
+- linkage or retrieval coverage is too weak to support a bounded reliable
+  answer
+
+#### First Implementation Slice
+
+Status:
+
+- implemented in repo code on `2026-04-10`
+- live canary confirmed on `3312` on `2026-04-10`
+- current promoted runtime evidence confirms `codeIndex` readiness output in
+  `/api/agents/overview` for the canary run
+
+The shipped first slice follows the same bounded pattern as `deployment-ops`,
+`control-plane-brief`, and `release-readiness`:
+
+1. add `agents/code-index-agent/` with a local-first state path and
+   worker-first config
+2. add `codeIndexHandler` plus allowlist, validation, catalog, and task-profile
+   wiring
+3. add focused operator UI wiring through the existing task launcher and run
+   detail surfaces rather than a new page
+4. add focused contract proof for:
+   - `ready`
+   - `refresh`
+   - `blocked`
+   - promoted runtime evidence
+   - refusal when write, shell, or external-index authority is requested
+5. add truthful docs and site mirrors
+
+Immediate follow-up is now closed:
+
+1. a live `code-index` canary succeeded on the running runtime on
+   `2026-04-10`
+2. `/api/agents/overview` and `/operator/agents` both confirmed current-run
+   `codeIndex` evidence during that canary
+3. that follow-up is now closed through the completed
+   `test-intelligence-agent` slice
+
+### Completed Contract: `test-intelligence-agent`
+
+`test-intelligence-agent` is now implemented as a worker-first, read-only,
+local-first lane over the current runtime and bounded local test surfaces.
+
+#### Lane Ownership
+
+`test-intelligence-agent` should own read-only synthesis for:
+
+- bounded local suite coverage across:
+  - `orchestrator/test`
+  - `operator-s-console/src/test`
+  - selected test-bearing agent roots
+- recent runtime failure clustering from persisted task execution history
+- flaky-signal detection from retry recovery and multi-attempt run evidence
+- release-facing risk posture from the latest verification, build, and release
+  readiness outputs
+- operator-visible next-action guidance when the real next move is repair,
+  rerun, or review
+
+It should not own:
+
+- test execution
+- code edits or refactors
+- shell or CI control
+- external provider test analytics
+- hidden judgment outside the bounded runtime and local repo evidence
+
+#### Explicit Refusals
+
+`test-intelligence-agent` should explicitly refuse or block when asked to:
+
+- run tests itself
+- edit source or test files
+- execute shell commands or CI jobs
+- fetch external dashboards, SaaS test reports, or private artifacts
+- claim certainty beyond the bounded local suite and runtime evidence window
+
+It should block normally when:
+
+- required local test roots are missing or unreadable
+- requested suites fall outside the manifest read scope
+- runtime evidence is too sparse to support bounded posture synthesis
+- release-facing signals are missing enough context to support a grounded risk
+  summary
+
+#### First Implementation Slice
+
+Status:
+
+- implemented in repo code on `2026-04-12`
+- live canary confirmed on `3312` on `2026-04-12`
+- current promoted runtime evidence confirms `testIntelligence` output in
+  `/api/agents/overview` for the canary run
+
+The shipped first slice follows the same bounded pattern as `deployment-ops`
+and `code-index`:
+
+1. add `agents/test-intelligence-agent/` with a local-first state path and
+   worker-first config
+2. add `testIntelligenceHandler` plus allowlist, validation, catalog, and
+   task-profile wiring
+3. add focused operator UI wiring through the existing task launcher and run
+   detail surfaces rather than a new page
+4. add focused contract proof for:
+   - `ready`
+   - `watching`
+   - `blocked`
+   - promoted runtime evidence
+   - refusal when execution, write, shell, or external-report authority is
+     requested
+5. add truthful docs and site mirrors
+
+Immediate follow-up is now closed:
+
+1. a live `test-intelligence` canary succeeded on the running runtime on
+   `2026-04-12`
+2. `/api/agents/overview` confirmed current-run `testIntelligence` evidence
+   for the canary run
+3. the next candidate is now `compliance-agent`
+
 ### Practical Skill-Gap Lens
 
 For each future candidate, the key question is not only "do we want this role?"
@@ -710,17 +971,22 @@ productize it end to end before opening the next one.
 
 Current recommended next candidate:
 
-- LSP/Index Engineer -> `code-index-agent`
+- Legal Compliance Checker -> `compliance-agent`
 
 Why next:
 
-- `deployment-ops-agent` is now implemented and live-confirmed on the running
-  operator surface
-- searchable code and knowledge indexing fits the current product directly and
-  complements the existing knowledge-pack workflow
-- it can produce operator-visible proof without widening deployment or approval
+- `deployment-ops-agent`, `code-index-agent`, and
+  `test-intelligence-agent` are now all implemented and live-confirmed on the
+  running operator surface
+- bounded compliance synthesis naturally complements `release-manager-agent`,
+  `deployment-ops-agent`, `test-intelligence-agent`, and the approval /
+  governance surfaces already in repo code
+- it can produce operator-visible proof from current policy, dependency,
+  approval, and release surfaces without widening deploy, shell, or execution
   authority
-- it is more immediately reusable than the broader later candidates
+- the next useful product question is no longer whether indexing should exist;
+  it is how test evidence should be clustered, narrated, and promoted into the
+  operator control plane
 
 ### Sprint 1: Trust And Governance Adoption
 

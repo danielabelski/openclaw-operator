@@ -1,0 +1,43 @@
+{
+  "id": "test-intelligence-agent",
+  "orchestratorTask": "test-intelligence",
+  "orchestratorStatePath": "../../orchestrator/data/orchestrator-state.json",
+  "serviceStatePath": "../../logs/test-intelligence-agent-service.json",
+  "name": "Test Intelligence Agent",
+  "description": "Synthesizes bounded test-intelligence posture across local test coverage, recent failures, retry signals, and release-facing verifier risk.",
+  "version": "1.0.0",
+  "model": {
+    "primary": "claude-3-5-sonnet",
+    "fallback": "gpt-4o-mini",
+    "tier": "balanced",
+    "temperature": 0.2,
+    "maxTokens": 2048
+  },
+  "maxConcurrentTasks": 2,
+  "permissions": {
+    "skills": {
+      "documentParser": {
+        "allowed": true,
+        "maxCalls": 60,
+        "reason": "Parse bounded local package, test, and runtime evidence."
+      }
+    },
+    "fileSystem": {
+      "readPaths": [
+        "../../package.json",
+        "../../orchestrator/package.json",
+        "../../operator-s-console/package.json",
+        "../../orchestrator/test",
+        "../../operator-s-console/src/test",
+        "../../agents"
+      ]
+    },
+    "network": {
+      "allowed": false
+    }
+  },
+  "constraints": {
+    "timeoutSec": 90,
+    "maxRetries": 1
+  }
+}

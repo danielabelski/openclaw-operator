@@ -78,6 +78,8 @@ export const TaskTriggerSchema = z.object({
   type: z.enum([
     'drift-repair',
     'deployment-ops',
+    'code-index',
+    'test-intelligence',
     'control-plane-brief',
     'incident-triage',
     'release-readiness',

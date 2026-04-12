@@ -1008,6 +1008,50 @@ const OPERATOR_TASK_PROFILES: OperatorTaskProfile[] = [
     ],
   },
   {
+    type: "code-index",
+    label: "Code Index",
+    purpose: "Produce a bounded code-index posture across repo coverage, doc-to-code linkage, search gaps, and retrieval freshness.",
+    internalOnly: false,
+    publicTriggerable: true,
+    approvalGated: false,
+    operationalStatus: "confirmed-working",
+    dependencyClass: "worker",
+    baselineConfidence: "medium",
+    dependencyRequirements: [
+      "code-index worker",
+      "bounded repo roots",
+      "knowledge-pack freshness",
+      "retrieval-readiness evidence",
+    ],
+    exposeInV1: true,
+    caveats: [
+      "This lane is read-only repo-intelligence synthesis; it does not edit code or run shell workflows.",
+      "Treat refresh posture as real retrieval evidence that indexing or freshness still needs closure.",
+    ],
+  },
+  {
+    type: "test-intelligence",
+    label: "Test Intelligence",
+    purpose: "Produce a bounded test-intelligence posture across local test coverage, recent failures, retry signals, and release-facing verifier risk.",
+    internalOnly: false,
+    publicTriggerable: true,
+    approvalGated: false,
+    operationalStatus: "confirmed-working",
+    dependencyClass: "worker",
+    baselineConfidence: "medium",
+    dependencyRequirements: [
+      "test-intelligence worker",
+      "bounded test surfaces",
+      "runtime test evidence",
+      "release-risk evidence",
+    ],
+    exposeInV1: true,
+    caveats: [
+      "This lane is read-only test posture synthesis; it does not execute tests or shell workflows.",
+      "Treat watching posture as real quality evidence that verification or retry pressure still needs closure.",
+    ],
+  },
+  {
     type: "send-digest",
     label: "Send Digest",
     purpose: "Send digest notifications for queued lead work.",
@@ -1263,6 +1307,8 @@ const AGENT_CAPABILITY_RUNTIME_SIGNAL_KEYS: Partial<Record<string, string[]>> = 
   "operations-analyst-agent": ["controlPlaneBrief"],
   "release-manager-agent": ["releaseReadiness"],
   "deployment-ops-agent": ["deploymentOps"],
+  "code-index-agent": ["codeIndex"],
+  "test-intelligence-agent": ["testIntelligence"],
 };
 
 const TASK_AGENT_SKILL_REQUIREMENTS: Record<
@@ -1320,6 +1366,14 @@ const TASK_AGENT_SKILL_REQUIREMENTS: Record<
     agentId: "deployment-ops-agent",
     skillId: "documentParser",
   },
+  "code-index": {
+    agentId: "code-index-agent",
+    skillId: "documentParser",
+  },
+  "test-intelligence": {
+    agentId: "test-intelligence-agent",
+    skillId: "documentParser",
+  },
 };
 
 const TASK_IMPACT_SURFACES: Record<string, string[]> = {
@@ -1347,6 +1401,18 @@ const TASK_IMPACT_SURFACES: Record<string, string[]> = {
     "deployment-docs",
     "pipeline-evidence",
   ],
+  "code-index": [
+    "repo-index",
+    "doc-to-code-linkage",
+    "knowledge-pack-freshness",
+    "retrieval-readiness",
+  ],
+  "test-intelligence": [
+    "test-surfaces",
+    "runtime-test-evidence",
+    "retry-recovery",
+    "release-risk",
+  ],
   startup: ["control-plane"],
   "doc-change": ["document-watchers", "pending-doc-buffer"],
 };
@@ -1356,6 +1422,8 @@ const CONFIRMED_WORKER_AGENTS = new Set([
   "market-research-agent",
   "reddit-helper",
   "deployment-ops-agent",
+  "code-index-agent",
+  "test-intelligence-agent",
 ]);
 const PARTIAL_WORKER_AGENTS = new Set(["doc-specialist"]);
 
@@ -1530,6 +1598,28 @@ const AGENT_CAPABILITY_TARGETS: Record<
       "deployment drift review",
       "pipeline posture triage",
       "bounded rollout follow-up guidance",
+    ],
+  },
+  "code-index-agent": {
+    role: "Code index synthesizer",
+    spine: "truth",
+    targetCapabilities: [
+      "repo index coverage review",
+      "doc-to-code linkage review",
+      "search-gap diagnosis",
+      "retrieval freshness review",
+      "bounded retrieval follow-up guidance",
+    ],
+  },
+  "test-intelligence-agent": {
+    role: "Test posture synthesizer",
+    spine: "trust",
+    targetCapabilities: [
+      "test surface coverage review",
+      "failure clustering review",
+      "retry pressure review",
+      "release-facing verifier risk review",
+      "bounded test follow-up guidance",
     ],
   },
   "skill-audit-agent": {
@@ -3316,6 +3406,67 @@ function summarizeAgentCapabilityRuntimeSignal(args: {
       `pipeline-status:${pipelineStatus}`,
       `blocker-count:${blockerCount}`,
     ];
+  } else if (agentId === "code-index-agent" && key === "codeIndex") {
+    const codeIndex = record as Record<string, any>;
+    const decision =
+      typeof codeIndex?.decision === "string" ? codeIndex.decision : "unknown";
+    const target =
+      typeof codeIndex?.target === "string" ? codeIndex.target : "workspace";
+    const coverageEntries = Number(
+      codeIndex?.indexCoverage?.totalIndexedEntries ?? 0,
+    );
+    const linkCount = Array.isArray(codeIndex?.docLinks)
+      ? codeIndex.docLinks.length
+      : 0;
+    const freshnessStatus =
+      typeof codeIndex?.freshness?.status === "string"
+        ? codeIndex.freshness.status
+        : "unknown";
+    const gapCount = Array.isArray(codeIndex?.searchGaps?.items)
+      ? codeIndex.searchGaps.items.length
+      : 0;
+    summary = `Code-index posture is ${decision} for ${target} with ${coverageEntries} indexed entry(s), ${linkCount} canonical link(s), freshness ${freshnessStatus}, and ${gapCount} search gap(s).`;
+    evidence = [
+      `decision:${decision}`,
+      `target:${target}`,
+      `coverage-entries:${coverageEntries}`,
+      `link-count:${linkCount}`,
+      `freshness:${freshnessStatus}`,
+      `gap-count:${gapCount}`,
+    ];
+  } else if (agentId === "test-intelligence-agent" && key === "testIntelligence") {
+    const testIntelligence = record as Record<string, any>;
+    const decision =
+      typeof testIntelligence?.decision === "string"
+        ? testIntelligence.decision
+        : "unknown";
+    const target =
+      typeof testIntelligence?.target === "string"
+        ? testIntelligence.target
+        : "workspace";
+    const coverageStatus =
+      typeof testIntelligence?.suiteCoverage?.status === "string"
+        ? testIntelligence.suiteCoverage.status
+        : "unknown";
+    const failedRunCount = Number(
+      testIntelligence?.recentFailures?.failedRunCount ?? 0,
+    );
+    const retryRecoveryCount = Number(
+      testIntelligence?.flakySignals?.retryRecoveryCount ?? 0,
+    );
+    const releaseRiskStatus =
+      typeof testIntelligence?.releaseRisk?.status === "string"
+        ? testIntelligence.releaseRisk.status
+        : "unknown";
+    summary = `Test-intelligence posture is ${decision} for ${target} with coverage ${coverageStatus}, ${failedRunCount} failed recent run(s), ${retryRecoveryCount} retry recovery signal(s), and release risk ${releaseRiskStatus}.`;
+    evidence = [
+      `decision:${decision}`,
+      `target:${target}`,
+      `coverage:${coverageStatus}`,
+      `failed-runs:${failedRunCount}`,
+      `retry-recoveries:${retryRecoveryCount}`,
+      `release-risk:${releaseRiskStatus}`,
+    ];
   } else if (record) {
     evidence = Object.entries(record)
       .slice(0, 5)
@@ -3581,7 +3732,9 @@ export function buildAgentCapabilityReadiness(args: {
         agent.id === "market-research-agent" ||
         agent.id === "operations-analyst-agent" ||
         agent.id === "release-manager-agent" ||
-        agent.id === "deployment-ops-agent"
+        agent.id === "deployment-ops-agent" ||
+        agent.id === "code-index-agent" ||
+        agent.id === "test-intelligence-agent"
       ) &&
       (verifierHandoffCount > 0 || memoryReportedRelationships || memoryReportedHandoff)
     ) ||
@@ -3595,7 +3748,9 @@ export function buildAgentCapabilityReadiness(args: {
     ) ||
     ((agent.id === "operations-analyst-agent" ||
       agent.id === "release-manager-agent" ||
-      agent.id === "deployment-ops-agent") &&
+      agent.id === "deployment-ops-agent" ||
+      agent.id === "code-index-agent" ||
+      agent.id === "test-intelligence-agent") &&
       runtimeSignals.length > 0);
 
   const pushEvidenceProfile = (profile: AgentCapabilityEvidenceProfile) => {
@@ -3708,10 +3863,18 @@ export function buildAgentCapabilityReadiness(args: {
                   ? memoryReportedRelationships || memoryReportedHandoff
                     ? "memory-backed release follow-up evidence observed"
                     : `${runtimeSignals.length} release-readiness signal(s) support bounded follow-up guidance`
-                  : agent.id === "deployment-ops-agent"
+                : agent.id === "deployment-ops-agent"
                     ? memoryReportedRelationships || memoryReportedHandoff
                       ? "memory-backed deployment follow-up evidence observed"
                       : `${runtimeSignals.length} deployment posture signal(s) support bounded rollout guidance`
+                  : agent.id === "code-index-agent"
+                    ? memoryReportedRelationships || memoryReportedHandoff
+                      ? "memory-backed code-index follow-up evidence observed"
+                      : `${runtimeSignals.length} code-index signal(s) support bounded retrieval guidance`
+                  : agent.id === "test-intelligence-agent"
+                    ? memoryReportedRelationships || memoryReportedHandoff
+                      ? "memory-backed test follow-up evidence observed"
+                      : `${runtimeSignals.length} test-intelligence signal(s) support bounded quality guidance`
                 : `${verifierHandoffCount} downstream handoff relationship(s) observed`,
     );
     presentCapabilities.push("verification or repair evidence");

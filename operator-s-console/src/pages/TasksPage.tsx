@@ -73,6 +73,10 @@ interface TaskDraftState {
   incidentTriageLimit: string;
   deploymentOpsTarget: string;
   deploymentOpsRolloutMode: "service" | "docker-demo" | "dual";
+  codeIndexTarget: string;
+  codeIndexFocusPaths: string;
+  testIntelligenceTarget: string;
+  testIntelligenceFocusSuites: string;
   contentType: string;
   contentSourceName: string;
   contentSourceDescription: string;
@@ -147,6 +151,10 @@ const DEFAULT_TASK_DRAFT: TaskDraftState = {
   incidentTriageLimit: "8",
   deploymentOpsTarget: "public-runtime",
   deploymentOpsRolloutMode: "service",
+  codeIndexTarget: "workspace",
+  codeIndexFocusPaths: "docs/reference\norchestrator/src\noperator-s-console/src",
+  testIntelligenceTarget: "workspace",
+  testIntelligenceFocusSuites: "orchestrator\noperator-ui\nagents",
   contentType: "readme",
   contentSourceName: "Project",
   contentSourceDescription: "Generated content",
@@ -218,6 +226,8 @@ function categorizeTask(taskType: string): TaskCategory {
     "system-monitor": "Repair",
     "incident-triage": "Repair",
     "deployment-ops": "Governance",
+    "code-index": "Research",
+    "test-intelligence": "Governance",
     "build-refactor": "Sensitive",
     "market-research": "Research",
     "summarize-content": "Research",
@@ -316,6 +326,26 @@ function buildTaskPayload(taskType: string, draft: TaskDraftState): Record<strin
         ? { target: draft.deploymentOpsTarget.trim() }
         : {}),
       rolloutMode: draft.deploymentOpsRolloutMode,
+    };
+  }
+
+  if (taskType === "code-index") {
+    const focusPaths = parseLines(draft.codeIndexFocusPaths);
+    return {
+      ...(draft.codeIndexTarget.trim()
+        ? { target: draft.codeIndexTarget.trim() }
+        : {}),
+      ...(focusPaths.length > 0 ? { focusPaths } : {}),
+    };
+  }
+
+  if (taskType === "test-intelligence") {
+    const focusSuites = parseLines(draft.testIntelligenceFocusSuites);
+    return {
+      ...(draft.testIntelligenceTarget.trim()
+        ? { target: draft.testIntelligenceTarget.trim() }
+        : {}),
+      ...(focusSuites.length > 0 ? { focusSuites } : {}),
     };
   }
 
@@ -570,6 +600,14 @@ function buildExecutionPathCopy(task: TaskRowVM, draft: TaskDraftState) {
     return "Submission enters the orchestrator queue, the deployment-ops worker inspects supported rollout surfaces, rollback posture, deployment/docs parity, and bounded pipeline evidence, then returns a read-only ready, watch, or blocked deployment posture.";
   }
 
+  if (task.type === "code-index") {
+    return "Submission enters the orchestrator queue, the code-index worker scans bounded local repo roots, checks canonical doc-to-code links, inspects latest knowledge-pack freshness, and returns a read-only ready, refresh, or blocked index posture.";
+  }
+
+  if (task.type === "test-intelligence") {
+    return "Submission enters the orchestrator queue, the test-intelligence worker scans bounded local test surfaces, recent runtime failure and retry evidence, and release-facing verifier posture, then returns a read-only ready, watching, or blocked test posture.";
+  }
+
   if (task.type === "release-readiness") {
     return "Submission enters the orchestrator queue, the release-manager worker fuses verification, security, monitor, build, incident, approval, and proof freshness evidence into a bounded go, hold, or block release posture.";
   }
@@ -602,6 +640,14 @@ function buildNextStepCopy(task: TaskRowVM, draft: TaskDraftState) {
 
   if (task.type === "deployment-ops") {
     return "Use this before claiming a rollout surface is ready. Pick the rollout mode you actually care about, keep the target label honest, and treat blocked posture as real deployment evidence rather than an ops suggestion.";
+  }
+
+  if (task.type === "code-index") {
+    return "Use this when you need bounded repo intelligence before deeper maintenance or retrieval work. Keep focus paths inside real repo roots, and treat refresh posture as a signal to run doc-sync or drift-repair instead of assuming search is good enough.";
+  }
+
+  if (task.type === "test-intelligence") {
+    return "Use this when you need honest test posture before broader maintenance or release claims. Keep focus suites inside the bounded lane, and treat watching posture as real evidence that failures, retries, or verifier gaps still need closure.";
   }
 
   if (task.type === "release-readiness") {
@@ -1533,6 +1579,88 @@ function renderTaskFields(
             className="bg-panel-inset border-border font-mono text-sm"
             placeholder="public-runtime"
           />
+        </div>
+      </>
+    );
+  }
+
+  if (task.type === "code-index") {
+    return (
+      <>
+        <div className="console-inset p-3 rounded-sm">
+          <p className="text-[10px] font-mono text-foreground leading-relaxed">
+            This lane produces a bounded code-index posture across repo coverage, canonical doc-to-code linkage, search gaps, and retrieval freshness. It does not edit code or run shell workflows.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+            Target
+          </label>
+          <Input
+            value={draft.codeIndexTarget}
+            onChange={(event) => updateDraft({ codeIndexTarget: event.target.value })}
+            className="bg-panel-inset border-border font-mono text-sm"
+            placeholder="workspace"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+            Focus Paths
+          </label>
+          <Textarea
+            value={draft.codeIndexFocusPaths}
+            onChange={(event) => updateDraft({ codeIndexFocusPaths: event.target.value })}
+            className="bg-panel-inset border-border font-mono text-sm min-h-[90px]"
+            placeholder={"docs/reference\norchestrator/src\noperator-s-console/src"}
+          />
+          <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+            Keep paths inside the bounded repo surface. Leave broad roots when you want workspace-level index posture, or narrow them when you want a targeted retrieval slice.
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  if (task.type === "test-intelligence") {
+    return (
+      <>
+        <div className="console-inset p-3 rounded-sm">
+          <p className="text-[10px] font-mono text-foreground leading-relaxed">
+            This lane produces a bounded test-intelligence posture across local test
+            coverage, recent failures, retry signals, and release-facing verifier risk.
+            It does not run tests or shell workflows.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+            Target
+          </label>
+          <Input
+            value={draft.testIntelligenceTarget}
+            onChange={(event) =>
+              updateDraft({ testIntelligenceTarget: event.target.value })
+            }
+            className="bg-panel-inset border-border font-mono text-sm"
+            placeholder="workspace"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+            Focus Suites
+          </label>
+          <Textarea
+            value={draft.testIntelligenceFocusSuites}
+            onChange={(event) =>
+              updateDraft({ testIntelligenceFocusSuites: event.target.value })
+            }
+            className="bg-panel-inset border-border font-mono text-sm min-h-[90px]"
+            placeholder={"orchestrator\noperator-ui\nagents"}
+          />
+          <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+            Keep suites inside the bounded lane. Leave the defaults when you want a
+            broad repo test posture, or narrow them when you want one focused test
+            evidence slice.
+          </p>
         </div>
       </>
     );

@@ -135,6 +135,18 @@ function mapDeploymentStatus(value: string) {
   return "watching";
 }
 
+function mapCodeIndexStatus(value: string) {
+  if (value === "ready" || value === "fresh" || value === "clear") return "ready";
+  if (value === "blocked" || value === "missing" || value === "stale") return "blocked";
+  return "watching";
+}
+
+function mapTestIntelligenceStatus(value: string) {
+  if (value === "ready" || value === "broad" || value === "clear") return "ready";
+  if (value === "blocked" || value === "thin") return "blocked";
+  return "watching";
+}
+
 function buildQaSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
   const closureRecommendation = asRecord(raw.closureRecommendation);
   const acceptanceCoverage = asRecord(raw.acceptanceCoverage);
@@ -480,6 +492,195 @@ function buildDeploymentOpsSignalDeck(raw: Record<string, unknown>): OperatorSig
                 .join(", ")}.`
             : null,
           followups.length > 0 ? `Follow-ups: ${followups.join(", ")}.` : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildCodeIndexSignalDeck(raw: Record<string, unknown>): OperatorSignalDeckVM | null {
+  const codeIndex = asRecord(raw.codeIndex);
+  const handoffPackage = asRecord(raw.handoffPackage);
+
+  if (!codeIndex) {
+    return null;
+  }
+
+  const indexCoverage = asRecord(codeIndex.indexCoverage);
+  const freshness = asRecord(codeIndex.freshness);
+  const searchGaps = asRecord(codeIndex.searchGaps);
+  const retrievalReadiness = asRecord(codeIndex.retrievalReadiness);
+  const docLinks = toArray<Record<string, unknown>>(codeIndex.docLinks);
+  const samplePaths = normalizeStringList(indexCoverage?.samplePaths, 3);
+  const gapItems = normalizeStringList(searchGaps?.items, 3);
+  const readinessSignals = normalizeStringList(retrievalReadiness?.signals, 3);
+
+  return {
+    title: "Code Index Deck",
+    summary: "Repo coverage, doc-to-code linkage, search gaps, and retrieval freshness for this bounded code-index review.",
+    cards: [
+      {
+        id: "code-index-posture",
+        title: "Index Posture",
+        status: mapCodeIndexStatus(str(codeIndex.decision, "refresh")),
+        summary: str(
+          codeIndex.summary,
+          "No bounded code-index posture summary was recorded for this run.",
+        ),
+        details: compactDetails([
+          `Target: ${str(codeIndex.target, "workspace")} across ${str(indexCoverage?.indexedRootCount, "0")} indexed root(s).`,
+          gapItems.length > 0 ? `Search gaps: ${gapItems.join(", ")}.` : null,
+          handoffPackage
+            ? `Handoff: ${str(handoffPackage.targetAgentId, "doc-specialist")} via ${str(
+                handoffPackage.recommendedTaskType,
+                "drift-repair",
+              )}.`
+            : null,
+        ]),
+      },
+      {
+        id: "code-index-coverage",
+        title: "Coverage And Freshness",
+        status:
+          mapCodeIndexStatus(str(indexCoverage?.status, "focused")) === "blocked" ||
+          mapCodeIndexStatus(str(freshness?.status, "aging")) === "blocked"
+            ? "blocked"
+            : mapCodeIndexStatus(str(indexCoverage?.status, "focused")) === "ready" &&
+                mapCodeIndexStatus(str(freshness?.status, "aging")) === "ready"
+              ? "ready"
+              : "watching",
+        summary: `Coverage is ${str(indexCoverage?.status, "unknown")} with ${str(
+          indexCoverage?.totalIndexedEntries,
+          "0",
+        )} indexed entry(s); freshness is ${str(freshness?.status, "unknown")}.`,
+        details: compactDetails([
+          `Docs: ${str(indexCoverage?.docEntryCount, "0")} · code: ${str(indexCoverage?.codeEntryCount, "0")}.`,
+          typeof freshness?.knowledgePackGeneratedAt === "string"
+            ? `Latest knowledge pack: ${freshness.knowledgePackGeneratedAt}.`
+            : "No knowledge-pack timestamp was available for this run.",
+          samplePaths.length > 0 ? `Sample paths: ${samplePaths.join(", ")}.` : null,
+        ]),
+      },
+      {
+        id: "code-index-links",
+        title: "Linkage And Retrieval",
+        status: mapCodeIndexStatus(str(retrievalReadiness?.status, "partial")),
+        summary: `Retrieval readiness is ${str(retrievalReadiness?.status, "unknown")} with ${docLinks.length} canonical doc-to-code link(s).`,
+        details: compactDetails([
+          docLinks.length > 0
+            ? `Top link: ${str(docLinks[0]?.docPath, "doc")} -> ${str(docLinks[0]?.codePath, "code")}.`
+            : "No canonical doc-to-code link was recorded in this run.",
+          readinessSignals.length > 0 ? `Signals: ${readinessSignals.join(", ")}.` : null,
+          typeof freshness?.lastRepairRunAt === "string"
+            ? `Latest repair/doc-sync evidence: ${freshness.lastRepairRunAt}.`
+            : null,
+        ]),
+      },
+    ],
+  };
+}
+
+function buildTestIntelligenceSignalDeck(
+  raw: Record<string, unknown>,
+): OperatorSignalDeckVM | null {
+  const testIntelligence = asRecord(raw.testIntelligence);
+  const handoffPackage = asRecord(raw.handoffPackage);
+
+  if (!testIntelligence) {
+    return null;
+  }
+
+  const suiteCoverage = asRecord(testIntelligence.suiteCoverage);
+  const recentFailures = asRecord(testIntelligence.recentFailures);
+  const flakySignals = asRecord(testIntelligence.flakySignals);
+  const releaseRisk = asRecord(testIntelligence.releaseRisk);
+  const evidenceWindow = asRecord(testIntelligence.evidenceWindow);
+  const focus = asRecord(testIntelligence.focus);
+  const discoveredSuites = toArray<Record<string, unknown>>(suiteCoverage?.discoveredSuites);
+  const failureExamples = normalizeStringList(recentFailures?.examples, 3);
+  const flakeSignals = normalizeStringList(flakySignals?.signals, 3);
+  const releaseSignals = normalizeStringList(releaseRisk?.signals, 3);
+  const observedTaskTypes = normalizeStringList(evidenceWindow?.observedTaskTypes, 4);
+
+  return {
+    title: "Test Intelligence Deck",
+    summary:
+      "Bounded test coverage, recent failures, retry signals, and release-facing verifier risk for this test-intelligence review.",
+    cards: [
+      {
+        id: "test-intelligence-posture",
+        title: "Test Posture",
+        status: mapTestIntelligenceStatus(str(testIntelligence.decision, "watching")),
+        summary: str(
+          testIntelligence.summary,
+          "No bounded test-intelligence summary was recorded for this run.",
+        ),
+        details: compactDetails([
+          `Target: ${str(testIntelligence.target, "workspace")} across ${str(
+            suiteCoverage?.suiteCount,
+            "0",
+          )} suite(s).`,
+          focus
+            ? `Focus suites: ${normalizeStringList(focus.matchedSuites, 4).join(", ") || "none"}.`
+            : null,
+          handoffPackage
+            ? `Handoff: ${str(handoffPackage.targetAgentId, "qa-verification-agent")} via ${str(
+                handoffPackage.recommendedTaskType,
+                "qa-verification",
+              )}.`
+            : null,
+        ]),
+      },
+      {
+        id: "test-intelligence-coverage",
+        title: "Coverage Surface",
+        status: mapTestIntelligenceStatus(str(suiteCoverage?.status, "focused")),
+        summary: `Coverage is ${str(suiteCoverage?.status, "unknown")} with ${str(
+          suiteCoverage?.totalTestFiles,
+          "0",
+        )} discovered test file(s).`,
+        details: compactDetails([
+          discoveredSuites.length > 0
+            ? `Top suite: ${str(discoveredSuites[0]?.label, "suite")} (${str(
+                discoveredSuites[0]?.fileCount,
+                "0",
+              )} file(s)).`
+            : "No bounded suite coverage was recorded for this run.",
+          discoveredSuites[0]
+            ? `Scripts: ${normalizeStringList(discoveredSuites[0]?.scriptNames, 3).join(", ") || "none"}.`
+            : null,
+          discoveredSuites[0]
+            ? `Sample files: ${normalizeStringList(discoveredSuites[0]?.sampleFiles, 3).join(", ") || "none"}.`
+            : null,
+        ]),
+      },
+      {
+        id: "test-intelligence-risk",
+        title: "Failures And Release Risk",
+        status:
+          mapTestIntelligenceStatus(str(recentFailures?.status, "clear")) === "blocked" ||
+          mapTestIntelligenceStatus(str(releaseRisk?.status, "clear")) === "blocked"
+            ? "blocked"
+            : mapTestIntelligenceStatus(str(flakySignals?.status, "clear")) === "watching" ||
+                mapTestIntelligenceStatus(str(recentFailures?.status, "clear")) === "watching" ||
+                mapTestIntelligenceStatus(str(releaseRisk?.status, "clear")) === "watching"
+              ? "watching"
+              : "ready",
+        summary: `Recent failures are ${str(recentFailures?.status, "unknown")}, flake pressure is ${str(
+          flakySignals?.status,
+          "unknown",
+        )}, and release risk is ${str(releaseRisk?.status, "unknown")}.`,
+        details: compactDetails([
+          `Recent runs: ${str(evidenceWindow?.recentRunCount, "0")} · latest handled at ${str(
+            evidenceWindow?.latestHandledAt,
+            "unknown",
+          )}.`,
+          failureExamples.length > 0 ? `Examples: ${failureExamples.join(", ")}.` : null,
+          flakeSignals.length > 0 ? `Retry signals: ${flakeSignals.join(" ")}` : null,
+          releaseSignals.length > 0 ? `Release signals: ${releaseSignals.join(" ")}` : null,
+          observedTaskTypes.length > 0
+            ? `Observed task types: ${observedTaskTypes.join(", ")}.`
+            : null,
         ]),
       },
     ],
@@ -1335,6 +1536,8 @@ function buildOperatorSignalDeckVM(runType: string | null | undefined, runResult
   if (runType === "system-monitor") return buildSystemMonitorSignalDeck(raw);
   if (runType === "skill-audit") return buildSkillAuditSignalDeck(raw);
   if (runType === "deployment-ops") return buildDeploymentOpsSignalDeck(raw);
+  if (runType === "code-index") return buildCodeIndexSignalDeck(raw);
+  if (runType === "test-intelligence") return buildTestIntelligenceSignalDeck(raw);
 
   return null;
 }

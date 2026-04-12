@@ -142,6 +142,9 @@ must be substantially true:
 | `market-research-agent` | ingestion | Strong foundation | query and URL lanes now emit change-intelligence, internal durable signal packs, structured change packs, and explicit delta-capture posture, and that delta-capture posture remains surfaced in readiness output | complete | Wave 2 |
 | `operations-analyst-agent` | truth | Focused bounded lane | control-plane brief synthesis now emits mode, dominant move, pressure story, proof posture, and portable companion-facing summaries with targeted contract proof | active | Wave 4 |
 | `release-manager-agent` | trust | Focused bounded lane | release-readiness synthesis now emits explicit `go` / `hold` / `block` posture across verification, security, system, incident, approval, and proof evidence with targeted contract proof | active | Wave 4 |
+| `deployment-ops-agent` | trust | Focused bounded lane | deployment posture synthesis now emits explicit `ready` / `watch` / `blocked` posture across rollout mode, rollback readiness, pipeline posture, docs parity, and environment drift with live contract proof | active | Expansion |
+| `code-index-agent` | truth | Focused bounded lane | code-index synthesis now emits explicit `ready` / `refresh` / `blocked` posture across bounded local coverage, doc links, search gaps, freshness, and retrieval readiness with live canary proof | active | Expansion |
+| `test-intelligence-agent` | truth | Focused bounded lane | test-intelligence synthesis now emits explicit `ready` / `watching` / `blocked` posture across bounded suite coverage, recent failures, flaky signals, release risk, and evidence windows with live canary proof | active | Expansion |
 | `build-refactor-agent` | code | Strong foundation | build lane now emits bounded scope contracts, surgery profiles, rollback/verification context, verifier handoff relationships, and repair-linked verification-loop evidence, and those governance signals are now surfaced end-to-end through agent overview with live proof | complete | Wave 3 |
 | `skill-audit-agent` | trust | Strong foundation | governance lane now promotes trust posture, policy handoff, and telemetry handoff into runtime readiness with governed-skill depth, and those signals remain proven end-to-end through the control-plane readiness surface | complete | Wave 3 |
 
@@ -151,6 +154,8 @@ Wave meaning:
 - Wave 2: communication and ingestion expansion
 - Wave 3: code-governance hardening and final uplift
 - Wave 4: companion-facing synthesis and release-governance expansion
+- Expansion: one-by-one new bounded public lanes added after the current
+  four-wave capability closure
 
 All waves remain in scope. This is ordering only.
 
@@ -645,6 +650,105 @@ All waves remain in scope. This is ordering only.
 2. blocker and follow-up synthesis
 3. evidence-window aggregation
 4. bounded operator-visible release guidance
+
+### deployment-ops-agent
+
+**Current runtime truth**
+
+- The focused public deployment-ops lane is now live for the current runtime
+  slice.
+- It emits explicit `ready` / `watch` / `blocked` posture, rollout-mode and
+  target context, rollback readiness, deployment/docs parity, environment
+  drift, and bounded pipeline posture.
+- The lane remains bounded: it summarizes deployment posture but does not
+  deploy, restart services, or bypass approval gates.
+
+**Missing ultra behaviors**
+
+- Broader release/deploy workflow adoption is still ahead, but the current
+  runtime slice already proves the bounded deployment-posture contract.
+
+**Promotion gate**
+
+- Deployment posture stays evidence-backed rather than acting like a hidden
+  deploy mutator.
+- Rollback, docs parity, and pipeline posture remain legible in one result.
+- Operators can act on blockers and follow-ups without reconstructing the
+  rollout story from multiple routes.
+
+**First implementation slices**
+
+1. deployment posture contract
+2. rollback-readiness and pipeline synthesis
+3. docs/environment parity review
+4. bounded operator-visible deployment guidance
+
+### code-index-agent
+
+**Current runtime truth**
+
+- The focused public code-index lane is now live for the current runtime
+  slice.
+- It emits explicit `ready` / `refresh` / `blocked` posture, bounded local
+  index scope, coverage, doc-link review, search-gap diagnosis, freshness, and
+  retrieval-readiness output.
+- A live canary on `3312` on `2026-04-10` confirmed both the run-detail
+  contract and promoted `codeIndex` runtime evidence in
+  `/api/agents/overview`.
+
+**Missing ultra behaviors**
+
+- Broader semantic indexing and deeper retrieval-quality heuristics remain
+  ahead, but the current runtime slice already proves the bounded local
+  indexing contract.
+
+**Promotion gate**
+
+- Index posture stays read-only and bounded to current local roots.
+- Freshness, linkage, and retrieval-readiness signals remain operator-legible.
+- Downstream users can tell when refresh or repair is the real next step
+  instead of over-trusting stale repo/index state.
+
+**First implementation slices**
+
+1. bounded code-index posture contract
+2. doc-link and search-gap synthesis
+3. freshness and retrieval-readiness promotion
+4. live canary and operator-evidence confirmation
+
+### test-intelligence-agent
+
+**Current runtime truth**
+
+- The focused public test-intelligence lane is now live for the current runtime
+  slice.
+- It emits explicit `ready` / `watching` / `blocked` posture, bounded suite
+  coverage, recent failure clustering, flaky-signal summaries, release-facing
+  risk posture, and evidence-window output.
+- A live canary on `3312` on `2026-04-12` confirmed both the run-detail
+  contract and promoted `testIntelligence` runtime evidence in
+  `/api/agents/overview`.
+
+**Missing ultra behaviors**
+
+- Broader CI or external-report ingestion remains ahead, but the current
+  runtime slice already proves the bounded local test-evidence contract.
+
+**Promotion gate**
+
+- Test posture stays read-only and bounded to current local test roots and
+  runtime evidence.
+- Recent failures, retry signals, and release-facing risk remain explicit
+  instead of collapsing into a flat green status.
+- Downstream users can tell when rerun, repair, or verification follow-through
+  is the real next step instead of over-trusting stale suite memory.
+
+**First implementation slices**
+
+1. bounded test-intelligence posture contract
+2. suite-coverage, recent-failure, and flaky-signal synthesis
+3. release-risk and evidence-window promotion
+4. live canary and operator-evidence confirmation
 
 ### skill-audit-agent
 

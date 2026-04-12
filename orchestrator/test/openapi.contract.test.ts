@@ -77,9 +77,11 @@ describe("OpenAPI contract", () => {
     );
     expect(spec.components.schemas.TaskTriggerRequest.properties.type.enum).toEqual(
       expect.arrayContaining([
+        "code-index",
         "control-plane-brief",
         "incident-triage",
         "release-readiness",
+        "test-intelligence",
       ]),
     );
 

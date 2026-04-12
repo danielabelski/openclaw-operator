@@ -1,0 +1,48 @@
+{
+  "id": "code-index-agent",
+  "orchestratorTask": "code-index",
+  "orchestratorStatePath": "../../orchestrator/data/orchestrator-state.json",
+  "serviceStatePath": "../../logs/code-index-agent-service.json",
+  "knowledgePackDir": "../../logs/knowledge-packs",
+  "name": "Code Index Agent",
+  "description": "Synthesizes bounded code-index posture across repo coverage, doc-to-code linkage, search gaps, and retrieval freshness.",
+  "version": "1.0.0",
+  "model": {
+    "primary": "claude-3-5-sonnet",
+    "fallback": "gpt-4o-mini",
+    "tier": "balanced",
+    "temperature": 0.2,
+    "maxTokens": 2048
+  },
+  "maxConcurrentTasks": 2,
+  "permissions": {
+    "skills": {
+      "documentParser": {
+        "allowed": true,
+        "maxCalls": 60,
+        "reason": "Parse bounded local repo, docs, and knowledge-pack evidence."
+      }
+    },
+    "fileSystem": {
+      "readPaths": [
+        "../../docs",
+        "../../site/docs",
+        "../../orchestrator/src",
+        "../../operator-s-console/src",
+        "../../agents",
+        "../../README.md",
+        "../../QUICKSTART.md",
+        "../../DEPLOYMENT.md",
+        "../../WORKBOARD.md",
+        "../../logs/knowledge-packs"
+      ]
+    },
+    "network": {
+      "allowed": false
+    }
+  },
+  "constraints": {
+    "timeoutSec": 90,
+    "maxRetries": 1
+  }
+}

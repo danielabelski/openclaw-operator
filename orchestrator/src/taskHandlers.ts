@@ -53,6 +53,8 @@ export const ALLOWED_TASK_TYPES = [
   "doc-sync",
   "drift-repair",
   "deployment-ops",
+  "code-index",
+  "test-intelligence",
   "control-plane-brief",
   "incident-triage",
   "release-readiness",
@@ -95,6 +97,14 @@ const SPAWNED_AGENT_PERMISSION_REQUIREMENTS: Partial<
   },
   "deployment-ops": {
     agentId: "deployment-ops-agent",
+    skillId: "documentParser",
+  },
+  "code-index": {
+    agentId: "code-index-agent",
+    skillId: "documentParser",
+  },
+  "test-intelligence": {
+    agentId: "test-intelligence-agent",
     skillId: "documentParser",
   },
   "control-plane-brief": {
@@ -224,6 +234,21 @@ const RUN_RESULT_HIGHLIGHT_PRIORITY = [
   "comparisonReadiness",
   "deltaCapture",
   "deploymentOps",
+  "codeIndex",
+  "testIntelligence",
+  "indexScope",
+  "indexCoverage",
+  "docLinks",
+  "searchGaps",
+  "freshness",
+  "retrievalReadiness",
+  "focus",
+  "suiteCoverage",
+  "recentFailures",
+  "flakySignals",
+  "releaseRisk",
+  "evidenceWindow",
+  "evidenceSources",
   "rollbackReadiness",
   "environmentDrift",
   "pipelinePosture",
@@ -393,6 +418,93 @@ function buildDeploymentOpsSummaryResult(result: Record<string, unknown>) {
   };
 }
 
+function buildCodeIndexSummaryResult(result: Record<string, unknown>) {
+  const codeIndex =
+    result.codeIndex && typeof result.codeIndex === "object"
+      ? (result.codeIndex as Record<string, unknown>)
+      : null;
+
+  if (!codeIndex) {
+    return result;
+  }
+
+  return {
+    ...result,
+    indexScope:
+      codeIndex.indexScope && typeof codeIndex.indexScope === "object"
+        ? codeIndex.indexScope
+        : undefined,
+    indexCoverage:
+      codeIndex.indexCoverage && typeof codeIndex.indexCoverage === "object"
+        ? codeIndex.indexCoverage
+        : undefined,
+    docLinks: Array.isArray(codeIndex.docLinks) ? codeIndex.docLinks : undefined,
+    searchGaps:
+      codeIndex.searchGaps && typeof codeIndex.searchGaps === "object"
+        ? codeIndex.searchGaps
+        : undefined,
+    freshness:
+      codeIndex.freshness && typeof codeIndex.freshness === "object"
+        ? codeIndex.freshness
+        : undefined,
+    retrievalReadiness:
+      codeIndex.retrievalReadiness &&
+      typeof codeIndex.retrievalReadiness === "object"
+        ? codeIndex.retrievalReadiness
+        : undefined,
+    evidenceSources: Array.isArray(codeIndex.evidenceSources)
+      ? codeIndex.evidenceSources
+      : undefined,
+  };
+}
+
+function buildTestIntelligenceSummaryResult(result: Record<string, unknown>) {
+  const testIntelligence =
+    result.testIntelligence && typeof result.testIntelligence === "object"
+      ? (result.testIntelligence as Record<string, unknown>)
+      : null;
+
+  if (!testIntelligence) {
+    return result;
+  }
+
+  return {
+    ...result,
+    focus:
+      testIntelligence.focus && typeof testIntelligence.focus === "object"
+        ? testIntelligence.focus
+        : undefined,
+    suiteCoverage:
+      testIntelligence.suiteCoverage &&
+      typeof testIntelligence.suiteCoverage === "object"
+        ? testIntelligence.suiteCoverage
+        : undefined,
+    recentFailures:
+      testIntelligence.recentFailures &&
+      typeof testIntelligence.recentFailures === "object"
+        ? testIntelligence.recentFailures
+        : undefined,
+    flakySignals:
+      testIntelligence.flakySignals &&
+      typeof testIntelligence.flakySignals === "object"
+        ? testIntelligence.flakySignals
+        : undefined,
+    releaseRisk:
+      testIntelligence.releaseRisk &&
+      typeof testIntelligence.releaseRisk === "object"
+        ? testIntelligence.releaseRisk
+        : undefined,
+    evidenceWindow:
+      testIntelligence.evidenceWindow &&
+      typeof testIntelligence.evidenceWindow === "object"
+        ? testIntelligence.evidenceWindow
+        : undefined,
+    evidenceSources: Array.isArray(testIntelligence.evidenceSources)
+      ? testIntelligence.evidenceSources
+      : undefined,
+  };
+}
+
 function normalizeTaskExecutionSummaryResult(args: {
   taskType?: string | null;
   agentId?: string | null;
@@ -406,6 +518,14 @@ function normalizeTaskExecutionSummaryResult(args: {
 
   if (taskType === "deployment-ops" || agentId === "deployment-ops-agent") {
     return buildDeploymentOpsSummaryResult(result);
+  }
+
+  if (taskType === "code-index" || agentId === "code-index-agent") {
+    return buildCodeIndexSummaryResult(result);
+  }
+
+  if (taskType === "test-intelligence" || agentId === "test-intelligence-agent") {
+    return buildTestIntelligenceSummaryResult(result);
   }
 
   return result;
@@ -2605,6 +2725,94 @@ const deploymentOpsHandler: TaskHandler = async (task, context) => {
   }
 };
 
+const codeIndexHandler: TaskHandler = async (task, context) => {
+  await assertToolGatePermission(task, context, "code-index");
+  const payload = {
+    id: randomUUID(),
+    type: "code-index",
+    target:
+      typeof task.payload.target === "string" ? task.payload.target : undefined,
+    focusPaths: Array.isArray(task.payload.focusPaths)
+      ? task.payload.focusPaths.filter(
+          (entry): entry is string =>
+            typeof entry === "string" && entry.trim().length > 0,
+        )
+      : undefined,
+  };
+
+  try {
+    const result = await runSpawnedAgentJob(
+      "code-index-agent",
+      payload,
+      "CODE_INDEX_AGENT_RESULT_FILE",
+      context.logger,
+    );
+    recordTaskExecutionResultSummary(context, task, result);
+    assertSpawnedAgentReportedSuccess(result, "code index");
+    observeSpawnedAgentResult({
+      context,
+      task,
+      sourceAgentId: "code-index-agent",
+      result,
+    });
+    const codeIndex =
+      typeof result.codeIndex === "object" && result.codeIndex !== null
+        ? (result.codeIndex as Record<string, unknown>)
+        : null;
+    const decision =
+      codeIndex && typeof codeIndex.decision === "string"
+        ? codeIndex.decision
+        : "unknown";
+    return `code index complete (${decision})`;
+  } catch (error) {
+    throwTaskFailure("code index", error);
+  }
+};
+
+const testIntelligenceHandler: TaskHandler = async (task, context) => {
+  await assertToolGatePermission(task, context, "test-intelligence");
+  const payload = {
+    id: randomUUID(),
+    type: "test-intelligence",
+    target:
+      typeof task.payload.target === "string" ? task.payload.target : undefined,
+    focusSuites: Array.isArray(task.payload.focusSuites)
+      ? task.payload.focusSuites.filter(
+          (entry): entry is string =>
+            typeof entry === "string" && entry.trim().length > 0,
+        )
+      : undefined,
+  };
+
+  try {
+    const result = await runSpawnedAgentJob(
+      "test-intelligence-agent",
+      payload,
+      "TEST_INTELLIGENCE_AGENT_RESULT_FILE",
+      context.logger,
+    );
+    recordTaskExecutionResultSummary(context, task, result);
+    assertSpawnedAgentReportedSuccess(result, "test intelligence");
+    observeSpawnedAgentResult({
+      context,
+      task,
+      sourceAgentId: "test-intelligence-agent",
+      result,
+    });
+    const testIntelligence =
+      typeof result.testIntelligence === "object" && result.testIntelligence !== null
+        ? (result.testIntelligence as Record<string, unknown>)
+        : null;
+    const decision =
+      testIntelligence && typeof testIntelligence.decision === "string"
+        ? testIntelligence.decision
+        : "unknown";
+    return `test intelligence complete (${decision})`;
+  } catch (error) {
+    throwTaskFailure("test intelligence", error);
+  }
+};
+
 const incidentTriageHandler: TaskHandler = async (task, context) => {
   await assertToolGatePermission(task, context, "incident-triage");
   const payload = {
@@ -3789,6 +3997,8 @@ export const taskHandlers: Record<string, TaskHandler> = {
   "doc-sync": docSyncHandler,
   "drift-repair": driftRepairHandler,
   "deployment-ops": deploymentOpsHandler,
+  "code-index": codeIndexHandler,
+  "test-intelligence": testIntelligenceHandler,
   "control-plane-brief": controlPlaneBriefHandler,
   "incident-triage": incidentTriageHandler,
   "release-readiness": releaseReadinessHandler,

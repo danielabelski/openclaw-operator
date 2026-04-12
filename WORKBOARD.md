@@ -13,7 +13,7 @@ Use it for one thing:
 - what is next
 - what is intentionally parked
 
-Last updated: `2026-04-09`
+Last updated: `2026-04-12`
 
 ## Current Headline
 
@@ -29,6 +29,8 @@ The public repo is in a shippable state.
   product
 - the first broader external-catalog growth slice is now built in repo code as
   the bounded `deployment-ops` lane
+- the next two bounded external-catalog growth slices are now built in repo
+  code as the read-only `code-index` and `test-intelligence` lanes
 - an uncommitted governance spike was reviewed against current code truth and
   intentionally dropped instead of being carried forward as local drift
 
@@ -96,26 +98,55 @@ The public repo is in a shippable state.
      protected cache key on the live operator task profile set, which closes
      the stale-post-restart catalog gap that initially hid the new lane
 
+10. The `code-index-agent` contract pass is now complete.
+   - the bounded lane is now defined from current repo indexing, knowledge, and
+     operator-surface code truth
+   - the first slice is explicitly worker-first, read-only, and local-first
+   - the contract keeps Codex-like repo intelligence inside the current
+     manifest and ToolGate model instead of flattening governance into broad
+     unrestricted authority
+
+11. `code-index` is now implemented and live-confirmed on the running operator
+    surface.
+   - a focused live canary succeeded on `3312` on `2026-04-10`
+   - `/api/agents/overview` promoted current-run `codeIndex` runtime evidence
+     for `code-index-agent`
+   - `/operator/agents` served the same live runtime slice cleanly during the
+     canary
+
+12. `test-intelligence` is now implemented and live-confirmed on the running
+    operator surface.
+   - a focused live canary succeeded on `3312` on `2026-04-12`
+   - the live task catalog exposed `test-intelligence` as a confirmed-working
+     bounded lane
+   - `/api/agents/overview` promoted current-run `testIntelligence` runtime
+     evidence for `test-intelligence-agent`
+   - the live run detail carried bounded `testIntelligence`, `suiteCoverage`,
+     `recentFailures`, `flakySignals`, `releaseRisk`, and `evidenceWindow`
+     output for the canary run
+
 ## Current Recommended Next Move
 
-Open the second bounded external-catalog adoption slice with a contract-first
-pass:
+Open the next bounded external-catalog adoption slice as a contract pass:
 
-- `LSP/Index Engineer -> code-index-agent`
+- `Legal Compliance Checker -> compliance-agent`
 
-`deployment-ops-agent` is now implemented and live-confirmed. The next useful
-candidate is the indexing lane because it is productizable, operator-visible,
-and fits the current knowledge-pack and repo-truth workflow without widening
-deploy or approval authority.
+`deployment-ops-agent`, `code-index-agent`, and `test-intelligence-agent` are
+now all implemented and live-confirmed. The next useful move is to define the
+bounded `compliance-agent` contract from current runtime code, governance
+surfaces, and release-facing evidence truth before opening another
+implementation slice.
 
 Current implementation target:
 
-1. define the bounded `code-index-agent` owned lane from current repo/runtime
-   needs, not external prose alone
-2. keep it worker-first and read-only on the first slice
-3. make its outputs operator-visible and evidence-backed before widening scope
-4. only then decide whether the follow-on candidate should be
-   `test-intelligence-agent` or another queue entry
+1. define the worker-first `compliance-agent` lane from current dependency,
+   policy, approval, and release-governance surfaces
+2. keep it bounded to read-only compliance, policy, and dependency-posture
+   synthesis on the first slice
+3. make its outputs operator-visible and evidence-backed before widening any
+   audit or execution authority
+4. only after the contract pass decide whether it should be the next build
+   slice or whether another queued candidate should move ahead
 
 Do not start by bulk-researching many candidates or importing external repo
 structure wholesale.

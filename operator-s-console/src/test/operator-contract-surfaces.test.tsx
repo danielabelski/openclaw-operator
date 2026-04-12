@@ -1679,6 +1679,32 @@ describe("operator contract surfaces", () => {
             caveats: ["This lane is read-only deployment posture synthesis; it does not deploy or restart services."],
             telemetryOverlay: { totalRuns: 1, successRate: 1 },
           },
+          {
+            type: "code-index",
+            label: "Code Index",
+            purpose: "Produce a bounded code-index posture across repo coverage, doc-to-code linkage, search gaps, and retrieval freshness.",
+            operationalStatus: "confirmed-working",
+            approvalGated: false,
+            exposeInV1: true,
+            dependencyClass: "worker",
+            dependencyRequirements: ["code-index worker", "bounded repo roots"],
+            baselineConfidence: "medium",
+            caveats: ["This lane is read-only repo-intelligence synthesis; it does not edit code or run shell workflows."],
+            telemetryOverlay: { totalRuns: 1, successRate: 1 },
+          },
+          {
+            type: "test-intelligence",
+            label: "Test Intelligence",
+            purpose: "Produce a bounded test-intelligence posture across local test coverage, recent failures, retry signals, and release-facing verifier risk.",
+            operationalStatus: "confirmed-working",
+            approvalGated: false,
+            exposeInV1: true,
+            dependencyClass: "worker",
+            dependencyRequirements: ["test-intelligence worker", "bounded test surfaces"],
+            baselineConfidence: "medium",
+            caveats: ["This lane is read-only test posture synthesis; it does not run tests or shell workflows."],
+            telemetryOverlay: { totalRuns: 1, successRate: 1 },
+          },
         ],
       },
       isLoading: false,
@@ -1720,6 +1746,40 @@ describe("operator contract surfaces", () => {
     ).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("public-runtime")).toBeInTheDocument();
     expect(screen.getByText("Rollout Mode")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Code Index"));
+    expect(
+      screen.getAllByText(/bounded code-index posture/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue("workspace")).toBeInTheDocument();
+    const focusPathsField = screen
+      .getAllByRole("textbox")
+      .find(
+        (element) =>
+          "value" in element &&
+          typeof element.value === "string" &&
+          element.value.includes("docs/reference"),
+      );
+    expect(focusPathsField).toBeTruthy();
+    expect(focusPathsField).toHaveValue(
+      "docs/reference\norchestrator/src\noperator-s-console/src",
+    );
+
+    fireEvent.click(screen.getByText("Test Intelligence"));
+    expect(
+      screen.getAllByText(/bounded test-intelligence posture/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue("workspace")).toBeInTheDocument();
+    const focusSuitesField = screen
+      .getAllByRole("textbox")
+      .find(
+        (element) =>
+          "value" in element &&
+          typeof element.value === "string" &&
+          element.value.includes("operator-ui"),
+      );
+    expect(focusSuitesField).toBeTruthy();
+    expect(focusSuitesField).toHaveValue("orchestrator\noperator-ui\nagents");
   });
 
   it("renders reddit-response as a freshness-aware knowledge-pack lane", () => {

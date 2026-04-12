@@ -1142,6 +1142,12 @@ describe('Runtime Integration: Live Middleware Chain', () => {
       catalog.tasks.some((task: any) => task.type === 'deployment-ops'),
     ).toBe(true);
     expect(
+      catalog.tasks.some((task: any) => task.type === 'code-index'),
+    ).toBe(true);
+    expect(
+      catalog.tasks.some((task: any) => task.type === 'test-intelligence'),
+    ).toBe(true);
+    expect(
       catalog.tasks.some((task: any) => task.type === 'control-plane-brief'),
     ).toBe(true);
     expect(
@@ -2491,6 +2497,145 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     ).toContain('promoted runtime readiness evidence');
     expect(
       deploymentAgent?.capability?.presentCapabilities,
+    ).toContain('tool execution evidence');
+  });
+
+  it('surfaces code-index posture through task runs and agent overview', { timeout: 120000 }, async () => {
+    await resetRuntimeToSeededState();
+
+    const codeIndexTaskId = await triggerTask('code-index', {
+      target: 'workspace',
+      focusPaths: ['docs/reference', 'orchestrator/src', 'operator-s-console/src'],
+      maxRetries: 0,
+    });
+    await waitForTaskHistoryRecord(codeIndexTaskId);
+    const codeIndexRun = await waitForTaskRun(codeIndexTaskId);
+
+    const codeIndexDetail = await waitForRunResultSummaryKeys(
+      String(codeIndexRun.runId),
+      ['codeIndex', 'indexCoverage', 'docLinks', 'searchGaps', 'freshness', 'retrievalReadiness'],
+    ) as {
+      run?: {
+        resultSummary?: {
+          keys?: string[];
+          success?: boolean;
+          highlights?: {
+            codeIndex?: {
+              decision?: string;
+              target?: string;
+            };
+          };
+        };
+      };
+    };
+
+    expect(codeIndexDetail.run?.resultSummary?.keys).toContain('codeIndex');
+    expect(codeIndexDetail.run?.resultSummary?.keys).toContain('indexCoverage');
+    expect(codeIndexDetail.run?.resultSummary?.keys).toContain('docLinks');
+    expect(codeIndexDetail.run?.resultSummary?.keys).toContain('searchGaps');
+    expect(codeIndexDetail.run?.resultSummary?.keys).toContain('freshness');
+    expect(codeIndexDetail.run?.resultSummary?.keys).toContain('retrievalReadiness');
+    expect(codeIndexDetail.run?.resultSummary?.success).toBe(true);
+    expect(
+      codeIndexDetail.run?.resultSummary?.highlights?.codeIndex?.decision === 'ready' ||
+        codeIndexDetail.run?.resultSummary?.highlights?.codeIndex?.decision === 'refresh',
+    ).toBe(true);
+    expect(codeIndexDetail.run?.resultSummary?.highlights?.codeIndex?.target).toBe('workspace');
+
+    const codeIndexAgent = await waitForAgentRuntimeSignal(
+      'code-index-agent',
+      'codeIndex',
+      45000,
+      {
+        runId: String(codeIndexRun.runId),
+        taskId: codeIndexTaskId,
+      },
+    );
+
+    expect(
+      codeIndexAgent?.capability?.runtimeEvidence?.signals?.some(
+        (entry) => entry.key === 'codeIndex',
+      ),
+    ).toBe(true);
+    expect(
+      codeIndexAgent?.capability?.presentCapabilities,
+    ).toContain('promoted runtime readiness evidence');
+    expect(
+      codeIndexAgent?.capability?.presentCapabilities,
+    ).toContain('tool execution evidence');
+  });
+
+  it('surfaces test-intelligence posture through task runs and agent overview', { timeout: 120000 }, async () => {
+    await resetRuntimeToSeededState();
+
+    const testIntelligenceTaskId = await triggerTask('test-intelligence', {
+      target: 'workspace',
+      focusSuites: ['orchestrator', 'operator-ui', 'agents'],
+      maxRetries: 0,
+    });
+    await waitForTaskHistoryRecord(testIntelligenceTaskId);
+    const testIntelligenceRun = await waitForTaskRun(testIntelligenceTaskId);
+
+    const testIntelligenceDetail = await waitForRunResultSummaryKeys(
+      String(testIntelligenceRun.runId),
+      [
+        'testIntelligence',
+        'suiteCoverage',
+        'recentFailures',
+        'flakySignals',
+        'releaseRisk',
+        'evidenceWindow',
+      ],
+    ) as {
+      run?: {
+        resultSummary?: {
+          keys?: string[];
+          success?: boolean;
+          highlights?: {
+            testIntelligence?: {
+              decision?: string;
+              target?: string;
+            };
+          };
+        };
+      };
+    };
+
+    expect(testIntelligenceDetail.run?.resultSummary?.keys).toContain('testIntelligence');
+    expect(testIntelligenceDetail.run?.resultSummary?.keys).toContain('suiteCoverage');
+    expect(testIntelligenceDetail.run?.resultSummary?.keys).toContain('recentFailures');
+    expect(testIntelligenceDetail.run?.resultSummary?.keys).toContain('flakySignals');
+    expect(testIntelligenceDetail.run?.resultSummary?.keys).toContain('releaseRisk');
+    expect(testIntelligenceDetail.run?.resultSummary?.keys).toContain('evidenceWindow');
+    expect(testIntelligenceDetail.run?.resultSummary?.success).toBe(true);
+    expect(
+      testIntelligenceDetail.run?.resultSummary?.highlights?.testIntelligence?.decision === 'ready' ||
+        testIntelligenceDetail.run?.resultSummary?.highlights?.testIntelligence?.decision === 'watching',
+    ).toBe(true);
+    expect(
+      testIntelligenceDetail.run?.resultSummary?.highlights?.testIntelligence?.target,
+    ).toBe('workspace');
+
+    const testIntelligenceAgent = await waitForAgentRuntimeSignal(
+      'test-intelligence-agent',
+      'testIntelligence',
+      45000,
+      {
+        runId: String(testIntelligenceRun.runId),
+        taskId: testIntelligenceTaskId,
+      },
+    );
+
+    expect(
+      testIntelligenceAgent?.capability?.runtimeEvidence?.signals?.some(
+        (entry) => entry.key === 'testIntelligence',
+      ),
+    ).toBe(true);
+    expect(
+      testIntelligenceAgent?.capability?.presentCapabilities,
+    ).toContain('promoted runtime readiness evidence');
+    expect(
+      testIntelligenceAgent?.capability?.presentCapabilities,
     ).toContain('tool execution evidence');
   });
 
