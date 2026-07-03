@@ -1,0 +1,48 @@
+{
+  "id": "coding-agent-skills",
+  "name": "Coding Agent Skills",
+  "description": "Exposes dependency-free, read-only coding-agent-skills CLI audits as optional OpenClaw tools.",
+  "version": "0.1.0",
+  "contracts": {
+    "tools": [
+      "coding_validate_pack",
+      "coding_validate_project",
+      "coding_repo_map",
+      "coding_route_trace",
+      "coding_env_audit",
+      "coding_secret_audit",
+      "coding_api_contract_audit",
+      "coding_migration_review",
+      "coding_github_handoff",
+      "coding_deployment_preflight",
+      "coding_validate_adapters"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "binaryPath": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Path or command name for the installed coding-agent-skills CLI."
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 120000,
+        "description": "Maximum runtime for a single coding-agent-skills command."
+      }
+    }
+  },
+  "uiHints": {
+    "binaryPath": {
+      "label": "coding-agent-skills binary",
+      "help": "Defaults to coding-agent-skills on PATH. Do not point this at npx or a shell wrapper."
+    },
+    "timeoutMs": {
+      "label": "Command timeout",
+      "help": "Bounded timeout in milliseconds for read-only CLI invocations."
+    }
+  }
+}
