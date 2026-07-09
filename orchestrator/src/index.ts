@@ -1375,7 +1375,7 @@ const TASK_AGENT_SKILL_REQUIREMENTS: Record<
   "skill-audit": { agentId: "skill-audit-agent", skillId: "documentParser" },
   "control-plane-brief": {
     agentId: "operations-analyst-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "incident-triage": {
     agentId: "system-monitor-agent",
@@ -1383,23 +1383,23 @@ const TASK_AGENT_SKILL_REQUIREMENTS: Record<
   },
   "release-readiness": {
     agentId: "release-manager-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "deployment-ops": {
     agentId: "deployment-ops-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "code-index": {
     agentId: "code-index-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "test-intelligence": {
     agentId: "test-intelligence-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "compliance-review": {
     agentId: "compliance-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
 };
 

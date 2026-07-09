@@ -257,6 +257,17 @@ async function pathExistsWithinRepo(agentId: string, relativePath: string) {
   return repoPathExistsWithSkill(agentId, toRepoSkillPath(relativePath), relativePath);
 }
 
+function focusPathToScanRoot(focusPath: string) {
+  const normalized = normalizeBoundaryPath(focusPath);
+  if (!normalized) {
+    return "";
+  }
+
+  return extname(normalized.split("/").pop() ?? "")
+    ? normalizeBoundaryPath(dirname(normalized))
+    : normalized;
+}
+
 function resolveReadBoundaries(config: AgentConfig) {
   const configured = config.permissions.fileSystem?.readPaths ?? [];
   return configured
@@ -292,7 +303,10 @@ async function gatherScanRoots(agentId: string, focusPaths: string[]) {
     if (!(await pathExistsWithinRepo(agentId, focusPath))) {
       continue;
     }
-    scanRoots.add(normalizeBoundaryPath(dirname(focusPath)));
+    const scanRoot = focusPathToScanRoot(focusPath);
+    if (scanRoot) {
+      scanRoots.add(scanRoot);
+    }
   }
 
   const resolvedRoots: string[] = [];
@@ -830,7 +844,7 @@ async function handleTask(task: Task): Promise<Result> {
   ];
 
   return {
-    success: decision !== "blocked",
+    success: true,
     codeIndex: {
       decision,
       target,

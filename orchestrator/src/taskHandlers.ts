@@ -98,23 +98,23 @@ const SPAWNED_AGENT_PERMISSION_REQUIREMENTS: Partial<
   },
   "deployment-ops": {
     agentId: "deployment-ops-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "code-index": {
     agentId: "code-index-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "test-intelligence": {
     agentId: "test-intelligence-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "compliance-review": {
     agentId: "compliance-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "control-plane-brief": {
     agentId: "operations-analyst-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "content-generate": { agentId: "content-agent", skillId: "documentParser" },
   "incident-triage": {
@@ -140,7 +140,7 @@ const SPAWNED_AGENT_PERMISSION_REQUIREMENTS: Partial<
   },
   "release-readiness": {
     agentId: "release-manager-agent",
-    skillId: "documentParser",
+    skillId: "runtimeStateReader",
   },
   "skill-audit": { agentId: "skill-audit-agent", skillId: "documentParser" },
 };

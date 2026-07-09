@@ -29,6 +29,7 @@
     },
     "fileSystem": {
       "readPaths": [
+        "../../orchestrator/data/orchestrator-state.json",
         "../../package.json",
         "../../orchestrator/package.json",
         "../../operator-s-console/package.json",

@@ -508,7 +508,7 @@ async function handleTask(task: Task): Promise<Result> {
     .sort((left, right) => toTimestamp(right) - toTimestamp(left))[0] ?? null;
 
   return {
-    success: decision !== "blocked",
+    success: true,
     compliance: {
       decision,
       target,

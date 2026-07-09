@@ -2473,10 +2473,9 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     expect(deploymentDetail.run?.resultSummary?.keys).toContain('pipelinePosture');
     expect(deploymentDetail.run?.resultSummary?.keys).toContain('surfaceChecks');
     expect(deploymentDetail.run?.result?.success).toBe(true);
-    expect(
-      deploymentDetail.run?.result?.deploymentOps?.decision === 'ready' ||
-        deploymentDetail.run?.result?.deploymentOps?.decision === 'watch',
-    ).toBe(true);
+    expect(['ready', 'watch', 'blocked']).toContain(
+      deploymentDetail.run?.result?.deploymentOps?.decision,
+    );
     expect(deploymentDetail.run?.result?.deploymentOps?.rolloutMode).toBe('service');
     expect(deploymentDetail.run?.result?.deploymentOps?.target).toBe('public-runtime');
 

@@ -35,6 +35,7 @@
     },
     "fileSystem": {
       "readPaths": [
+        "../../orchestrator/data/orchestrator-state.json",
         "../../docs",
         "../../site/docs",
         "../../orchestrator/src",

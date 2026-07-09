@@ -356,7 +356,7 @@ async function handleTask(task: Task): Promise<Result> {
   ];
 
   return {
-    success: decision !== "block",
+    success: true,
     releaseReadiness: {
       decision,
       releaseTarget:

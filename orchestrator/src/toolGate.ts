@@ -278,14 +278,26 @@ export class ToolGate {
 
 // Singleton instance
 let gate: ToolGate | null = null;
+let gateInitialization: Promise<ToolGate> | null = null;
 
 /**
  * Get or create tool gate
  */
 export async function getToolGate(): Promise<ToolGate> {
-  if (!gate) {
-    gate = new ToolGate();
-    await gate.initialize();
+  if (gate) {
+    return gate;
   }
-  return gate;
+
+  if (!gateInitialization) {
+    gateInitialization = (async () => {
+      const initializedGate = new ToolGate();
+      await initializedGate.initialize();
+      gate = initializedGate;
+      return initializedGate;
+    })().finally(() => {
+      gateInitialization = null;
+    });
+  }
+
+  return gateInitialization;
 }

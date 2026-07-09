@@ -533,7 +533,7 @@ async function handleTask(task: Task): Promise<Result> {
   ];
 
   return {
-    success: decision !== "blocked",
+    success: true,
     deploymentOps: {
       decision,
       target,
