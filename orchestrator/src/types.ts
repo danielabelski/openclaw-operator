@@ -41,6 +41,9 @@ export interface OrchestratorConfig {
   corsMaxAgeSeconds?: number;
   businessRegistryPath?: string;
   businessEvidenceDir?: string;
+  businessValueSchedule?: string;
+  businessValueCadenceMinutes?: number;
+  businessOperationsStateFile?: string;
 }
 
 export interface DocRecord {
@@ -657,6 +660,7 @@ export interface TaskHandlerContext {
   config: OrchestratorConfig;
   state: OrchestratorState;
   saveState: () => Promise<void>;
+  saveBusinessSchedulerState?: () => Promise<void>;
   enqueueTask: (type: string, payload: Record<string, unknown>) => Task;
   getQueueSnapshot?: () => {
     queued: Task[];

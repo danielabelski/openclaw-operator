@@ -209,6 +209,35 @@ export interface NextSelectedTask {
   title: string;
   score: number;
   evidence: string[];
+  worker: string | null;
+  model: string | null;
+  executionStatus: "queued" | "running" | "success" | "failed" | "retrying" | "unknown";
+  verificationStatus: VerificationStatus;
+}
+
+export type BusinessValueSchedulerMode = "enabled" | "paused" | "disabled";
+
+export type BusinessValueTriggerSource =
+  | "operator"
+  | "scheduler"
+  | "startup-recovery"
+  | "retry";
+
+export interface BusinessValueSchedulerState {
+  mode: BusinessValueSchedulerMode;
+  cadenceMinutes: number;
+  lastTriggeredAt: string | null;
+  lastTriggerSource: BusinessValueTriggerSource | null;
+  lastTriggerReason: string | null;
+  nextRunAt: string | null;
+  lastProgressAt: string | null;
+  consecutiveFailures: number;
+  backoffUntil: string | null;
+  activeTaskId: string | null;
+  activeTaskEnqueuedAt: string | null;
+  lastChangeFingerprint: string | null;
+  lastSkippedAt: string | null;
+  lastSkipReason: string | null;
 }
 
 export type VerificationStatus =
@@ -222,6 +251,8 @@ export type VerificationStatus =
 
 export interface BusinessValueCycle {
   cycleId: string;
+  triggerSource: BusinessValueTriggerSource | "unknown";
+  triggerReason: string;
   status: "active" | "completed" | "failed" | "blocked" | "idle";
   startedAt: string;
   completedAt?: string | null;
@@ -254,4 +285,5 @@ export interface BusinessValueState {
   activeCycleId: string | null;
   nextSelectedTask: NextSelectedTask | null;
   lastRunAt: string | null;
+  scheduler: BusinessValueSchedulerState;
 }

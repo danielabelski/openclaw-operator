@@ -22,6 +22,7 @@ const mobileNavItems = [
   { to: "/", label: "Overview" },
   { to: "/tasks", label: "Tasks" },
   { to: "/task-runs", label: "Runs" },
+  { to: "/business-value", label: "Value" },
   { to: "/approvals", label: "Approve" },
   { to: "/incidents", label: "Incidents" },
   { to: "/agents", label: "Agents" },

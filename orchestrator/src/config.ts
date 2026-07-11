@@ -50,6 +50,7 @@ const CONFIG_PATH_KEYS: Array<keyof OrchestratorConfig> = [
   "knowledgePackDir",
   "runtimeEngagementOsPath",
   "digestDir",
+  "businessOperationsStateFile",
 ];
 
 function isRuntimeTarget(value: string): boolean {
@@ -108,6 +109,15 @@ export async function loadConfig(
   const corsMaxAgeSeconds = parseIntegerEnv("ORCHESTRATOR_CORS_MAX_AGE_SECONDS");
   if (corsMaxAgeSeconds !== undefined) {
     parsed.corsMaxAgeSeconds = corsMaxAgeSeconds;
+  }
+  const businessValueCadenceMinutes = parseIntegerEnv(
+    "ORCHESTRATOR_BUSINESS_VALUE_CADENCE_MINUTES",
+  );
+  if (businessValueCadenceMinutes !== undefined) {
+    parsed.businessValueCadenceMinutes = businessValueCadenceMinutes;
+  }
+  if (process.env.ORCHESTRATOR_BUSINESS_VALUE_SCHEDULE?.trim()) {
+    parsed.businessValueSchedule = process.env.ORCHESTRATOR_BUSINESS_VALUE_SCHEDULE.trim();
   }
 
   for (const key of CONFIG_PATH_KEYS) {

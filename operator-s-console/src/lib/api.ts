@@ -32,6 +32,10 @@ import type {
   CommandCenterDemandResponse,
   MilestoneFeedResponse,
   MilestoneDeadLetterResponse,
+  BusinessOverviewResponse,
+  BusinessCyclesResponse,
+  BusinessControlResponse,
+  BusinessCycle,
 } from "@/types/console";
 
 // ── Dashboard ──
@@ -64,6 +68,38 @@ export const triggerTask = (type: string, payload?: Record<string, unknown>) =>
     method: "POST",
     body: JSON.stringify({ type, payload }),
   });
+
+// ── Business Value Operations ──
+export const fetchBusinessOverview = () =>
+  apiFetch<BusinessOverviewResponse>("/api/business/overview");
+
+export const fetchBusinessCycles = () =>
+  apiFetch<BusinessCyclesResponse>("/api/business/cycles");
+
+export const fetchBusinessCycle = (cycleId: string) =>
+  apiFetch<{ generatedAt: string; cycle: BusinessCycle }>(
+    `/api/business/cycles/${encodeURIComponent(cycleId)}`,
+  );
+
+export const triggerBusinessCycle = () =>
+  apiFetch<BusinessControlResponse>("/api/business/cycle/trigger", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+export const updateBusinessScheduler = (
+  action: "pause" | "resume" | "disable" | "enable",
+) =>
+  apiFetch<BusinessControlResponse>("/api/business/scheduler", {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+
+export const retryBusinessCycle = (cycleId: string) =>
+  apiFetch<BusinessControlResponse>(
+    `/api/business/cycles/${encodeURIComponent(cycleId)}/retry`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
 
 // ── Task Runs (viewer) ──
 export const fetchTaskRuns = (params?: { type?: string; status?: string; limit?: number; offset?: number }) => {

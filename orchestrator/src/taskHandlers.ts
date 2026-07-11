@@ -46,6 +46,8 @@ import {
   releaseDocRepairLock,
 } from "./coordination/runtime-coordination.js";
 import { runBusinessValueCycle } from "./business/valueLoop.js";
+import { recordBusinessValueCycleOutcome } from "./business/operations.js";
+import type { BusinessValueTriggerSource } from "./business/types.js";
 
 // Central task allowlist (deny-by-default enforcement)
 export const ALLOWED_TASK_TYPES = [
@@ -4085,13 +4087,34 @@ const sendDigestHandler: TaskHandler = async (task, context) => {
 };
 
 const businessValueCycleHandler: TaskHandler = async (task, context) => {
-  const result = await runBusinessValueCycle({
-    config: context.config,
-    state: context.state,
-    enqueueTask: context.enqueueTask,
-    isTaskTypeAllowed: validateTaskType,
-    logger: context.logger,
-  });
+  let result;
+  try {
+    result = await runBusinessValueCycle({
+      config: context.config,
+      state: context.state,
+      enqueueTask: context.enqueueTask,
+      isTaskTypeAllowed: validateTaskType,
+      logger: context.logger,
+      triggerSource:
+        typeof task.payload.triggerSource === "string"
+          ? task.payload.triggerSource as BusinessValueTriggerSource
+          : "unknown",
+      triggerReason:
+        typeof task.payload.reason === "string"
+          ? task.payload.reason
+          : "business-value-cycle task",
+    });
+    recordBusinessValueCycleOutcome(context.state, result.cycle);
+    await context.saveBusinessSchedulerState?.();
+  } catch (error) {
+    const failedCycle = context.state.businessValue?.cycles.at(-1);
+    if (failedCycle?.status === "failed") {
+      recordBusinessValueCycleOutcome(context.state, failedCycle);
+      await context.saveBusinessSchedulerState?.();
+      await context.saveState();
+    }
+    throw error;
+  }
 
   recordTaskExecutionResultSummary(context, task, {
     success: result.cycle.status === "completed" || result.cycle.status === "idle",
@@ -4106,7 +4129,9 @@ const businessValueCycleHandler: TaskHandler = async (task, context) => {
     },
   });
 
-  await context.saveState();
+  void context.saveState().catch((error) => {
+    context.logger.error("[business-value] failed to persist completed cycle state", error);
+  });
 
   if (result.cycle.selectedTask) {
     return `business-value cycle selected ${result.cycle.selectedTask.taskType} for ${result.cycle.selectedTask.title}`;

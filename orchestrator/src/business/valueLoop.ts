@@ -14,6 +14,7 @@ import type {
   NextSelectedTask,
   TaskTraceabilityMetadata,
 } from "./types.js";
+import { createDefaultBusinessValueSchedulerState } from "./operations.js";
 
 const CYCLE_RETENTION_LIMIT = 200;
 const CANDIDATE_RETENTION_LIMIT = 500;
@@ -30,6 +31,7 @@ export function createDefaultBusinessValueState(): BusinessValueState {
     activeCycleId: null,
     nextSelectedTask: null,
     lastRunAt: null,
+    scheduler: createDefaultBusinessValueSchedulerState(),
   };
 }
 
@@ -146,17 +148,23 @@ export async function runBusinessValueCycle(args: {
   enqueueTask: (type: string, payload: Record<string, unknown>) => Task;
   isTaskTypeAllowed: (type: string) => boolean;
   logger?: Pick<Console, "log" | "warn" | "error">;
+  triggerSource?: BusinessValueCycle["triggerSource"];
+  triggerReason?: string;
 }): Promise<BusinessValueCycleResult> {
   const { config, state, enqueueTask, isTaskTypeAllowed, logger = console } = args;
   const businessState = ensureBusinessValueState(state);
   const mission = loadBusinessMission();
   const cycleId = `business-cycle-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
   const startedAt = new Date().toISOString();
+  const triggerSource = args.triggerSource ?? "unknown";
+  const triggerReason = args.triggerReason ?? "business-value-cycle task";
 
   if (businessState.activeCycleId) {
     const registry = businessState.registry ?? (await loadBusinessRegistry(config));
     const blockedCycle: BusinessValueCycle = {
       cycleId,
+      triggerSource,
+      triggerReason,
       status: "blocked",
       startedAt,
       completedAt: new Date().toISOString(),
@@ -210,6 +218,8 @@ export async function runBusinessValueCycle(args: {
     let selectedTask: NextSelectedTask | null = null;
     const preliminaryCycle: BusinessValueCycle = {
       cycleId,
+      triggerSource,
+      triggerReason,
       status: "active",
       startedAt,
       completedAt: null,
@@ -256,6 +266,10 @@ export async function runBusinessValueCycle(args: {
         title: candidate.title,
         score: candidate.score?.value ?? 0,
         evidence: candidate.evidence,
+        worker: candidate.taskType,
+        model: null,
+        executionStatus: "queued",
+        verificationStatus: "not-verified",
       };
       logger.log(
         `[business-value] selected ${candidate.id} -> ${candidate.taskType} (${task.id})`,
@@ -280,6 +294,7 @@ export async function runBusinessValueCycle(args: {
             ? "Implement or map unsupported candidate handlers before execution."
             : "No evidence-backed business candidate was discovered.",
     };
+    updateBusinessState(businessState, cycle, scored, approvalGated, unsupported);
     const finalEvidencePath = await persistCycleEvidence(cycle, config);
     cycle.evidence.push({
       path: finalEvidencePath,
@@ -289,12 +304,13 @@ export async function runBusinessValueCycle(args: {
       createdAt: new Date().toISOString(),
     });
     await persistCycleEvidence(cycle, config);
-    updateBusinessState(businessState, cycle, scored, approvalGated, unsupported);
     return { cycle, registry, mission };
   } catch (error) {
     const completedAt = new Date().toISOString();
     const failureCycle: BusinessValueCycle = {
       cycleId,
+      triggerSource,
+      triggerReason,
       status: "failed",
       startedAt,
       completedAt,
@@ -319,4 +335,54 @@ export async function runBusinessValueCycle(args: {
     updateBusinessState(businessState, failureCycle, [], [], []);
     throw error;
   }
+}
+
+export async function recordBusinessTaskVerification(args: {
+  config: OrchestratorConfig;
+  state: OrchestratorState;
+  taskId: string;
+  executionStatus: "running" | "success" | "failed" | "retrying";
+  worker: string | null;
+  model: string | null;
+  summary: string;
+  evidence?: string[];
+}) {
+  const businessState = args.state.businessValue;
+  const cycle = businessState?.cycles.find(
+    (item) => item.selectedTask?.taskId === args.taskId,
+  );
+  if (!businessState || !cycle || !cycle.selectedTask) {
+    return false;
+  }
+
+  cycle.selectedTask.worker = args.worker;
+  cycle.selectedTask.model = args.model;
+  cycle.selectedTask.executionStatus = args.executionStatus;
+  cycle.selectedTask.verificationStatus =
+    args.executionStatus === "success"
+      ? "passed"
+      : args.executionStatus === "failed"
+        ? "failed"
+        : "not-verified";
+  cycle.verificationStatus = cycle.selectedTask.verificationStatus;
+  cycle.nextSafeAction =
+    args.executionStatus === "success"
+      ? "Review verified evidence and allow the next change-aware cycle to select new work."
+      : args.executionStatus === "failed"
+        ? "Inspect the failed task evidence before retrying the cycle."
+        : `Wait for ${cycle.selectedTask.taskType} ${cycle.selectedTask.taskId} to finish verification.`;
+
+  const createdAt = new Date().toISOString();
+  const evidence = [
+    `task:${args.taskId}`,
+    ...(args.evidence ?? []),
+  ];
+  for (const path of evidence) {
+    if (cycle.evidence.some((item) => item.path === path)) continue;
+    cycle.evidence.push({ path, summary: args.summary, createdAt });
+  }
+  businessState.nextSelectedTask = cycle.selectedTask;
+  businessState.lastRunAt = createdAt;
+  await persistCycleEvidence(cycle, args.config);
+  return true;
 }

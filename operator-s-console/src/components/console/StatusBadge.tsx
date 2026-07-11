@@ -97,6 +97,21 @@ const colorMap: Record<string, string> = {
   "attempted": "bg-status-info/12 text-status-info border-status-info/25",
   "duplicate": "bg-status-info/12 text-status-info border-status-info/25",
   "live": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "idle": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "waiting": "bg-status-approval/12 text-status-approval border-status-approval/25",
+  "stopped": "bg-muted/80 text-muted-foreground border-border",
+  "enabled": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "paused": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "disabled": "bg-muted/80 text-muted-foreground border-border",
+  "verified": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "estimated": "bg-status-info/12 text-status-info border-status-info/25",
+  "unavailable": "bg-muted/80 text-muted-foreground border-border",
+  "not-verified": "bg-status-warning/12 text-status-warning border-status-warning/25",
+  "skipped": "bg-muted/80 text-muted-foreground border-border",
+  "awaiting-approval": "bg-status-approval/12 text-status-approval border-status-approval/25",
+  "safe-autonomous": "bg-status-healthy/12 text-status-healthy border-status-healthy/25",
+  "approval-required": "bg-status-approval/12 text-status-approval border-status-approval/25",
+  "unsupported": "bg-status-warning/12 text-status-warning border-status-warning/25",
 };
 
 const displayMap: Record<string, string> = {
@@ -157,6 +172,21 @@ const displayMap: Record<string, string> = {
   "attempted": "Attempted",
   "duplicate": "Duplicate",
   "live": "Live",
+  "idle": "Idle",
+  "waiting": "Waiting",
+  "stopped": "Stopped",
+  "enabled": "Enabled",
+  "paused": "Paused",
+  "disabled": "Disabled",
+  "verified": "Verified",
+  "estimated": "Estimated",
+  "unavailable": "Unavailable",
+  "not-verified": "Not Verified",
+  "skipped": "Skipped",
+  "awaiting-approval": "Awaiting Approval",
+  "safe-autonomous": "Safe Autonomous",
+  "approval-required": "Approval Required",
+  "unsupported": "Unsupported",
 };
 
 export function StatusBadge({ label, size = "sm", className }: StatusBadgeProps) {

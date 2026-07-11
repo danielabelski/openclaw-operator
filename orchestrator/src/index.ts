@@ -73,6 +73,19 @@ import { getToolGate } from "./toolGate.js";
 import { buildIncidentPriorityQueue } from "./incident-priority.js";
 import { loadBusinessMission } from "./business/mission.js";
 import { loadBusinessRegistry } from "./business/discovery.js";
+import { recordBusinessTaskVerification } from "./business/valueLoop.js";
+import {
+  buildBusinessValueOperationalView,
+  ensureBusinessValueSchedulerState,
+  evaluateBusinessValueTrigger,
+  loadBusinessValueSchedulerState,
+  markBusinessValueCycleEnqueued,
+  reconcileBusinessValueOperations,
+  recordBusinessValueTriggerSkipped,
+  saveBusinessValueSchedulerState,
+  setBusinessValueSchedulerMode,
+} from "./business/operations.js";
+import type { BusinessValueTriggerSource } from "./business/types.js";
 import {
   assertApprovalIfRequired,
   decideApproval,
@@ -1270,6 +1283,7 @@ const OPERATOR_TASK_PROFILES: OperatorTaskProfile[] = [
 ];
 
 const HEARTBEAT_CRON_SCHEDULE = "*/5 * * * *";
+const DEFAULT_BUSINESS_VALUE_CRON_SCHEDULE = "17 */6 * * *";
 const INTERNAL_TASK_TYPES = new Set(
   OPERATOR_TASK_PROFILES.filter((profile) => profile.internalOnly).map(
     (profile) => profile.type,
@@ -1279,6 +1293,7 @@ const SCHEDULED_TASK_PROFILES = [
   { type: "nightly-batch", schedule: "0 23 * * *" },
   { type: "send-digest", schedule: "0 6 * * *" },
   { type: "heartbeat", schedule: HEARTBEAT_CRON_SCHEDULE },
+  { type: "business-value-cycle", schedule: DEFAULT_BUSINESS_VALUE_CRON_SCHEDULE },
 ] as const;
 
 const AGENT_CAPABILITY_RUNTIME_SIGNAL_KEYS: Partial<Record<string, string[]>> = {
@@ -10498,6 +10513,14 @@ async function bootstrap() {
   const state = await loadState(config.stateFile, {
     taskHistoryLimit: config.taskHistoryLimit,
   });
+  const businessOperationsStateFile =
+    config.businessOperationsStateFile ?? join(config.logsDir, "business-value-operations.json");
+  const persistedBusinessScheduler = await loadBusinessValueSchedulerState(
+    businessOperationsStateFile,
+  );
+  if (persistedBusinessScheduler && state.businessValue) {
+    state.businessValue.scheduler = persistedBusinessScheduler;
+  }
   const githubActionsMonitorEnabled =
     process.env.NODE_ENV === "test"
       ? process.env.GITHUB_ACTIONS_MONITOR_ENABLED === "true"
@@ -10533,6 +10556,13 @@ async function bootstrap() {
   };
   state.indexedDocs = indexedDocCount;
   state.docIndexVersion += 1;
+  const businessScheduler = ensureBusinessValueSchedulerState(state);
+  if (Number.isFinite(config.businessValueCadenceMinutes)) {
+    businessScheduler.cadenceMinutes = Math.min(
+      24 * 60,
+      Math.max(60, Math.floor(config.businessValueCadenceMinutes as number)),
+    );
+  }
   const { recoveredRetryCount, staleRecoveryCount } =
     reconcileTaskRetryRecoveryState(state);
   const {
@@ -10541,6 +10571,9 @@ async function bootstrap() {
     interruptedCount,
     awaitingApprovalCount,
   } = reconcileInFlightTaskExecutionState(state);
+  const businessRecovery = reconcileBusinessValueOperations(state, new Date(), {
+    clearOrphanedLocks: true,
+  });
 
   if (
     recoveredRetryCount > 0 ||
@@ -10553,13 +10586,42 @@ async function bootstrap() {
       `[orchestrator] reconciled startup state: retries recovered=${recoveredRetryCount}, stale retry records removed=${staleRecoveryCount}, executions recovered success=${recoveredSuccessCount}, executions recovered failure=${recoveredFailureCount}, interrupted executions failed=${interruptedCount}, awaiting approval preserved=${awaitingApprovalCount}`,
     );
   }
+  if (businessRecovery.staleLockCleared) {
+    console.warn("[orchestrator] cleared a stale business-value cycle lock after restart reconciliation");
+  }
+  if (businessRecovery.changed) {
+    await saveBusinessValueSchedulerState(
+      businessOperationsStateFile,
+      ensureBusinessValueSchedulerState(state),
+    );
+  }
 
+  const pendingStateFlushTags = new Set<string>();
+  let stateFlushInFlight: Promise<void> | null = null;
   const flushState = async (tags: string[] = ["runtime-state"]) => {
-    await persistState(config.stateFile, state, {
-      taskHistoryLimit: config.taskHistoryLimit,
-    });
-    await invalidateResponseCacheTags(tags);
-    scheduleAgentOperationalOverviewWarm(state);
+    for (const tag of tags) pendingStateFlushTags.add(tag);
+    if (!stateFlushInFlight) {
+      stateFlushInFlight = (async () => {
+        while (pendingStateFlushTags.size > 0) {
+          const currentTags = [...pendingStateFlushTags];
+          pendingStateFlushTags.clear();
+          await persistState(config.stateFile, state, {
+            taskHistoryLimit: config.taskHistoryLimit,
+          });
+          await invalidateResponseCacheTags(currentTags);
+          scheduleAgentOperationalOverviewWarm(state);
+        }
+      })().finally(() => {
+        stateFlushInFlight = null;
+      });
+    }
+    await stateFlushInFlight;
+  };
+  const persistBusinessSchedulerState = async () => {
+    await saveBusinessValueSchedulerState(
+      businessOperationsStateFile,
+      ensureBusinessValueSchedulerState(state),
+    );
   };
 
   const readCacheTtls = {
@@ -10758,6 +10820,37 @@ async function bootstrap() {
       queue.enqueue("heartbeat", { reason: "periodic" });
     });
 
+    const businessValueSchedule =
+      config.businessValueSchedule || DEFAULT_BUSINESS_VALUE_CRON_SCHEDULE;
+    cron.schedule(businessValueSchedule, () => {
+      void enqueueGovernedBusinessValueCycle({
+        source: "scheduler",
+        reason: `scheduled:${businessValueSchedule}`,
+      }).then(({ decision, task }) => {
+        if (task) {
+          console.log(`[cron] business-value-cycle queued (${task.id})`);
+        } else {
+          console.log(`[cron] business-value-cycle skipped (${decision.code}): ${decision.reason}`);
+        }
+      }).catch((error) => {
+        console.error("[cron] business-value-cycle evaluation failed:", error);
+      });
+    });
+
+    const scheduler = ensureBusinessValueSchedulerState(state);
+    if (
+      scheduler.mode === "enabled" &&
+      scheduler.nextRunAt &&
+      Date.parse(scheduler.nextRunAt) <= Date.now()
+    ) {
+      void enqueueGovernedBusinessValueCycle({
+        source: "startup-recovery",
+        reason: "scheduled cycle became due while the orchestrator was offline",
+      }).catch((error) => {
+        console.error("[startup] business-value cycle recovery failed:", error);
+      });
+    }
+
     // Monitor heartbeat failures (detect if orchestrator is hung)
     setInterval(
       () => {
@@ -10787,7 +10880,7 @@ async function bootstrap() {
 
     console.log("[orchestrator] 🔔 Alerts configured and monitoring started");
     console.log(
-      `[orchestrator] Scheduled 3 cron jobs: nightly-batch (11pm), send-digest (6am), heartbeat (${HEARTBEAT_CRON_SCHEDULE})`,
+      `[orchestrator] Scheduled 4 cron jobs: nightly-batch (11pm), send-digest (6am), heartbeat (${HEARTBEAT_CRON_SCHEDULE}), business-value (${businessValueSchedule})`,
     );
 
     // ============================================================
@@ -11006,10 +11099,60 @@ async function bootstrap() {
   };
 
   const queue = new TaskQueue();
+  const enqueueGovernedBusinessValueCycle = async (args: {
+    source: BusinessValueTriggerSource;
+    reason: string;
+    actor?: string | null;
+    role?: string | null;
+    requestId?: string | null;
+    force?: boolean;
+    retryCycleId?: string | null;
+  }) => {
+    const decision = evaluateBusinessValueTrigger({
+      state,
+      source: args.source,
+      force: args.force,
+    });
+    if (!decision.allowed) {
+      recordBusinessValueTriggerSkipped(state, decision);
+      await persistBusinessSchedulerState();
+      void flushState(["runtime-state"]).catch((error) => {
+        console.error("[business-value] failed to persist skipped trigger state:", error);
+      });
+      return { decision, task: null };
+    }
+
+    const idempotencyKey =
+      args.source === "scheduler" || args.source === "startup-recovery"
+        ? `business-value-cycle:${decision.fingerprint}`
+        : `business-value-cycle:${args.source}:${Date.now()}`;
+    const task = queue.enqueue("business-value-cycle", {
+      reason: args.reason,
+      triggerSource: args.source,
+      retryCycleId: args.retryCycleId ?? null,
+      idempotencyKey,
+      __actor: args.actor ?? "system",
+      __role: args.role ?? "operator",
+      __requestId: args.requestId ?? null,
+    });
+    markBusinessValueCycleEnqueued({
+      state,
+      task,
+      source: args.source,
+      reason: args.reason,
+      fingerprint: decision.fingerprint,
+    });
+    await persistBusinessSchedulerState();
+    void flushState(["runtime-state"]).catch((error) => {
+      console.error("[business-value] failed to persist queued trigger state:", error);
+    });
+    return { decision, task };
+  };
   const handlerContext = {
     config,
     state,
     saveState: flushState,
+    saveBusinessSchedulerState: persistBusinessSchedulerState,
     enqueueTask: (type: string, payload: Record<string, unknown>) =>
       queue.enqueue(type, payload),
     getQueueSnapshot: () => queue.getSnapshot(),
@@ -12122,7 +12265,9 @@ async function bootstrap() {
           },
         );
         recordTaskResult(task, "ok", approval.reason ?? "awaiting approval");
-        await flushState();
+        void flushState().catch((error) => {
+          console.error("[orchestrator] failed to persist approval hold state:", error);
+        });
         console.warn(
           `[orchestrator] ⏸️ ${task.type}: ${approval.reason ?? "awaiting approval"}`,
         );
@@ -12169,6 +12314,16 @@ async function bootstrap() {
         idempotencyKey,
         typeof message === "string" ? message : undefined,
       );
+      await recordBusinessTaskVerification({
+        config,
+        state,
+        taskId: task.id,
+        executionStatus: "success",
+        worker: TASK_AGENT_SKILL_REQUIREMENTS[task.type]?.agentId ?? task.type,
+        model: execution.accounting?.model ?? null,
+        summary: typeof message === "string" ? message : `${task.type} completed successfully.`,
+        evidence: [idempotencyKey],
+      });
       console.log(`[orchestrator] ✅ ${task.type}: ${message}`);
     } catch (error) {
       const err = error as Error;
@@ -12258,6 +12413,16 @@ async function bootstrap() {
         maxRetries,
       );
       syncIncidentRemediationOnTaskFailure(task, idempotencyKey, err);
+      await recordBusinessTaskVerification({
+        config,
+        state,
+        taskId: task.id,
+        executionStatus: execution.status === "retrying" ? "retrying" : "failed",
+        worker: TASK_AGENT_SKILL_REQUIREMENTS[task.type]?.agentId ?? task.type,
+        model: execution.accounting?.model ?? null,
+        summary: err.message,
+        evidence: [idempotencyKey],
+      });
 
       recordTaskResult(task, "error", err.message);
       failureTracker.track(task.type, undefined, err);
@@ -12268,7 +12433,9 @@ async function bootstrap() {
       });
     } finally {
       await releaseTaskExecutionLease(idempotencyKey, coordinationOwner);
-      await flushState();
+      void flushState().catch((error) => {
+        console.error(`[orchestrator] failed to persist ${task.type} completion state:`, error);
+      });
     }
   });
 
@@ -13586,19 +13753,15 @@ async function bootstrap() {
             const registry =
               state.businessValue?.registry ?? (await loadBusinessRegistry(config));
             const businessValue = state.businessValue ?? null;
+            const operations = buildBusinessValueOperationalView(state);
             return {
               generatedAt: new Date().toISOString(),
               mission,
               registry,
               businessValue,
+              operations,
               status: {
-                loop: businessValue?.activeCycleId
-                  ? "active"
-                  : businessValue?.lastFailedCycleId
-                    ? "degraded"
-                    : businessValue?.lastSuccessfulCycleId
-                      ? "idle"
-                      : "not-run",
+                loop: operations.loopStatus,
                 activeCycleId: businessValue?.activeCycleId ?? null,
                 lastSuccessfulCycleId: businessValue?.lastSuccessfulCycleId ?? null,
                 lastFailedCycleId: businessValue?.lastFailedCycleId ?? null,
@@ -13610,6 +13773,49 @@ async function bootstrap() {
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
+    },
+  );
+
+  app.get(
+    "/api/business/operations",
+    authLimiter,
+    requireBearerToken,
+    viewerReadLimiter,
+    requireRole("viewer"),
+    auditProtectedAction("business.operations.read"),
+    async (req, res) => {
+      try {
+        await respondWithCachedJson(req, res, {
+          namespace: "business.operations",
+          ttlSeconds: readCacheTtls.taskRuns,
+          tags: ["runtime-state"],
+          scope: "protected",
+          compute: () => ({
+            generatedAt: new Date().toISOString(),
+            ...buildBusinessValueOperationalView(state),
+          }),
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    },
+  );
+
+  app.get(
+    "/api/business/candidates",
+    authLimiter,
+    requireBearerToken,
+    viewerReadLimiter,
+    requireRole("viewer"),
+    auditProtectedAction("business.candidates.read"),
+    async (_req, res) => {
+      const candidates = state.businessValue?.candidates ?? [];
+      return res.json({
+        generatedAt: new Date().toISOString(),
+        candidates,
+        approvalGated: state.businessValue?.approvalGatedCandidates ?? [],
+        unsupported: state.businessValue?.unsupportedCandidates ?? [],
+      });
     },
   );
 
@@ -13668,14 +13874,20 @@ async function bootstrap() {
     auditProtectedAction("business.cycle.trigger"),
     async (req: AuthenticatedRequest, res) => {
       try {
-        const task = queue.enqueue("business-value-cycle", {
+        const { decision, task } = await enqueueGovernedBusinessValueCycle({
+          source: "operator",
           reason: "operator-trigger",
-          idempotencyKey: `business-value-cycle:${Date.now()}`,
-          __actor: req.auth?.actor ?? "unknown",
-          __role: req.auth?.role ?? "operator",
-          __requestId: req.auth?.requestId ?? null,
+          actor: req.auth?.actor,
+          role: req.auth?.role,
+          requestId: req.auth?.requestId,
         });
-        await invalidateResponseCacheTags(["runtime-state"]);
+        if (!task) {
+          return res.status(409).json({
+            status: "not-queued",
+            code: decision.code,
+            reason: decision.reason,
+          });
+        }
         res.status(202).json({
           status: "queued",
           taskId: task.id,
@@ -13685,6 +13897,80 @@ async function bootstrap() {
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
+    },
+  );
+
+  app.post(
+    "/api/business/scheduler",
+    authLimiter,
+    requireBearerToken,
+    operatorWriteLimiter,
+    requireRole("operator"),
+    auditProtectedAction("business.scheduler.write"),
+    async (req: AuthenticatedRequest, res) => {
+      const action = String(req.body?.action ?? "").trim().toLowerCase();
+      const mode = action === "resume" || action === "enable"
+        ? "enabled"
+        : action === "pause"
+          ? "paused"
+          : action === "disable"
+            ? "disabled"
+            : null;
+      if (!mode) {
+        return res.status(400).json({ error: "action must be pause, resume, enable, or disable" });
+      }
+      const scheduler = setBusinessValueSchedulerMode(state, mode);
+      await persistBusinessSchedulerState();
+      void flushState(["runtime-state"]).catch((error) => {
+        console.error("[business-value] failed to persist scheduler state:", error);
+      });
+      return res.json({
+        status: "updated",
+        actor: req.auth?.actor ?? "unknown",
+        scheduler,
+      });
+    },
+  );
+
+  app.post(
+    "/api/business/cycles/:cycleId/retry",
+    authLimiter,
+    requireBearerToken,
+    operatorWriteLimiter,
+    requireRole("operator"),
+    auditProtectedAction("business.cycle.retry"),
+    async (req: AuthenticatedRequest, res) => {
+      const cycleId = String(req.params.cycleId ?? "");
+      const cycle = state.businessValue?.cycles.find((item) => item.cycleId === cycleId);
+      if (!cycle) {
+        return res.status(404).json({ error: `Business cycle not found: ${cycleId}` });
+      }
+      if (cycle.status !== "failed") {
+        return res.status(409).json({ error: "Only failed business-value cycles can be retried." });
+      }
+      const { decision, task } = await enqueueGovernedBusinessValueCycle({
+        source: "retry",
+        reason: `operator retry of ${cycleId}`,
+        actor: req.auth?.actor,
+        role: req.auth?.role,
+        requestId: req.auth?.requestId,
+        force: true,
+        retryCycleId: cycleId,
+      });
+      if (!task) {
+        return res.status(409).json({
+          status: "not-queued",
+          code: decision.code,
+          reason: decision.reason,
+        });
+      }
+      return res.status(202).json({
+        status: "queued",
+        taskId: task.id,
+        type: task.type,
+        retryCycleId: cycleId,
+        createdAt: task.createdAt,
+      });
     },
   );
 

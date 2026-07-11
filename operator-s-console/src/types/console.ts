@@ -53,6 +53,169 @@ export interface DashboardOverview {
   recentTasks: RecentTask[];
 }
 
+export type BusinessTruthStatus =
+  | "verified"
+  | "estimated"
+  | "unavailable"
+  | "not-verified"
+  | "skipped"
+  | "failed"
+  | "awaiting-approval";
+
+export interface BusinessScore {
+  value: number;
+  formula: string;
+  components: Record<string, number>;
+  rationale: string[];
+}
+
+export interface BusinessCandidate {
+  id: string;
+  kind: string;
+  title: string;
+  projectId?: string | null;
+  objective: string;
+  expectedOutcome: string;
+  kpiId: string;
+  evidence: string[];
+  taskType: string | null;
+  approval: string;
+  approvalReason?: string | null;
+  acceptanceCriteria: string[];
+  dependencies: string[];
+  risk: string;
+  score?: BusinessScore;
+}
+
+export interface BusinessSelectedTask {
+  candidateId: string;
+  taskType: string;
+  taskId?: string | null;
+  idempotencyKey: string;
+  title: string;
+  score: number;
+  evidence: string[];
+  worker?: string | null;
+  model?: string | null;
+  executionStatus?: string;
+  verificationStatus?: string;
+}
+
+export interface BusinessCycle {
+  cycleId: string;
+  triggerSource: string;
+  triggerReason: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string | null;
+  registrySource: string;
+  candidates: BusinessCandidate[];
+  selectedTask?: BusinessSelectedTask | null;
+  approvalGatedCandidates: Array<{
+    candidateId: string;
+    title: string;
+    reason: string;
+    approval: string;
+    evidence: string[];
+  }>;
+  unsupportedCandidates: Array<{
+    candidateId: string;
+    title: string;
+    reason: string;
+    approval: string;
+    evidence: string[];
+  }>;
+  verificationStatus: string;
+  evidence: Array<{ path: string; summary: string; createdAt: string }>;
+  nextSafeAction?: string | null;
+  failureReason?: string | null;
+}
+
+export interface BusinessSchedulerState {
+  mode: "enabled" | "paused" | "disabled";
+  cadenceMinutes: number;
+  lastTriggeredAt: string | null;
+  lastTriggerSource: string | null;
+  lastTriggerReason: string | null;
+  nextRunAt: string | null;
+  lastProgressAt: string | null;
+  consecutiveFailures: number;
+  backoffUntil: string | null;
+  activeTaskId: string | null;
+  lastSkippedAt: string | null;
+  lastSkipReason: string | null;
+}
+
+export interface BusinessOverviewResponse {
+  generatedAt: string;
+  mission: {
+    businessName: string;
+    mission: string;
+    supportedOutcomes: string[];
+    approvalBoundarySummary: string;
+  };
+  registry: {
+    updatedAt: string;
+    projects: Array<{
+      id: string;
+      name: string;
+      status: string;
+      relevantKpis: string[];
+      currentBlockers: string[];
+      nextSafeAction: string | null;
+    }>;
+    kpiSnapshots: Array<{
+      kpiId: string;
+      value: string | number | null;
+      capturedAt: string;
+      confidence: string;
+      source: string;
+    }>;
+  };
+  businessValue: {
+    candidates: BusinessCandidate[];
+    approvalGatedCandidates: BusinessCycle["approvalGatedCandidates"];
+  } | null;
+  operations: {
+    loopStatus: string;
+    scheduler: BusinessSchedulerState;
+    latestCycle: BusinessCycle | null;
+    lastSuccessfulCycle: BusinessCycle | null;
+    lastFailedCycle: BusinessCycle | null;
+    selectedCandidate: BusinessCandidate | null;
+    selectedTask: BusinessSelectedTask | null;
+    selectedExecution: TaskRun | null;
+    activeTaskExecution: TaskRun | null;
+    activeWorker: string | null;
+    activeModel: string | null;
+    verificationStatus: string;
+    nextSafeTask: string | null;
+    approvalGatedCandidates: BusinessCycle["approvalGatedCandidates"];
+    blockers: Array<{ projectId: string | null; blocker: string }>;
+  };
+  status: {
+    loop: string;
+    activeCycleId: string | null;
+    lastSuccessfulCycleId: string | null;
+    lastFailedCycleId: string | null;
+    nextSelectedTask: BusinessSelectedTask | null;
+  };
+}
+
+export interface BusinessCyclesResponse {
+  generatedAt: string;
+  cycles: BusinessCycle[];
+}
+
+export interface BusinessControlResponse {
+  status: string;
+  taskId?: string;
+  type?: string;
+  createdAt?: string | number;
+  scheduler?: BusinessSchedulerState;
+  retryCycleId?: string;
+}
+
 export interface DashboardQueuePressureItem {
   type: string;
   label: string;

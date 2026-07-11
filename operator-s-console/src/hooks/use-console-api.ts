@@ -24,6 +24,12 @@ import {
   fetchSkillsAudit,
   fetchMemoryRecall,
   submitKnowledgeQuery,
+  fetchBusinessOverview,
+  fetchBusinessCycles,
+  fetchBusinessCycle,
+  triggerBusinessCycle,
+  updateBusinessScheduler,
+  retryBusinessCycle,
 } from "@/lib/api";
 import type { KnowledgeQueryRequest } from "@/types/console";
 import { jitteredInterval, nextProtectedPollInterval } from "@/lib/polling";
@@ -85,6 +91,61 @@ export function useTriggerTask() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
       qc.invalidateQueries({ queryKey: ["tasks-runs"] });
+    },
+  });
+}
+
+export function useBusinessOverview() {
+  return useQuery({
+    queryKey: ["business-overview"],
+    queryFn: fetchBusinessOverview,
+    refetchInterval: (query) => nextProtectedPollInterval(15000, query.state.error as { status?: number } | null),
+  });
+}
+
+export function useBusinessCycles() {
+  return useQuery({
+    queryKey: ["business-cycles"],
+    queryFn: fetchBusinessCycles,
+    refetchInterval: (query) => nextProtectedPollInterval(20000, query.state.error as { status?: number } | null),
+  });
+}
+
+export function useBusinessCycle(cycleId: string | null) {
+  return useQuery({
+    queryKey: ["business-cycle", cycleId],
+    queryFn: () => fetchBusinessCycle(cycleId!),
+    enabled: Boolean(cycleId),
+  });
+}
+
+export function useBusinessCycleTrigger() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: triggerBusinessCycle,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["business-overview"] });
+      qc.invalidateQueries({ queryKey: ["business-cycles"] });
+      qc.invalidateQueries({ queryKey: ["tasks-runs"] });
+    },
+  });
+}
+
+export function useBusinessSchedulerUpdate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateBusinessScheduler,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["business-overview"] }),
+  });
+}
+
+export function useBusinessCycleRetry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: retryBusinessCycle,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["business-overview"] });
+      qc.invalidateQueries({ queryKey: ["business-cycles"] });
     },
   });
 }

@@ -151,4 +151,40 @@ describe("business-value cycle", () => {
     expect(result.cycle.unsupportedCandidates[0]?.evidence).toContain("business-cycle-existing");
     expect(enqueueCount).toBe(0);
   });
+
+  it("preserves approval-gated work while selecting unrelated safe work", async () => {
+    const state = createDefaultState();
+    state.approvals.push({
+      taskId: "approval-task-1",
+      type: "build-refactor",
+      payload: { target: "projects/demo-project" },
+      requestedAt: "2026-07-11T08:00:00.000Z",
+      status: "pending",
+    });
+    const enqueued: Task[] = [];
+
+    const result = await runBusinessValueCycle({
+      config: makeConfig(),
+      state,
+      isTaskTypeAllowed: (type) => type === "qa-verification",
+      enqueueTask: (type, payload) => {
+        const task = {
+          id: `task-${enqueued.length + 1}`,
+          type,
+          payload,
+          createdAt: Date.now(),
+          idempotencyKey: String(payload.idempotencyKey ?? type),
+        } satisfies Task;
+        enqueued.push(task);
+        return task;
+      },
+      logger: { log() {}, warn() {}, error() {} },
+    });
+
+    expect(result.cycle.selectedTask?.taskType).toBe("qa-verification");
+    expect(result.cycle.approvalGatedCandidates).toEqual([
+      expect.objectContaining({ candidateId: "approval:approval-task-1" }),
+    ]);
+    expect(enqueued).toHaveLength(1);
+  });
 });

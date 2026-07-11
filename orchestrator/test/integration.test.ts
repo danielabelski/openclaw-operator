@@ -779,10 +779,27 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     digestDirPath = join(runtimeRootDir, 'logs', 'digests');
     envFilePath = join(runtimeRootDir, 'orchestrator.test.env');
     operatorDistDir = join(runtimeRootDir, 'operator-s-console-dist-fixture');
+    const businessRegistryPath = join(runtimeRootDir, 'business', 'registry.json');
+    const businessEvidenceDir = join(runtimeRootDir, 'artifacts', 'business-value');
     serviceStateLogsDir = resolve(process.cwd(), '..', 'logs');
     serviceStateBackupDir = join(runtimeRootDir, 'service-state-backup');
 
     await mkdir(join(operatorDistDir, 'assets'), { recursive: true });
+    await mkdir(join(runtimeRootDir, 'business'), { recursive: true });
+    await writeFile(
+      businessRegistryPath,
+      JSON.stringify({
+        businessId: 'integration-business',
+        businessName: 'Integration Business',
+        mission: 'Exercise protected business-value operations safely.',
+        registryVersion: 'integration',
+        updatedAt: '2026-07-11T08:00:00.000Z',
+        kpis: [],
+        kpiSnapshots: [],
+        projects: [],
+      }),
+      'utf-8',
+    );
     await writeFile(
       join(operatorDistDir, 'index.html'),
       [
@@ -825,6 +842,8 @@ describe('Runtime Integration: Live Middleware Chain', () => {
       knowledgePackDir: join(runtimeRootDir, 'logs', 'knowledge-packs'),
       runtimeEngagementOsPath: resolve(process.cwd(), '..', 'RUNTIME_ENGAGEMENT_OS.md'),
       digestDir: digestDirPath,
+      businessRegistryPath,
+      businessEvidenceDir,
     };
     const seededState = createDefaultState();
     const seedDemandTimestamp = new Date().toISOString();
@@ -1121,6 +1140,72 @@ describe('Runtime Integration: Live Middleware Chain', () => {
     const body = await response.json() as { status: string; type: string };
     expect(body.status).toBe('queued');
     expect(body.type).toBe('doc-sync');
+  });
+
+  it('protects and operates the business-value API without duplicate triggers', async () => {
+    const anonymous = await fetch(`${baseUrl}/api/business/overview`);
+    expect(anonymous.status).toBe(401);
+
+    const initialResponse = await fetch(`${baseUrl}/api/business/overview`, {
+      headers: { Authorization: `Bearer ${TEST_API_KEY}` },
+    });
+    const initial = await initialResponse.json() as any;
+    expect(initialResponse.status, JSON.stringify(initial)).toBe(200);
+    expect(initial.mission?.mission).toBeTruthy();
+    expect(initial.operations?.scheduler?.mode).toBeTruthy();
+
+    const resume = await fetch(`${baseUrl}/api/business/scheduler`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${TEST_API_KEY}`,
+      },
+      body: JSON.stringify({ action: 'resume' }),
+    });
+    expect(resume.status).toBe(200);
+    expect((await resume.json() as any).scheduler?.mode).toBe('enabled');
+
+    const trigger = () => fetch(`${baseUrl}/api/business/cycle/trigger`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${TEST_API_KEY}`,
+      },
+      body: JSON.stringify({}),
+    });
+    const first = await trigger();
+    expect(first.status).toBe(202);
+    const firstBody = await first.json() as { taskId?: string };
+    expect(firstBody.taskId).toBeTruthy();
+
+    const duplicate = await trigger();
+    expect(duplicate.status).toBe(409);
+    expect(['active', 'cooldown']).toContain((await duplicate.json() as any).code);
+
+    const deadline = Date.now() + 30000;
+    let recordedCycle: any = null;
+    while (Date.now() < deadline && !recordedCycle) {
+      const payload = await fetchProtected<any>(`/api/business/cycles?ts=${Date.now()}`);
+      recordedCycle = payload.cycles?.[0] ?? null;
+      if (!recordedCycle) await sleep(200);
+    }
+    expect(recordedCycle?.cycleId).toBeTruthy();
+    const detail = await fetchProtected<any>(
+      `/api/business/cycles/${encodeURIComponent(recordedCycle.cycleId)}`,
+    );
+    expect(detail.cycle?.candidates).toBeInstanceOf(Array);
+    expect(detail.cycle?.evidence).toBeInstanceOf(Array);
+
+    const disable = await fetch(`${baseUrl}/api/business/scheduler`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${TEST_API_KEY}`,
+      },
+      body: JSON.stringify({ action: 'disable' }),
+    });
+    expect(disable.status).toBe(200);
+    expect((await disable.json() as any).scheduler?.mode).toBe('disabled');
   });
 
   it('serves bounded companion read surfaces with protected runtime truth', async () => {

@@ -17,6 +17,7 @@ import {
   WorkflowEventRecord,
 } from "./types.js";
 import { createDefaultBusinessValueState } from "./business/valueLoop.js";
+import { createDefaultBusinessValueSchedulerState } from "./business/operations.js";
 
 const DEFAULT_HISTORY_LIMIT = 50;
 const DRIFT_LOG_LIMIT = 25;
@@ -498,6 +499,10 @@ export async function loadState(
           parsed.businessValue?.candidates?.slice(0, BUSINESS_VALUE_CANDIDATE_LIMIT) ?? [],
         approvalGatedCandidates: parsed.businessValue?.approvalGatedCandidates ?? [],
         unsupportedCandidates: parsed.businessValue?.unsupportedCandidates ?? [],
+        scheduler: {
+          ...createDefaultBusinessValueSchedulerState(),
+          ...(parsed.businessValue?.scheduler ?? {}),
+        },
       },
     };
   };

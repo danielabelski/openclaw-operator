@@ -1247,6 +1247,14 @@ const components = {
         },
       },
     },
+    Conflict: {
+      description: "Request conflicts with current governed runtime state.",
+      content: {
+        "application/json": {
+          schema: schemaRef("ErrorResponse"),
+        },
+      },
+    },
     TooManyRequests: {
       description: "Rate limit exceeded.",
       headers: buildResponseHeaders(rateLimitHeaders),
@@ -2055,6 +2063,132 @@ export function buildOpenApiSpec(port: string | number = 3000) {
           "403": responseRef("Forbidden"),
           "429": responseRef("TooManyRequests"),
           "500": responseRef("ServerError"),
+        },
+      },
+    },
+    "/api/business/overview": {
+      get: {
+        tags: ["Operator"],
+        summary: "Business-value loop overview",
+        operationId: "getBusinessValueOverview",
+        security: [{ bearerAuth: [] }],
+        "x-openclaw-access": protectedAccess("viewer", "viewer-read", "business.overview.read"),
+        responses: {
+          "200": jsonResponse("Business-value overview.", "GenericObject", protectedReadHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "429": responseRef("TooManyRequests"),
+        },
+      },
+    },
+    "/api/business/operations": {
+      get: {
+        tags: ["Operator"],
+        summary: "Business-value operational state",
+        operationId: "getBusinessValueOperations",
+        security: [{ bearerAuth: [] }],
+        "x-openclaw-access": protectedAccess("viewer", "viewer-read", "business.operations.read"),
+        responses: {
+          "200": jsonResponse("Business-value scheduler and execution state.", "GenericObject", protectedReadHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "429": responseRef("TooManyRequests"),
+        },
+      },
+    },
+    "/api/business/candidates": {
+      get: {
+        tags: ["Operator"],
+        summary: "Ranked business-value candidates",
+        operationId: "getBusinessValueCandidates",
+        security: [{ bearerAuth: [] }],
+        "x-openclaw-access": protectedAccess("viewer", "viewer-read", "business.candidates.read"),
+        responses: {
+          "200": jsonResponse("Ranked, approval-gated, and unsupported candidates.", "GenericObject", protectedReadHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "429": responseRef("TooManyRequests"),
+        },
+      },
+    },
+    "/api/business/cycles": {
+      get: {
+        tags: ["Operator"],
+        summary: "Business-value cycle history",
+        operationId: "listBusinessValueCycles",
+        security: [{ bearerAuth: [] }],
+        "x-openclaw-access": protectedAccess("viewer", "viewer-read", "business.cycles.read"),
+        responses: {
+          "200": jsonResponse("Business-value cycle history.", "GenericObject", protectedReadHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "429": responseRef("TooManyRequests"),
+        },
+      },
+    },
+    "/api/business/cycles/{cycleId}": {
+      get: {
+        tags: ["Operator"],
+        summary: "Business-value cycle detail",
+        operationId: "getBusinessValueCycle",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "cycleId", in: "path", required: true, schema: { type: "string" } }],
+        "x-openclaw-access": protectedAccess("viewer", "viewer-read", "business.cycle.read"),
+        responses: {
+          "200": jsonResponse("Business-value cycle detail.", "GenericObject", protectedReadHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "404": responseRef("NotFound"),
+        },
+      },
+    },
+    "/api/business/cycle/trigger": {
+      post: {
+        tags: ["Operator"],
+        summary: "Run one governed business-value cycle",
+        operationId: "triggerBusinessValueCycle",
+        security: [{ bearerAuth: [] }],
+        "x-openclaw-access": protectedAccess("operator", "operator-write", "business.cycle.trigger"),
+        responses: {
+          "202": jsonResponse("Cycle task queued.", "GenericObject", writeHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "409": responseRef("Conflict"),
+          "429": responseRef("TooManyRequests"),
+        },
+      },
+    },
+    "/api/business/scheduler": {
+      post: {
+        tags: ["Operator"],
+        summary: "Change automatic business-cycle mode",
+        operationId: "updateBusinessValueScheduler",
+        security: [{ bearerAuth: [] }],
+        "x-openclaw-access": protectedAccess("operator", "operator-write", "business.scheduler.write"),
+        responses: {
+          "200": jsonResponse("Scheduler state updated.", "GenericObject", writeHeaders),
+          "400": responseRef("BadRequest"),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "429": responseRef("TooManyRequests"),
+        },
+      },
+    },
+    "/api/business/cycles/{cycleId}/retry": {
+      post: {
+        tags: ["Operator"],
+        summary: "Retry a failed business-value cycle",
+        operationId: "retryBusinessValueCycle",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "cycleId", in: "path", required: true, schema: { type: "string" } }],
+        "x-openclaw-access": protectedAccess("operator", "operator-write", "business.cycle.retry"),
+        responses: {
+          "202": jsonResponse("Failed cycle retry queued.", "GenericObject", writeHeaders),
+          "401": responseRef("Unauthorized"),
+          "403": responseRef("Forbidden"),
+          "404": responseRef("NotFound"),
+          "409": responseRef("Conflict"),
+          "429": responseRef("TooManyRequests"),
         },
       },
     },
