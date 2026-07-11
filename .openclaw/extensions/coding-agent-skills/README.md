@@ -30,7 +30,12 @@ bounded evidence producers.
 - `coding_migration_review` -> `coding-agent-skills migration-review <projectRoot> --json`
 - `coding_github_handoff` -> `coding-agent-skills github-handoff <projectRoot> --json`
 - `coding_deployment_preflight` -> `coding-agent-skills deployment-preflight <projectRoot> --json`
+- `coding_audit` -> `coding-agent-skills audit <projectRoot> --json`
 - `coding_validate_adapters` -> `coding-agent-skills validate-adapters <adapterRoot> --json`
+
+`coding_audit` returns one bounded, schema-validated envelope containing the existing
+static audit results in deterministic order. It does not turn the extension into an
+orchestrator and does not grant any additional ToolGate authority.
 
 ## Safety Boundaries
 
