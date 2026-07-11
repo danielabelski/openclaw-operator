@@ -109,6 +109,14 @@ export const CODING_AGENT_TOOL_DEFINITIONS: ToolDefinition[] = [
       "Run the read-only deployment preflight audit for a project root without deploys, builds, tests, provider calls, or migrations.",
   },
   {
+    name: "coding_audit",
+    intent: "coding.audit",
+    command: "audit",
+    targetParam: "projectRoot",
+    description:
+      "Run the deterministic aggregate read-only repository audit and return bounded JSON evidence.",
+  },
+  {
     name: "coding_validate_adapters",
     intent: "coding.validateAdapters",
     command: "validate-adapters",

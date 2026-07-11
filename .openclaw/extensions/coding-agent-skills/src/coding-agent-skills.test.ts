@@ -25,7 +25,7 @@ test("registerCodingAgentSkillsTools exposes only the approved optional tools", 
     registered.map((entry) => entry.tool.name),
     CODING_AGENT_TOOL_DEFINITIONS.map((definition) => definition.name),
   );
-  assert.equal(registered.length, 11);
+  assert.equal(registered.length, 12);
   assert.ok(registered.every((entry) => entry.options.optional === true));
 });
 
@@ -33,6 +33,11 @@ test("buildCliArgs maps tool names to fixed coding-agent-skills commands", () =>
   assert.deepEqual(buildCliArgs("coding_validate_pack", {}), ["validate-pack", "--json"]);
   assert.deepEqual(buildCliArgs("coding_repo_map", { projectRoot: "/project" }), [
     "repo-map",
+    "/project",
+    "--json",
+  ]);
+  assert.deepEqual(buildCliArgs("coding_audit", { projectRoot: "/project" }), [
+    "audit",
     "/project",
     "--json",
   ]);

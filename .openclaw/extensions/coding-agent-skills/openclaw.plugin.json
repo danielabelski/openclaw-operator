@@ -2,7 +2,7 @@
   "id": "coding-agent-skills",
   "name": "Coding Agent Skills",
   "description": "Exposes dependency-free, read-only coding-agent-skills CLI audits as optional OpenClaw tools.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "contracts": {
     "tools": [
       "coding_validate_pack",
@@ -15,6 +15,7 @@
       "coding_migration_review",
       "coding_github_handoff",
       "coding_deployment_preflight",
+      "coding_audit",
       "coding_validate_adapters"
     ]
   },
