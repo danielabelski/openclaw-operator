@@ -72,6 +72,14 @@ Protected operator routes (bearer token):
 
 - `GET /api/auth/me`
 - `GET /api/dashboard/overview`
+- `GET /api/business/overview`
+- `GET /api/business/operations`
+- `GET /api/business/candidates`
+- `GET /api/business/cycles`
+- `GET /api/business/cycles/:cycleId`
+- `POST /api/business/cycle/trigger`
+- `POST /api/business/cycles/:cycleId/retry`
+- `POST /api/business/scheduler`
 - `GET /api/companion/overview`
 - `GET /api/companion/catalog`
 - `GET /api/companion/incidents`
@@ -175,6 +183,28 @@ Specialist operator-console contract truth:
 - `GET /api/tasks/runs`: protected task-run surface that hides internal task
   types by default and accepts `includeInternal=true` when diagnostics need
   them.
+- `GET /api/business/overview`: protected mission, registry, ranked candidate,
+  selected-task, scheduler, blocker, verification, evidence, and next-action
+  view used by the existing operator console.
+- `GET /api/business/operations`: protected operational state for automatic
+  mode, cadence, active lock, last progress, failure backoff, active worker,
+  selected model, and approval-gated candidates.
+- `GET /api/business/candidates`, `GET /api/business/cycles`, and
+  `GET /api/business/cycles/:cycleId`: protected ranked-candidate and cycle
+  history/detail views. Unknown KPI values and unavailable model evidence stay
+  explicit; the API does not synthesize business outcomes.
+- `POST /api/business/cycle/trigger`: operator-only bounded trigger. It enters
+  the normal task queue and approval path and returns `409` while a cycle is
+  active or within the duplicate-click cooldown.
+- `POST /api/business/cycles/:cycleId/retry`: operator-only retry for failed
+  cycles. Non-failed cycles are rejected.
+- `POST /api/business/scheduler`: operator-only `pause`, `resume`/`enable`, or
+  `disable` control. State is persisted with the orchestrator state store.
+- Automatic business-value cycles use the existing `node-cron` runtime at a
+  conservative six-hour cadence (`17 */6 * * *` by default). The scheduler
+  skips active, unchanged, not-due, paused, disabled, and backoff states. It
+  stores trigger reason, next run, last progress, failure backoff, and active
+  task lock so restart recovery does not create duplicate work.
 - `/system-health`: not a backend route; it is a frontend-only page path.
 
 ### Operator Console Rendering Guardrails
