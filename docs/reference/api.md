@@ -209,6 +209,11 @@ Specialist operator-console contract truth:
 
 ### Operator Console Rendering Guardrails
 
+Frontend normalization may retain a non-enumerable `__raw` payload for local
+diagnostics. It must never add diagnostic metadata as enumerable API fields:
+record renderers use `Object.entries()` for deliberate score, evidence, and
+graph maps, and enumerable diagnostic objects violate that contract.
+
 Do not render these nested objects directly:
 
 - the `controlPlane` field in `GET /api/health/extended`

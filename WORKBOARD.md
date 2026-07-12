@@ -13,7 +13,7 @@ Use it for one thing:
 - what is next
 - what is intentionally parked
 
-Last updated: `2026-04-17`
+Last updated: `2026-07-12`
 
 ## Current Headline
 
@@ -33,6 +33,16 @@ The public repo direction is now explicit.
   direction
 
 ## Recently Finished
+
+0. Authenticated specialist-console rendering was repaired.
+   - `/operator/business-value` and `/operator/knowledge` no longer render the
+     normalization layer's raw diagnostic objects as React children
+   - raw payload evidence remains available as non-enumerable `__raw` metadata
+   - shared API error rendering and an operator-route error boundary now keep
+     unexpected response drift from blanking the entire console
+   - installed OpenClaw UI extension surfaces were audited; `/orch` remains the
+     supported integration path because no plugin-owned route/navigation mount
+     is currently exposed by the installed Control UI
 
 1. Public onboarding path was hardened.
    - local-first dev now boots without requiring Mongo/Redis first

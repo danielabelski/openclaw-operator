@@ -39,6 +39,16 @@ export function normalizeObject<T>(obj: unknown): T {
     }
   }
 
-  result.__raw = raw;
+  // Preserve the original payload for diagnostics without changing the
+  // enumerable API contract. Consumers commonly use Object.entries() for
+  // structured records (score components, freshness bands, and similar
+  // maps); an enumerable __raw value turns the whole source object into an
+  // accidental React child.
+  Object.defineProperty(result, "__raw", {
+    value: raw,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
   return result as T;
 }

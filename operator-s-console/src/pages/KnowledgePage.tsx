@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAgentsOverview, useKnowledgeQuery, useKnowledgeSummary, useMemoryRecall } from "@/hooks/use-console-api";
 import { num, str, toArray, toNullableString } from "@/lib/safe-render";
+import { ApiErrorNotice } from "@/components/console/ApiErrorNotice";
 
 interface KnowledgeSummaryVM {
   lastUpdated: string | null;
@@ -167,7 +168,8 @@ export default function KnowledgePage() {
   const [selectedAgent, setSelectedAgent] = useState("all");
   const [memoryLimit, setMemoryLimit] = useState("10");
 
-  const { data: knowledgeSummary, isLoading: knowledgeLoading } = useKnowledgeSummary();
+  const knowledgeSummaryQuery = useKnowledgeSummary();
+  const { data: knowledgeSummary, isLoading: knowledgeLoading } = knowledgeSummaryQuery;
   const { data: agentsData } = useAgentsOverview();
   const knowledgeQuery = useKnowledgeQuery();
   const memoryRecall = useMemoryRecall({
@@ -205,6 +207,10 @@ export default function KnowledgePage() {
           Knowledge Atlas combines public summary, protected query, and per-agent memory recall.
         </p>
       </div>
+
+      {knowledgeSummaryQuery.isError && (
+        <ApiErrorNotice error={knowledgeSummaryQuery.error} fallback="Knowledge summary is unavailable." />
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricModule
@@ -414,11 +420,7 @@ export default function KnowledgePage() {
               </Button>
             </div>
             {knowledgeQuery.isError && (
-              <div className="warning-banner">
-                <p className="text-[10px] font-mono text-status-error">
-                  {(knowledgeQuery.error as Error)?.message || "Knowledge query failed"}
-                </p>
-              </div>
+              <ApiErrorNotice error={knowledgeQuery.error} fallback="Knowledge query failed." />
             )}
             {knowledgeQuery.data && (
               <div className="space-y-3">

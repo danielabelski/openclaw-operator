@@ -3,10 +3,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DiagnosticsProvider } from "@/contexts/DiagnosticsContext";
 import { ConsoleLayout } from "@/components/console/ConsoleLayout";
+import { OperatorRouteErrorBoundary } from "@/components/console/OperatorRouteErrorBoundary";
 
 const ROUTER_BASENAME = "/operator";
 
@@ -54,6 +55,7 @@ function LazyPage({ children }: { children: ReactNode }) {
 
 function AuthenticatedApp() {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <RouteLoadingFallback />;
@@ -69,22 +71,24 @@ function AuthenticatedApp() {
 
   return (
     <ConsoleLayout>
-      <Routes>
-        <Route path="/" element={<LazyPage><OverviewPage /></LazyPage>} />
-        <Route path="/tasks" element={<LazyPage><TasksPage /></LazyPage>} />
-        <Route path="/activity" element={<LazyPage><ActivityPage /></LazyPage>} />
-        <Route path="/approvals" element={<LazyPage><ApprovalsPage /></LazyPage>} />
-        <Route path="/incidents" element={<LazyPage><IncidentsPage /></LazyPage>} />
-        <Route path="/agents" element={<LazyPage><AgentsPage /></LazyPage>} />
-        <Route path="/governance" element={<LazyPage><GovernancePage /></LazyPage>} />
-        <Route path="/system-health" element={<LazyPage><SystemHealthPage /></LazyPage>} />
-        <Route path="/diagnostics" element={<LazyPage><DiagnosticsPage /></LazyPage>} />
-        <Route path="/task-runs" element={<LazyPage><TaskRunsPage /></LazyPage>} />
-        <Route path="/task-runs/:runId" element={<LazyPage><TaskRunDetailPage /></LazyPage>} />
-        <Route path="/knowledge" element={<LazyPage><KnowledgePage /></LazyPage>} />
-        <Route path="/business-value" element={<LazyPage><BusinessValuePage /></LazyPage>} />
-        <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
-      </Routes>
+      <OperatorRouteErrorBoundary key={location.pathname}>
+        <Routes>
+          <Route path="/" element={<LazyPage><OverviewPage /></LazyPage>} />
+          <Route path="/tasks" element={<LazyPage><TasksPage /></LazyPage>} />
+          <Route path="/activity" element={<LazyPage><ActivityPage /></LazyPage>} />
+          <Route path="/approvals" element={<LazyPage><ApprovalsPage /></LazyPage>} />
+          <Route path="/incidents" element={<LazyPage><IncidentsPage /></LazyPage>} />
+          <Route path="/agents" element={<LazyPage><AgentsPage /></LazyPage>} />
+          <Route path="/governance" element={<LazyPage><GovernancePage /></LazyPage>} />
+          <Route path="/system-health" element={<LazyPage><SystemHealthPage /></LazyPage>} />
+          <Route path="/diagnostics" element={<LazyPage><DiagnosticsPage /></LazyPage>} />
+          <Route path="/task-runs" element={<LazyPage><TaskRunsPage /></LazyPage>} />
+          <Route path="/task-runs/:runId" element={<LazyPage><TaskRunDetailPage /></LazyPage>} />
+          <Route path="/knowledge" element={<LazyPage><KnowledgePage /></LazyPage>} />
+          <Route path="/business-value" element={<LazyPage><BusinessValuePage /></LazyPage>} />
+          <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
+        </Routes>
+      </OperatorRouteErrorBoundary>
     </ConsoleLayout>
   );
 }

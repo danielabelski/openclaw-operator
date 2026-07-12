@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { BusinessCandidate, BusinessCycle } from "@/types/console";
+import { ApiErrorNotice } from "@/components/console/ApiErrorNotice";
+import { apiErrorMessage } from "@/lib/api-error";
 
 function displayTime(value: string | null | undefined) {
   if (!value) return "Unavailable";
@@ -43,15 +45,6 @@ function cycleDuration(cycle: BusinessCycle) {
   if (!cycle.completedAt) return "In progress";
   const duration = Date.parse(cycle.completedAt) - Date.parse(cycle.startedAt);
   return Number.isFinite(duration) && duration >= 0 ? `${Math.round(duration / 1000)}s` : "Unavailable";
-}
-
-function operationErrorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === "object") {
-    const candidate = error as { message?: unknown; body?: { reason?: unknown } };
-    if (typeof candidate.body?.reason === "string") return candidate.body.reason;
-    if (typeof candidate.message === "string") return candidate.message;
-  }
-  return fallback;
 }
 
 export default function BusinessValuePage() {
@@ -90,14 +83,14 @@ export default function BusinessValuePage() {
   const runControl = () => {
     trigger.mutate(undefined, {
       onSuccess: (result) => toast.success(`Business-value cycle queued${result.taskId ? ` · ${result.taskId}` : ""}`),
-      onError: (error: unknown) => toast.error(operationErrorMessage(error, "Cycle trigger failed")),
+      onError: (error: unknown) => toast.error(apiErrorMessage(error, "Cycle trigger failed")),
     });
   };
 
   const setScheduler = (action: "pause" | "resume" | "disable") => {
     scheduler.mutate(action, {
       onSuccess: () => toast.success(`Automatic cycles ${action === "resume" ? "resumed" : `${action}d`}`),
-      onError: (error: unknown) => toast.error(operationErrorMessage(error, "Scheduler update failed")),
+      onError: (error: unknown) => toast.error(apiErrorMessage(error, "Scheduler update failed")),
     });
   };
 
@@ -105,10 +98,10 @@ export default function BusinessValuePage() {
     return <div className="console-panel h-64 animate-pulse opacity-30" />;
   }
 
-  if (overview.isError || !data || !operations || !schedulerState) {
+  if (overview.isError || history.isError || !data || !operations || !schedulerState) {
     return (
       <SummaryCard title="Business Value Loop" icon={<AlertTriangle className="w-4 h-4" />} variant="warning">
-        <p className="text-sm text-status-error">Live business-value state is unavailable.</p>
+        <ApiErrorNotice error={overview.error ?? history.error} fallback="Live business-value state is unavailable." />
         <p className="text-xs font-mono text-muted-foreground mt-2">No status or KPI value has been inferred.</p>
       </SummaryCard>
     );

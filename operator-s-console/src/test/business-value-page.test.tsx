@@ -169,6 +169,56 @@ describe("business value page", () => {
     expect(retryMutate).toHaveBeenCalledWith("business-cycle-failed");
   });
 
+  it("renders normalized score components without treating raw diagnostics as children", () => {
+    const overview = baseOverview();
+    const components = Object.assign(
+      { confidence: 4, urgency: 3 },
+      { __raw: { confidence: 4, urgency: 3 } },
+    );
+    Object.defineProperty(components, "__raw", { enumerable: false });
+    const candidate = {
+      id: "candidate-safe-score",
+      kind: "project",
+      title: "Verify safe score rendering",
+      objective: "Keep score evidence structured.",
+      expectedOutcome: "commercial-readiness",
+      kpiId: "proof",
+      evidence: [],
+      taskType: "qa-verification",
+      approval: "safe-autonomous",
+      acceptanceCriteria: [],
+      dependencies: [],
+      risk: "low",
+      score: { value: 42, formula: "weighted", components, rationale: [] },
+    };
+    const cycle = {
+      cycleId: "business-cycle-safe-score",
+      triggerSource: "scheduler",
+      triggerReason: "scheduled",
+      status: "completed",
+      startedAt: "2026-07-12T06:00:00.000Z",
+      completedAt: "2026-07-12T06:01:00.000Z",
+      registrySource: "business/registry.json",
+      candidates: [candidate],
+      selectedTask: { candidateId: candidate.id, taskType: candidate.taskType, title: candidate.title },
+      approvalGatedCandidates: [],
+      unsupportedCandidates: [],
+      verificationStatus: "verified",
+      evidence: [],
+      nextSafeAction: null,
+      failureReason: null,
+    };
+    overview.businessValue!.candidates = [candidate];
+    vi.mocked(consoleHooks.useBusinessCycles).mockReturnValue({ data: { generatedAt: overview.generatedAt, cycles: [cycle] }, isLoading: false } as unknown as ReturnType<typeof consoleHooks.useBusinessCycles>);
+    vi.mocked(consoleHooks.useBusinessCycle).mockReturnValue({ data: { generatedAt: overview.generatedAt, cycle } } as unknown as ReturnType<typeof consoleHooks.useBusinessCycle>);
+    vi.mocked(consoleHooks.useBusinessOverview).mockReturnValue({ data: overview, isLoading: false, isError: false } as unknown as ReturnType<typeof consoleHooks.useBusinessOverview>);
+
+    render(<MemoryRouter><BusinessValuePage /></MemoryRouter>);
+    expect(screen.getByText("confidence")).toBeInTheDocument();
+    expect(screen.getByText("urgency")).toBeInTheDocument();
+    expect(screen.queryByText("__raw")).not.toBeInTheDocument();
+  });
+
   it("routes manual and scheduler controls through governed mutations", () => {
     render(<MemoryRouter><BusinessValuePage /></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: /Run one cycle/ }));
