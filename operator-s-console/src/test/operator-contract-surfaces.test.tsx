@@ -751,6 +751,19 @@ describe("operator contract surfaces", () => {
           history: [],
           attempt: 1,
           maxRetries: 2,
+          queueAttempts: [
+            {
+              attemptId: "task-heartbeat-1",
+              taskId: "task-heartbeat-1",
+              attempt: 1,
+              status: "success",
+              admittedAt: "2026-03-11T10:00:00.000Z",
+              startedAt: "2026-03-11T10:00:01.000Z",
+              completedAt: "2026-03-11T10:00:02.000Z",
+              sourceTaskId: null,
+              detail: "completed",
+            },
+          ],
           workflow: {
             stage: "completed",
             graphStatus: "completed",
@@ -855,6 +868,8 @@ describe("operator contract surfaces", () => {
       screen.getAllByText(/Run drift-repair so reddit-helper drafts against the refreshed pack/i).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("Workflow Graph")).toBeInTheDocument();
+    expect(screen.getByText("Queue Admission Attempts")).toBeInTheDocument();
+    expect(screen.getByText("Attempt 1 · task-heartbeat-1")).toBeInTheDocument();
     expect(screen.getByText("Proof Links")).toBeInTheDocument();
     expect(screen.getByText("Heartbeat proof published.")).toBeInTheDocument();
     expect(screen.getByText("Ingress")).toBeInTheDocument();
@@ -890,6 +905,7 @@ describe("operator contract surfaces", () => {
           history: [],
           attempt: 1,
           maxRetries: 1,
+          queueAttempts: [],
           workflow: {
             stage: "completed",
             graphStatus: "completed",

@@ -7,12 +7,14 @@
 
 import { MongoConnection } from './mongo-connection.js';
 import { DataPersistence } from './data-persistence.js';
+import { SqliteDataPersistence } from './sqlite-data-persistence.js';
 import { SnapshotDocument, ConsolidationDocument, COLLECTIONS } from './schemas.js';
 import type { OrchestratorState } from '../types.js';
 import { getRuntimeCoordinationHealth } from "../coordination/runtime-coordination.js";
+import { getStateStoreKind, resolveSqliteStatePath } from "../state-store.js";
 
 const PERSISTENCE_HEALTH_CACHE_TTL_MS = 60_000;
-type PersistenceStoreKind = "file" | "mongo";
+type PersistenceStoreKind = "file" | "mongo" | "sqlite";
 
 type PersistenceHealthSnapshot = {
   status: string;
@@ -33,7 +35,8 @@ type PersistenceHealthSnapshot = {
 export class PersistenceIntegration {
   private static initialized = false;
   private static coreStateStoreKind: PersistenceStoreKind = "mongo";
-  private static historicalStoreMode: "disabled" | "mongo" = "mongo";
+  private static coreStateStoreTarget: string | null = null;
+  private static historicalStoreMode: "disabled" | "mongo" | "sqlite" = "mongo";
   private static healthSnapshot:
     | {
         value: PersistenceHealthSnapshot;
@@ -53,6 +56,7 @@ export class PersistenceIntegration {
   static resetHealthCacheForTests() {
     this.initialized = false;
     this.coreStateStoreKind = "mongo";
+    this.coreStateStoreTarget = null;
     this.historicalStoreMode = "mongo";
     this.healthSnapshot = null;
     this.healthSnapshotPromise = null;
@@ -61,6 +65,19 @@ export class PersistenceIntegration {
   static setCoreStateStoreKind(kind: PersistenceStoreKind) {
     this.resetHealthCacheForTests();
     this.coreStateStoreKind = kind;
+  }
+
+  static setCoreStateStoreTarget(target: string) {
+    this.resetHealthCacheForTests();
+    this.coreStateStoreTarget = target;
+    this.coreStateStoreKind = getStateStoreKind(target);
+  }
+
+  private static historicalStore(): typeof DataPersistence {
+    if (this.historicalStoreMode === "sqlite") {
+      return SqliteDataPersistence as unknown as typeof DataPersistence;
+    }
+    return DataPersistence;
   }
 
   private static isMongoConfigured() {
@@ -92,6 +109,30 @@ export class PersistenceIntegration {
     try {
       console.log('[Persistence] 🔗 Initializing...');
 
+      if (this.coreStateStoreKind === "sqlite") {
+        if (!this.coreStateStoreTarget) {
+          throw new Error("SQLite persistence requires the configured state target");
+        }
+        const sqlitePath = resolveSqliteStatePath(this.coreStateStoreTarget);
+        await SqliteDataPersistence.initialize(sqlitePath);
+        const isHealthy = await SqliteDataPersistence.healthCheck();
+        if (!isHealthy) throw new Error("SQLite integrity check failed during initialization");
+        const coordination = await this.getCoordinationHealthFallback(
+          "Coordination health unavailable during SQLite persistence initialization.",
+        );
+        this.historicalStoreMode = "sqlite";
+        this.initialized = true;
+        this.cacheHealthSnapshot({
+          status: this.isCoordinationOperational(coordination.status) ? "healthy" : "degraded",
+          database: true,
+          store: "sqlite",
+          collections: Object.keys(COLLECTIONS).length,
+          coordination,
+        });
+        console.log(`[Persistence] ✅ Initialized normalized SQLite persistence at ${sqlitePath}`);
+        return;
+      }
+
       if (!this.isMongoConfigured()) {
         if (this.coreStateStoreKind === "mongo") {
           throw new Error(
@@ -109,12 +150,12 @@ export class PersistenceIntegration {
             ? "healthy"
             : "degraded",
           database: true,
-          store: "file",
+          store: this.coreStateStoreKind,
           collections: 0,
           coordination,
         });
         console.log(
-          "[Persistence] ✅ Initialized in local file-backed mode (Mongo historical persistence disabled)",
+          `[Persistence] ✅ Initialized in local ${this.coreStateStoreKind}-backed mode (Mongo historical persistence disabled)`,
         );
         return;
       }
@@ -154,12 +195,12 @@ export class PersistenceIntegration {
   }
 
   /**
-   * Save hourly snapshot to MongoDB
+   * Save an hourly snapshot to the active historical store.
    * Called by Phase 4 (SnapshotService)
    */
   static async onSnapshotCreated(snapshot: any): Promise<void> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return;
+      if (!this.initialized || this.historicalStoreMode === "disabled") return;
 
       const doc: SnapshotDocument = {
         snapshotDate: snapshot.date || new Date().toISOString().split('T')[0],
@@ -186,7 +227,7 @@ export class PersistenceIntegration {
         cost: snapshot.cost,
       };
 
-      await DataPersistence.saveSnapshot(doc);
+      await this.historicalStore().saveSnapshot(doc);
       console.log('[Persistence] 📊 Snapshot saved for', doc.snapshotDate);
     } catch (error) {
       console.error('[Persistence] ❌ Failed to save snapshot:', error);
@@ -194,12 +235,12 @@ export class PersistenceIntegration {
   }
 
   /**
-   * Save consolidation to MongoDB
+   * Save a consolidation to the active historical store.
    * Called by Phase 4 (ConsolidationEngine)
    */
   static async onConsolidationCreated(consolidation: any): Promise<void> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return;
+      if (!this.initialized || this.historicalStoreMode === "disabled") return;
 
       const doc: ConsolidationDocument = {
         date: consolidation.date,
@@ -213,7 +254,7 @@ export class PersistenceIntegration {
         kbEntriesGenerated: consolidation.kbEntriesGenerated || 0,
       };
 
-      await DataPersistence.saveConsolidation(doc);
+      await this.historicalStore().saveConsolidation(doc);
       console.log('[Persistence] 📈 Consolidation saved for', doc.date);
     } catch (error) {
       console.error('[Persistence] ❌ Failed to save consolidation:', error);
@@ -221,14 +262,14 @@ export class PersistenceIntegration {
   }
 
   /**
-   * Save KB entry to MongoDB
+   * Save a KB entry to the active historical store.
    * Called by Phase 5 (KnowledgeOrchestrator)
    */
   static async onKBEntryCreated(entry: any): Promise<void> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return;
+      if (!this.initialized || this.historicalStoreMode === "disabled") return;
 
-      await DataPersistence.saveKBEntry({
+      await this.historicalStore().saveKBEntry({
         id: entry.id,
         title: entry.title,
         description: entry.description,
@@ -257,13 +298,13 @@ export class PersistenceIntegration {
   }
 
   /**
-   * Load KB entries from MongoDB for startup hydration
+   * Load KB entries from the active historical store for startup hydration.
    */
   static async loadKBEntries(): Promise<any[]> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return [];
+      if (!this.initialized || this.historicalStoreMode === "disabled") return [];
 
-      const docs = await DataPersistence.getAllKBEntries();
+      const docs = await this.historicalStore().getAllKBEntries();
 
       const entries = docs.map((doc) => ({
         id: doc.id,
@@ -284,7 +325,7 @@ export class PersistenceIntegration {
         successRate: doc.successRate,
       }));
 
-      console.log('[Persistence] 🧠 Loaded KB entries from MongoDB:', entries.length);
+      console.log(`[Persistence] 🧠 Loaded KB entries from ${this.historicalStoreMode}:`, entries.length);
       return entries;
     } catch (error) {
       console.error('[Persistence] ❌ Failed to load KB entries:', error);
@@ -297,17 +338,17 @@ export class PersistenceIntegration {
    */
   static async getHistoricalData(days: number = 30): Promise<any> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return null;
+      if (!this.initialized || this.historicalStoreMode === "disabled") return null;
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       const endDate = new Date();
 
       const [metrics, alerts, kb, consolidations] = await Promise.all([
-        DataPersistence.getMetrics(undefined, startDate, endDate, 5000),
-        DataPersistence.getAlerts(undefined, undefined, 1000),
-        DataPersistence.getKBStats(),
-        DataPersistence.getConsolidations(days),
+        this.historicalStore().getMetrics(undefined, startDate, endDate, 5000),
+        this.historicalStore().getAlerts(undefined, undefined, 1000),
+        this.historicalStore().getKBStats(),
+        this.historicalStore().getConsolidations(days),
       ]);
 
       const alertsBySeverity = alerts.reduce<Record<string, number>>((acc, alert: any) => {
@@ -342,10 +383,10 @@ export class PersistenceIntegration {
    */
   static async exportAllData(): Promise<any> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return null;
+      if (!this.initialized || this.historicalStoreMode === "disabled") return null;
 
-      const stats = await DataPersistence.getCollectionStats();
-      const dbSize = await DataPersistence.getDatabaseSize();
+      const stats = await this.historicalStore().getCollectionStats();
+      const dbSize = await this.historicalStore().getDatabaseSize();
 
       return {
         exportDate: new Date().toISOString(),
@@ -375,14 +416,14 @@ export class PersistenceIntegration {
       };
     }
 
-    if (this.historicalStoreMode !== "mongo") {
+    if (this.historicalStoreMode === "disabled") {
       const health = await this.healthCheck();
       return {
         generatedAt: new Date().toISOString(),
         status: health.status,
         persistenceAvailable: true,
         storage: {
-          driver: "file",
+          driver: this.coreStateStoreKind,
           stateTarget: "local",
         },
         collections: {},
@@ -397,10 +438,10 @@ export class PersistenceIntegration {
 
     const [health, stats, dbSize, alerts7d, consolidations7d] = await Promise.all([
       this.healthCheck(),
-      DataPersistence.getCollectionStats(),
-      DataPersistence.getDatabaseSize(),
-      DataPersistence.getAlerts(undefined, undefined, 500),
-      DataPersistence.getConsolidations(7),
+      this.historicalStore().getCollectionStats(),
+      this.historicalStore().getDatabaseSize(),
+      this.historicalStore().getAlerts(undefined, undefined, 500),
+      this.historicalStore().getConsolidations(7),
     ]);
 
     const firingAlerts = alerts7d.filter((alert: any) => alert.status === 'firing').length;
@@ -410,6 +451,7 @@ export class PersistenceIntegration {
       status: health.status,
       persistenceAvailable: health.database,
       storage: {
+        driver: this.historicalStoreMode,
         databaseSizeBytes: dbSize,
         databaseSizeMB: Number((dbSize / 1024 / 1024).toFixed(2)),
       },
@@ -456,6 +498,23 @@ export class PersistenceIntegration {
 
     this.healthSnapshotPromise = (async () => {
       try {
+        if (this.coreStateStoreKind === "sqlite") {
+          const [dbHealthy, coordination] = await Promise.all([
+            SqliteDataPersistence.healthCheck(),
+            getRuntimeCoordinationHealth(),
+          ]);
+          return this.cacheHealthSnapshot({
+            status: dbHealthy && this.isCoordinationOperational(coordination.status)
+              ? "healthy"
+              : dbHealthy
+                ? "degraded"
+                : "unhealthy",
+            database: dbHealthy,
+            store: "sqlite",
+            collections: dbHealthy ? Object.keys(COLLECTIONS).length : 0,
+            coordination,
+          });
+        }
         if (!this.isMongoConfigured() && this.coreStateStoreKind !== "mongo") {
           const coordination = await getRuntimeCoordinationHealth();
           return this.cacheHealthSnapshot({
@@ -463,7 +522,7 @@ export class PersistenceIntegration {
               ? "healthy"
               : "degraded",
             database: true,
-            store: "file",
+            store: this.coreStateStoreKind,
             collections: 0,
             coordination,
           });
@@ -494,7 +553,7 @@ export class PersistenceIntegration {
         return this.cacheHealthSnapshot({
           status: fileBackedLocalMode ? "degraded" : 'unhealthy',
           database: fileBackedLocalMode,
-          store: fileBackedLocalMode ? "file" : "mongo",
+          store: fileBackedLocalMode ? this.coreStateStoreKind : "mongo",
           collections: 0,
           coordination,
         });
@@ -511,12 +570,12 @@ export class PersistenceIntegration {
    */
   static async cleanupOldData(): Promise<void> {
     try {
-      if (!this.initialized || this.historicalStoreMode !== "mongo") return;
+      if (!this.initialized || this.historicalStoreMode === "disabled") return;
 
       console.log('[Persistence] 🧹 Cleaning old data...');
 
       // Remove metrics older than 90 days
-      const metricsDeleted = await DataPersistence.deleteOldMetrics(90);
+      const metricsDeleted = await this.historicalStore().deleteOldMetrics(90);
       console.log('[Persistence] Deleted', metricsDeleted, 'old metric records');
     } catch (error) {
       console.error('[Persistence] ❌ Cleanup failed:', error);
@@ -529,6 +588,7 @@ export class PersistenceIntegration {
   static async close(): Promise<void> {
     try {
       await MongoConnection.disconnect();
+      await SqliteDataPersistence.close();
       this.initialized = false;
       this.historicalStoreMode = "mongo";
       this.resetHealthCacheForTests();

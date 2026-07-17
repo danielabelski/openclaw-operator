@@ -80,6 +80,7 @@ function approvalFriction(candidate: CandidateWorkItem): number {
 
 function urgencyFactor(candidate: CandidateWorkItem): number {
   if (candidate.kind === "lead") return 5;
+  if (candidate.kind === "approval" && candidate.approval === "safe-autonomous") return 5;
   if (candidate.kind === "risk") return 4;
   return 3;
 }

@@ -3,10 +3,15 @@ import { loadConfig } from "./config.js";
 import { DocIndexer } from "./docIndexer.js";
 import { TaskQueue } from "./taskQueue.js";
 import {
+  admitTaskExecution,
+  updateTaskQueueAttempt,
+} from "./task-admission.js";
+import {
   appendRelationshipObservationRecord,
   appendWorkflowEventRecord,
   getRetryRecoveryDelayMs,
   isMongoStateTarget,
+  getStateStoreKind,
   loadState,
   reconcileInFlightTaskExecutionState,
   reconcileTaskRetryRecoveryState,
@@ -1318,6 +1323,8 @@ const OPERATOR_TASK_PROFILES: OperatorTaskProfile[] = [
 
 const HEARTBEAT_CRON_SCHEDULE = "*/5 * * * *";
 const DEFAULT_BUSINESS_VALUE_CRON_SCHEDULE = "17 */6 * * *";
+const DEFAULT_BUSINESS_DAY_PULSE_CRON_SCHEDULE = "17 8-17 * * 1-5";
+const DEFAULT_BUSINESS_DAY_PULSE_TIME_ZONE = "Europe/London";
 const INTERNAL_TASK_TYPES = new Set(
   OPERATOR_TASK_PROFILES.filter((profile) => profile.internalOnly).map(
     (profile) => profile.type,
@@ -4497,12 +4504,39 @@ type CachedPathExists = {
 
 const SERVICE_STATE_PROBE_TTL_MS = 60_000;
 const AGENT_OVERVIEW_TTL_MS = 60_000;
+const AGENT_OVERVIEW_BUILD_TIMEOUT_MS = 5_000;
 const PATH_EXISTS_CACHE_TTL_MS = 60_000;
 let cachedHostServiceStates: CachedHostServiceStates | null = null;
 let cachedAgentOperationalOverview: CachedAgentOperationalOverview | null = null;
 let pendingAgentOperationalOverview: PendingAgentOperationalOverview | null = null;
 let agentOperationalOverviewWarmTimer: NodeJS.Timeout | null = null;
 const cachedPathExists = new Map<string, CachedPathExists>();
+
+async function readAgentOperationalOverviewWithinDeadline(
+  promise: Promise<AgentOperationalOverviewItem[]>,
+): Promise<AgentOperationalOverviewItem[]> {
+  let timer: NodeJS.Timeout | null = null;
+  const timeout = Symbol("agent-overview-timeout");
+  try {
+    const result = await Promise.race([
+      promise,
+      new Promise<typeof timeout>((resolveTimeout) => {
+        timer = setTimeout(
+          () => resolveTimeout(timeout),
+          AGENT_OVERVIEW_BUILD_TIMEOUT_MS,
+        );
+        timer.unref?.();
+      }),
+    ]);
+    if (result !== timeout) return result;
+    console.warn(
+      `[orchestrator] agent operational overview exceeded ${AGENT_OVERVIEW_BUILD_TIMEOUT_MS}ms; serving the last complete snapshot`,
+    );
+    return cachedAgentOperationalOverview?.value ?? [];
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function getAgentServiceUnitName(agentId: string) {
   return `${agentId}.service`;
@@ -4882,7 +4916,9 @@ export async function buildAgentOperationalOverview(
   }
 
   if (pendingAgentOperationalOverview?.key === cacheKey) {
-    return pendingAgentOperationalOverview.promise;
+    return readAgentOperationalOverviewWithinDeadline(
+      pendingAgentOperationalOverview.promise,
+    );
   }
 
   const overviewPromise = (async () => {
@@ -5095,13 +5131,17 @@ export async function buildAgentOperationalOverview(
     promise: overviewPromise,
   };
 
-  try {
-    return await overviewPromise;
-  } finally {
+  void overviewPromise.then(() => {
     if (pendingAgentOperationalOverview?.key === cacheKey) {
       pendingAgentOperationalOverview = null;
     }
-  }
+  }, () => {
+    if (pendingAgentOperationalOverview?.key === cacheKey) {
+      pendingAgentOperationalOverview = null;
+    }
+  });
+
+  return readAgentOperationalOverviewWithinDeadline(overviewPromise);
 }
 
 function scheduleAgentOperationalOverviewWarm(
@@ -5588,7 +5628,7 @@ function buildRuntimeFactsPayload(args: {
     generatedAt: new Date().toISOString(),
     config: {
       stateFile: config.stateFile,
-      stateStoreKind: isMongoStateTarget(config.stateFile) ? "mongo" : "file",
+      stateStoreKind: getStateStoreKind(config.stateFile),
       strictPersistence: config.strictPersistence === true,
       logsDir: config.logsDir,
       approvalRequiredTaskTypes:
@@ -6964,6 +7004,7 @@ function buildRunRecord(
     type: execution.type,
     attempt: execution.attempt,
     maxRetries: execution.maxRetries,
+    queueAttempts: execution.queueAttempts ?? [],
     lastHandledAt: execution.lastHandledAt,
     lastError: execution.lastError ?? null,
     result_summary: execution.resultSummary ?? null,
@@ -10413,12 +10454,10 @@ function buildRuntimeIncidentModel({
 async function bootstrap() {
   const fastStartMode = process.env.ORCHESTRATOR_FAST_START === "true";
   const config = await loadConfig();
-  PersistenceIntegration.setCoreStateStoreKind(
-    isMongoStateTarget(config.stateFile) ? "mongo" : "file",
-  );
+  PersistenceIntegration.setCoreStateStoreTarget(config.stateFile);
   verifySecurityPosture();
   await mkdir(config.logsDir, { recursive: true });
-  if (!isMongoStateTarget(config.stateFile)) {
+  if (getStateStoreKind(config.stateFile) === "file") {
     await mkdir(dirname(config.stateFile), { recursive: true });
   }
 
@@ -10803,7 +10842,9 @@ async function bootstrap() {
     }
     startupTasksInitialized = true;
 
-    await flushState(["runtime-state", "knowledge-state"]);
+    void flushState(["runtime-state", "knowledge-state"]).catch((error) => {
+      console.error("[orchestrator] deferred startup state flush failed:", error);
+    });
     if (recoveredRetryCount > 0) {
       console.warn(
         `[orchestrator] recovered ${recoveredRetryCount} interrupted retry task(s) as failed after restart`,
@@ -10871,6 +10912,30 @@ async function bootstrap() {
       });
     });
 
+    const businessDayPulseSchedule =
+      config.businessDayPulseSchedule || DEFAULT_BUSINESS_DAY_PULSE_CRON_SCHEDULE;
+    const businessDayPulseTimeZone =
+      config.businessDayPulseTimeZone || DEFAULT_BUSINESS_DAY_PULSE_TIME_ZONE;
+    cron.schedule(
+      businessDayPulseSchedule,
+      () => {
+        void enqueueGovernedBusinessValueCycle({
+          source: "business-day-pulse",
+          reason: `business-day-pulse:${businessDayPulseSchedule}:${businessDayPulseTimeZone}`,
+          force: true,
+        }).then(({ decision, task }) => {
+          if (task) {
+            console.log(`[cron] business-day revenue pulse queued (${task.id})`);
+          } else {
+            console.log(`[cron] business-day revenue pulse skipped (${decision.code}): ${decision.reason}`);
+          }
+        }).catch((error) => {
+          console.error("[cron] business-day revenue pulse evaluation failed:", error);
+        });
+      },
+      { timezone: businessDayPulseTimeZone },
+    );
+
     const scheduler = ensureBusinessValueSchedulerState(state);
     if (
       scheduler.mode === "enabled" &&
@@ -10914,7 +10979,7 @@ async function bootstrap() {
 
     console.log("[orchestrator] 🔔 Alerts configured and monitoring started");
     console.log(
-      `[orchestrator] Scheduled 4 cron jobs: nightly-batch (11pm), send-digest (6am), heartbeat (${HEARTBEAT_CRON_SCHEDULE}), business-value (${businessValueSchedule})`,
+      `[orchestrator] Scheduled 5 cron jobs: nightly-batch (11pm), send-digest (6am), heartbeat (${HEARTBEAT_CRON_SCHEDULE}), business-value (${businessValueSchedule}), business-day-pulse (${businessDayPulseSchedule} ${businessDayPulseTimeZone})`,
     );
 
     // ============================================================
@@ -10945,48 +11010,22 @@ async function bootstrap() {
     ? Math.max(0, Math.floor(config.retryBackoffMs as number))
     : 500;
 
-  const ensureExecutionRecord = (task: Task) => {
+  const requireExecutionRecord = (task: Task) => {
     const idempotencyKey =
-      typeof task.idempotencyKey === "string" &&
+      task.admission?.runId ??
+      (typeof task.idempotencyKey === "string" &&
       task.idempotencyKey.trim().length > 0
-        ? task.idempotencyKey
-        : task.id;
+        ? task.idempotencyKey.trim()
+        : task.id);
     const existing = state.taskExecutions.find(
       (item) => item.idempotencyKey === idempotencyKey,
     );
-    if (existing) {
-      return { existing, idempotencyKey };
+    if (!existing) {
+      throw new Error(
+        `Task ${task.id} (${task.type}) has no admitted execution record for ${idempotencyKey}`,
+      );
     }
-
-    const created = {
-      taskId: task.id,
-      idempotencyKey,
-      type: task.type,
-      status: "pending" as const,
-      attempt: task.attempt ?? 1,
-      maxRetries: Number.isFinite(task.maxRetries)
-        ? Number(task.maxRetries)
-        : retryMaxAttempts,
-      startedAt: null,
-      completedAt: null,
-      lastHandledAt: new Date().toISOString(),
-      lastError: undefined as string | undefined,
-      resultSummary: undefined as
-        | {
-            success?: boolean;
-            keys: string[];
-            highlights?: Record<string, unknown>;
-          }
-        | undefined,
-      businessTraceability:
-        typeof task.payload.__businessTraceability === "object" &&
-        task.payload.__businessTraceability !== null
-          ? (task.payload.__businessTraceability as any)
-          : undefined,
-      accounting: null,
-    };
-    state.taskExecutions.push(created);
-    return { existing: created, idempotencyKey };
+    return { existing, idempotencyKey };
   };
 
   const resolveTaskActor = (task: Task) =>
@@ -11019,7 +11058,7 @@ async function bootstrap() {
       classification?: string | null;
     },
   ) => {
-    const { idempotencyKey } = ensureExecutionRecord(task);
+    const { idempotencyKey } = requireExecutionRecord(task);
     return appendWorkflowEvent({
       state,
       runId: idempotencyKey,
@@ -11133,6 +11172,23 @@ async function bootstrap() {
   };
 
   const queue = new TaskQueue();
+  queue.setAdmissionHandler((task) => {
+    const admission = admitTaskExecution(state, task, {
+      defaultMaxRetries: retryMaxAttempts,
+    });
+    if (!admission.admitted) {
+      console.warn(
+        `[task-admission] suppressed ${task.type} (${admission.runId}): ${admission.reason}`,
+      );
+      void flushState(["runtime-state"]).catch((error) => {
+        console.error(
+          `[task-admission] failed to persist suppression for ${task.type}:`,
+          error,
+        );
+      });
+    }
+    return admission;
+  });
   const enqueueGovernedBusinessValueCycle = async (args: {
     source: BusinessValueTriggerSource;
     reason: string;
@@ -11153,11 +11209,13 @@ async function bootstrap() {
       void flushState(["runtime-state"]).catch((error) => {
         console.error("[business-value] failed to persist skipped trigger state:", error);
       });
-      return { decision, task: null };
+      return { decision, task: null, admission: null };
     }
 
     const idempotencyKey =
-      args.source === "scheduler" || args.source === "startup-recovery"
+      args.source === "scheduler" ||
+      args.source === "business-day-pulse" ||
+      args.source === "startup-recovery"
         ? `business-value-cycle:${decision.fingerprint}`
         : `business-value-cycle:${args.source}:${Date.now()}`;
     const task = queue.enqueue("business-value-cycle", {
@@ -11169,6 +11227,10 @@ async function bootstrap() {
       __role: args.role ?? "operator",
       __requestId: args.requestId ?? null,
     });
+    if (task.admission?.admitted === false) {
+      await persistBusinessSchedulerState();
+      return { decision, task: null, admission: task.admission };
+    }
     markBusinessValueCycleEnqueued({
       state,
       task,
@@ -11180,7 +11242,7 @@ async function bootstrap() {
     void flushState(["runtime-state"]).catch((error) => {
       console.error("[business-value] failed to persist queued trigger state:", error);
     });
-    return { decision, task };
+    return { decision, task, admission: task.admission ?? null };
   };
   const handlerContext = {
     config,
@@ -12113,7 +12175,7 @@ async function bootstrap() {
         ? ["runtime-state", "knowledge-state"]
         : ["runtime-state"],
     );
-    const { idempotencyKey } = ensureExecutionRecord(task);
+    const { idempotencyKey } = requireExecutionRecord(task);
     appendTaskWorkflowEvent(
       task,
       "ingress",
@@ -12154,13 +12216,16 @@ async function bootstrap() {
 
   queue.onProcess(async (task) => {
     void invalidateResponseCacheTags(["runtime-state"]);
-    const { existing: execution, idempotencyKey } = ensureExecutionRecord(task);
+    const { existing: execution, idempotencyKey } = requireExecutionRecord(task);
 
     if (execution.status === "retrying" && findRetryRecovery(idempotencyKey)) {
       removeRetryRecovery(idempotencyKey);
     }
 
     if (execution.status === "success") {
+      updateTaskQueueAttempt(execution, task.id, "coordination-blocked", {
+        detail: "execution reached the queue after the logical run had already succeeded",
+      });
       console.log(
         `[orchestrator] ♻️ Skipping duplicate task ${task.type} (${idempotencyKey})`,
       );
@@ -12198,20 +12263,34 @@ async function bootstrap() {
       console.log(
         `[orchestrator] 🔒 Skipping claimed task ${task.type} (${idempotencyKey}) via ${coordinationClaim.store} coordination`,
       );
+      updateTaskQueueAttempt(execution, task.id, "coordination-blocked", {
+        detail: claimDetail,
+      });
+      void flushState(["runtime-state"]).catch((error) => {
+        console.error(
+          `[orchestrator] failed to persist coordination suppression for ${task.type}:`,
+          error,
+        );
+      });
       return;
     }
 
     try {
+      const executionStartedAt = new Date().toISOString();
       execution.status = "running";
       execution.attempt = task.attempt ?? execution.attempt ?? 1;
       execution.maxRetries = Number.isFinite(task.maxRetries)
         ? Number(task.maxRetries)
         : execution.maxRetries;
-      execution.startedAt = new Date().toISOString();
+      execution.startedAt = executionStartedAt;
       execution.completedAt = null;
       execution.resultSummary = undefined;
       execution.accounting = null;
-      execution.lastHandledAt = new Date().toISOString();
+      execution.lastHandledAt = executionStartedAt;
+      updateTaskQueueAttempt(execution, task.id, "running", {
+        timestamp: executionStartedAt,
+        detail: `${task.type} execution started.`,
+      });
       const taskRequirement = TASK_AGENT_SKILL_REQUIREMENTS[task.type];
       if (taskRequirement) {
         appendTaskWorkflowEvent(
@@ -12286,6 +12365,9 @@ async function bootstrap() {
       if (!approval.allowed) {
         onApprovalRequested(task.id, task.type);
         execution.status = "pending";
+        updateTaskQueueAttempt(execution, task.id, "awaiting-approval", {
+          detail: approval.reason ?? `Approval requested for ${task.type}.`,
+        });
         appendTaskWorkflowEvent(
           task,
           "approval",
@@ -12315,6 +12397,13 @@ async function bootstrap() {
       execution.completedAt = new Date().toISOString();
       execution.lastError = undefined;
       execution.lastHandledAt = execution.completedAt;
+      updateTaskQueueAttempt(execution, task.id, "success", {
+        timestamp: execution.completedAt,
+        detail:
+          typeof message === "string"
+            ? message
+            : `${task.type} completed successfully.`,
+      });
       execution.accounting = finalizeTaskExecutionAccounting({
         existing: execution.accounting ?? null,
         startedAt: execution.startedAt ?? null,
@@ -12417,6 +12506,14 @@ async function bootstrap() {
         execution.status = "failed";
         removeRetryRecovery(idempotencyKey);
       }
+
+      updateTaskQueueAttempt(execution, task.id, "failed", {
+        timestamp: execution.completedAt,
+        detail:
+          execution.status === "retrying"
+            ? `Execution failed and retry ${attempt + 1} was scheduled: ${err.message}`
+            : `Execution failed: ${err.message}`,
+      });
 
       appendTaskWorkflowEvent(
         task,
@@ -12726,9 +12823,22 @@ async function bootstrap() {
       agents,
       githubWorkflowMonitor,
     });
-    const incidentState = await refreshRuntimeIncidents();
+    const incidentState = await refreshRuntimeIncidents({
+      precomputed: {
+        persistence,
+        agents,
+        governance,
+        knowledgeRuntime,
+        pendingApprovalsCount,
+      },
+    });
     if (incidentState.changed) {
-      await flushState();
+      void flushState().catch((error) => {
+        console.error(
+          "[incidents] Failed to persist public-proof incident refresh:",
+          error instanceof Error ? error.message : String(error),
+        );
+      });
     }
 
     const milestones = buildPublicProofMilestones({
@@ -13269,6 +13379,17 @@ async function bootstrap() {
 
         const task = queue.enqueue(type, enrichedPayload);
         await invalidateResponseCacheTags(["runtime-state"]);
+        if (task.admission?.admitted === false) {
+          return res.status(200).json({
+            status: "duplicate-suppressed",
+            taskId: task.id,
+            runId: task.admission.runId,
+            type: task.type,
+            createdAt: task.createdAt,
+            existingStatus: task.admission.existingStatus ?? null,
+            reason: task.admission.reason,
+          });
+        }
         res.status(202).json({
           status: "queued",
           taskId: task.id,
@@ -13367,14 +13488,19 @@ async function bootstrap() {
 
         let replayTaskId: string | null = null;
         if (decision === "approved") {
+          const {
+            idempotencyKey: _originalIdempotencyKey,
+            ...approvedPayload
+          } = approval.payload;
           const replay = queue.enqueue(approval.type, {
-            ...approval.payload,
+            ...approvedPayload,
+            idempotencyKey: `approval-replay:${approval.taskId}`,
             approvedFromTaskId: approval.taskId,
             __actor: req.auth?.actor ?? actor,
             __role: req.auth?.role ?? "operator",
             __requestId: req.auth?.requestId ?? null,
           });
-          replayTaskId = replay.id;
+          replayTaskId = replay.admission?.admitted === false ? null : replay.id;
         }
 
         if (approvalExecution) {

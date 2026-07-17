@@ -127,6 +127,24 @@ export function computeBusinessValueChangeFingerprint(state: OrchestratorState):
       project.currentBlockers,
       project.acceptanceCriteria.map((criterion) => [criterion.id, criterion.status]),
     ]) ?? [],
+    initiatives: (registry?.initiatives ?? []).map((initiative) => [
+      initiative.id,
+      initiative.status,
+      initiative.nextSafeAction,
+      initiative.expectedOutcomes,
+    ]) ?? [],
+    risks: (registry?.riskRegister ?? []).map((risk) => [
+      risk.id,
+      risk.status,
+      risk.severity,
+      risk.mitigation,
+    ]) ?? [],
+    coverageGaps: (registry?.coverageGaps ?? []).map((gap) => [
+      gap.id,
+      gap.coverageStatus,
+      gap.priority,
+      gap.nextEvidenceNeeded,
+    ]) ?? [],
     latestExecutions,
     approvals,
   });
@@ -205,7 +223,10 @@ export function evaluateBusinessValueTrigger(args: {
   reconcileBusinessValueOperations(state, now);
   const scheduler = ensureBusinessValueSchedulerState(state);
   const fingerprint = computeBusinessValueChangeFingerprint(state);
-  const isAutomatic = source === "scheduler" || source === "startup-recovery";
+  const isAutomatic =
+    source === "scheduler" ||
+    source === "business-day-pulse" ||
+    source === "startup-recovery";
 
   if (isAutomatic && scheduler.mode === "disabled") {
     return { allowed: false, code: "disabled", reason: "Automatic business cycles are disabled.", fingerprint };
@@ -225,10 +246,10 @@ export function evaluateBusinessValueTrigger(args: {
   if (scheduler.backoffUntil && Date.parse(scheduler.backoffUntil) > now.getTime()) {
     return { allowed: false, code: "backoff", reason: `Failure backoff remains active until ${scheduler.backoffUntil}.`, fingerprint };
   }
-  if (isAutomatic && scheduler.nextRunAt && Date.parse(scheduler.nextRunAt) > now.getTime()) {
+  if (!force && isAutomatic && scheduler.nextRunAt && Date.parse(scheduler.nextRunAt) > now.getTime()) {
     return { allowed: false, code: "not-due", reason: `Next automatic cycle is scheduled for ${scheduler.nextRunAt}.`, fingerprint };
   }
-  if (isAutomatic && scheduler.lastChangeFingerprint === fingerprint) {
+  if (!force && isAutomatic && scheduler.lastChangeFingerprint === fingerprint) {
     return { allowed: false, code: "unchanged", reason: "Relevant business, task, and approval state has not changed.", fingerprint };
   }
   return { allowed: true, code: "ready", reason: `Governed ${source} trigger accepted.`, fingerprint };

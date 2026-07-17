@@ -1,4 +1,8 @@
-import { createStateStore, isMongoStateTarget } from "./state-store.js";
+import {
+  createStateStore,
+  isMongoStateTarget,
+  isSqliteStateTarget,
+} from "./state-store.js";
 import {
   IncidentAcknowledgementRecord,
   IncidentEscalationState,
@@ -13,6 +17,8 @@ import {
   OrchestratorState,
   RepairRecord,
   RelationshipObservationRecord,
+  TaskExecutionRecord,
+  TaskQueueAttemptRecord,
   TaskRetryRecoveryRecord,
   WorkflowEventRecord,
 } from "./types.js";
@@ -28,6 +34,7 @@ const RSS_SEEN_LIMIT = 400;
 const REDDIT_QUEUE_LIMIT = 100;
 const APPROVALS_LIMIT = 1000;
 const TASK_EXECUTION_LIMIT = 5000;
+const TASK_QUEUE_ATTEMPT_LIMIT = 25;
 const TASK_RETRY_RECOVERY_LIMIT = 1000;
 const REPAIR_RECORD_LIMIT = 500;
 const INCIDENT_LEDGER_LIMIT = 1000;
@@ -39,7 +46,7 @@ type StateRetentionOptions = {
   taskHistoryLimit?: number;
 };
 
-export { isMongoStateTarget } from "./state-store.js";
+export { getStateStoreKind, isMongoStateTarget, isSqliteStateTarget } from "./state-store.js";
 
 function normalizeTaskHistoryLimit(limit?: number): number {
   if (!Number.isFinite(limit)) return DEFAULT_HISTORY_LIMIT;
@@ -52,6 +59,76 @@ function normalizeTaskHistoryLimit(limit?: number): number {
 function normalizeStringArray(values: unknown, limit: number = 100) {
   if (!Array.isArray(values)) return [] as string[];
   return [...new Set(values.filter((value): value is string => typeof value === "string" && value.length > 0))].slice(-limit);
+}
+
+function normalizeTaskQueueAttempts(value: unknown): TaskQueueAttemptRecord[] {
+  if (!Array.isArray(value)) return [];
+  const allowedStatuses = new Set<TaskQueueAttemptRecord["status"]>([
+    "admitted",
+    "running",
+    "awaiting-approval",
+    "coordination-blocked",
+    "success",
+    "failed",
+  ]);
+  const normalized: TaskQueueAttemptRecord[] = [];
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const record = candidate as Record<string, unknown>;
+      if (
+        typeof record.attemptId !== "string" ||
+        typeof record.taskId !== "string" ||
+        typeof record.admittedAt !== "string" ||
+        !allowedStatuses.has(record.status as TaskQueueAttemptRecord["status"])
+      ) {
+        continue;
+      }
+      const attempt = Number(record.attempt);
+      normalized.push({
+        attemptId: record.attemptId,
+        taskId: record.taskId,
+        attempt: Number.isFinite(attempt) && attempt > 0 ? Math.floor(attempt) : 1,
+        status: record.status as TaskQueueAttemptRecord["status"],
+        admittedAt: record.admittedAt,
+        startedAt:
+          typeof record.startedAt === "string" ? record.startedAt : null,
+        completedAt:
+          typeof record.completedAt === "string" ? record.completedAt : null,
+        sourceTaskId:
+          typeof record.sourceTaskId === "string" ? record.sourceTaskId : null,
+        detail: typeof record.detail === "string" ? record.detail : null,
+      });
+  }
+  return normalized.slice(-TASK_QUEUE_ATTEMPT_LIMIT);
+}
+
+function updateQueueAttemptForRestart(
+  execution: TaskExecutionRecord,
+  taskId: string,
+  status: TaskQueueAttemptRecord["status"],
+  timestamp: string,
+  detail: string,
+) {
+  const attempt = execution.queueAttempts?.find(
+    (candidate) => candidate.taskId === taskId,
+  );
+  if (!attempt) return;
+  attempt.status = status;
+  attempt.detail = detail;
+  attempt.completedAt = timestamp;
+}
+
+function failActiveQueueAttempts(
+  execution: TaskExecutionRecord,
+  timestamp: string,
+  detail: string,
+) {
+  for (const attempt of execution.queueAttempts ?? []) {
+    if (attempt.status !== "admitted" && attempt.status !== "running") continue;
+    attempt.status = "failed";
+    attempt.completedAt = timestamp;
+    attempt.detail = detail;
+  }
 }
 
 function normalizeIncidentHistoryEvent(value: unknown): IncidentHistoryEvent | null {
@@ -466,7 +543,11 @@ export async function loadState(
       ...createDefaultState(),
       ...rest,
       taskHistory: parsed.taskHistory?.slice(-historyLimit) ?? [],
-      taskExecutions: parsed.taskExecutions?.slice(-TASK_EXECUTION_LIMIT) ?? [],
+      taskExecutions:
+        parsed.taskExecutions?.slice(-TASK_EXECUTION_LIMIT).map((execution) => ({
+          ...execution,
+          queueAttempts: normalizeTaskQueueAttempts(execution.queueAttempts),
+        })) ?? [],
       approvals: parsed.approvals?.slice(-APPROVALS_LIMIT) ?? [],
       pendingDocChanges: parsed.pendingDocChanges ?? [],
       driftRepairs: parsed.driftRepairs ?? [],
@@ -514,7 +595,7 @@ export async function loadState(
     }
     return normalizeParsedState(parsed as OrchestratorState);
   } catch (error) {
-    if (!isMongoStateTarget(path)) {
+    if (!isMongoStateTarget(path) && !isSqliteStateTarget(path)) {
       console.warn(
         `[state] Failed to parse state file, starting fresh: ${(error as Error).message}`,
       );
@@ -539,7 +620,10 @@ export async function saveStateWithOptions(
   const prepared: OrchestratorState = {
     ...state,
     taskHistory: state.taskHistory.slice(-historyLimit),
-    taskExecutions: state.taskExecutions.slice(-TASK_EXECUTION_LIMIT),
+    taskExecutions: state.taskExecutions.slice(-TASK_EXECUTION_LIMIT).map((execution) => ({
+      ...execution,
+      queueAttempts: normalizeTaskQueueAttempts(execution.queueAttempts),
+    })),
     approvals: state.approvals.slice(-APPROVALS_LIMIT),
     pendingDocChanges: state.pendingDocChanges.slice(0, 200),
     driftRepairs: state.driftRepairs.slice(-DRIFT_LOG_LIMIT),
@@ -643,7 +727,14 @@ export function reconcileTaskRetryRecoveryState(
   let recoveredRetryCount = 0;
   for (const execution of state.taskExecutions) {
     if (execution.status !== "retrying") continue;
-    if (retryRecoveryKeys.has(execution.idempotencyKey)) continue;
+    if (retryRecoveryKeys.has(execution.idempotencyKey)) {
+      failActiveQueueAttempts(
+        execution,
+        now,
+        "admitted retry queue attempt was interrupted before dispatch and will be recovered from persisted retry state",
+      );
+      continue;
+    }
 
     const baseMessage =
       execution.lastError && execution.lastError.trim().length > 0
@@ -654,6 +745,7 @@ export function reconcileTaskRetryRecoveryState(
     execution.status = "failed";
     execution.lastHandledAt = now;
     execution.lastError = recoveryMessage;
+    failActiveQueueAttempts(execution, now, recoveryMessage);
     state.taskHistory.push({
       id: execution.taskId,
       type: execution.type,
@@ -739,6 +831,13 @@ export function reconcileInFlightTaskExecutionState(
         latestTerminalResult.state === "failed"
           ? latestTerminalResult.detail
           : undefined;
+      updateQueueAttemptForRestart(
+        execution,
+        latestTerminalResult.taskId,
+        latestTerminalResult.state === "success" ? "success" : "failed",
+        execution.lastHandledAt,
+        latestTerminalResult.detail,
+      );
       appendRecoveredHistory(
         execution,
         latestTerminalResult.state === "success" ? "ok" : "error",
@@ -761,6 +860,19 @@ export function reconcileInFlightTaskExecutionState(
     );
     if (approvalPending || approvalWorkflowPending) {
       execution.status = "pending";
+      const approvalEvent = [...relatedWorkflowEvents]
+        .reverse()
+        .find(
+          (event) =>
+            event.stage === "approval" && event.stopCode === "awaiting-approval",
+        );
+      updateQueueAttemptForRestart(
+        execution,
+        approvalEvent?.taskId ?? execution.taskId,
+        "awaiting-approval",
+        approvalEvent?.timestamp ?? now,
+        approvalEvent?.detail ?? "task remains on a persisted approval hold",
+      );
       awaitingApprovalCount += 1;
       continue;
     }
@@ -773,6 +885,7 @@ export function reconcileInFlightTaskExecutionState(
     execution.status = "failed";
     execution.lastHandledAt = now;
     execution.lastError = interruptedMessage;
+    failActiveQueueAttempts(execution, now, interruptedMessage);
     appendRecoveredHistory(execution, "error", now, interruptedMessage);
     interruptedCount += 1;
   }

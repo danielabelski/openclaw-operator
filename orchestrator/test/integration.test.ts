@@ -207,6 +207,7 @@ describe('Runtime Integration: Live Middleware Chain', () => {
         NODE_ENV: 'test',
         PORT: String(new URL(baseUrl).port),
         API_KEY: TEST_API_KEY,
+        API_KEY_ROTATION: '',
         WEBHOOK_SECRET: TEST_WEBHOOK_SECRET,
         MONGO_PASSWORD: process.env.MONGO_PASSWORD ?? 'test-mongo-password',
         REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? 'test-redis-password',
@@ -1137,19 +1138,58 @@ describe('Runtime Integration: Live Middleware Chain', () => {
   });
 
   it('accepts protected endpoint with valid bearer token', async () => {
+    const idempotencyKey = 'integration-admission-contract-1';
     const response = await fetch(`${baseUrl}/api/tasks/trigger`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${TEST_API_KEY}`,
       },
-      body: JSON.stringify({ type: 'doc-sync', payload: {} }),
+      body: JSON.stringify({ type: 'doc-sync', payload: { idempotencyKey } }),
     });
 
     expect(response.status).toBe(202);
-    const body = await response.json() as { status: string; type: string };
+    const body = await response.json() as { status: string; type: string; taskId: string };
     expect(body.status).toBe('queued');
     expect(body.type).toBe('doc-sync');
+
+    const duplicateResponse = await fetch(`${baseUrl}/api/tasks/trigger`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${TEST_API_KEY}`,
+      },
+      body: JSON.stringify({ type: 'doc-sync', payload: { idempotencyKey } }),
+    });
+    expect(duplicateResponse.status).toBe(200);
+    const duplicate = await duplicateResponse.json() as {
+      status: string;
+      runId: string;
+      reason: string;
+      existingStatus: string;
+    };
+    expect(duplicate).toMatchObject({
+      status: 'duplicate-suppressed',
+      runId: idempotencyKey,
+    });
+    expect(duplicate.reason).toMatch(/^duplicate-(pending|running|success)$/);
+
+    const runResponse = await fetch(
+      `${baseUrl}/api/tasks/runs/${encodeURIComponent(idempotencyKey)}`,
+      { headers: { Authorization: `Bearer ${TEST_API_KEY}` } },
+    );
+    expect(runResponse.status).toBe(200);
+    const runDetail = await runResponse.json() as {
+      run?: {
+        runId?: string;
+        queueAttempts?: Array<{ taskId?: string; status?: string }>;
+      };
+    };
+    expect(runDetail.run?.runId).toBe(idempotencyKey);
+    expect(runDetail.run?.queueAttempts).toHaveLength(1);
+    expect(runDetail.run?.queueAttempts?.[0]).toMatchObject({
+      taskId: body.taskId,
+    });
   });
 
   it('protects and operates the business-value API without duplicate triggers', async () => {

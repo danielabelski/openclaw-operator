@@ -81,16 +81,131 @@ export interface BusinessProject {
   nextSafeAction: string | null;
 }
 
+export type PipelineRecordType =
+  | "lead"
+  | "opportunity"
+  | "proposal"
+  | "community"
+  | "content";
+
+export type PipelineStage =
+  | "discovered"
+  | "audited"
+  | "packet_ready"
+  | "draft_ready"
+  | "sent"
+  | "waiting_reply"
+  | "reply_needs_draft"
+  | "hold"
+  // Legacy values remain readable while registry records are migrated.
+  | "identified"
+  | "qualified"
+  | "brief-ready"
+  | "draft-ready"
+  | "approval-needed"
+  | "approved"
+  | "reply-received"
+  | "won"
+  | "lost"
+  | "on-hold";
+
+export type PipelineApprovalStatus =
+  | "not-required"
+  | "approved-and-executed"
+  | "needs-packet"
+  | "packet-ready"
+  | "awaiting-approval"
+  | "approved"
+  | "rejected";
+
+export interface BusinessPipelineRecord {
+  id: string;
+  type: PipelineRecordType;
+  title: string;
+  businessId: string;
+  relatedProjectId?: string | null;
+  businessFunction?: string | null;
+  source: string;
+  stage: PipelineStage;
+  expectedOutcome: BusinessOutcome;
+  kpiId: string;
+  valueEstimate: number | null;
+  probability: number | null;
+  nextAction: string;
+  approvalStatus: PipelineApprovalStatus;
+  approvalAction: string | null;
+  followUpAt: string | null;
+  owner: string | null;
+  evidence: string[];
+  draftSubject?: string | null;
+  draftBody?: string | null;
+  lastTouchAt?: string | null;
+  notes?: string | null;
+}
+
+export interface BusinessStrategicInitiative {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  businessFunction: string | null;
+  serviceLineId: string | null;
+  expectedOutcomes: BusinessOutcome[];
+  deliverables: string[];
+  priorityProjects: string[];
+  nextSafeAction: string;
+  approvalBoundaries: string[];
+  confidence: BusinessValueConfidence;
+}
+
+export interface BusinessRegistryRisk {
+  id: string;
+  title: string;
+  description: string | null;
+  severity: string;
+  status: string;
+  mitigation: string;
+  linkedProjects: string[];
+  confidence: BusinessValueConfidence;
+}
+
+export interface BusinessCoverageGap {
+  id: string;
+  area: string;
+  coverageStatus: string;
+  missing: string[];
+  priority: string;
+  nextEvidenceNeeded: string;
+}
+
+export interface BusinessApprovalPolicy {
+  policy: string;
+  approvalAuthority: string;
+  alwaysApprovalRequired: string[];
+  normallySafeWithoutAdditionalApproval: string[];
+  requiredApprovalRecord: string[];
+  postActionRequirement: string;
+}
+
 export interface BusinessRegistry {
   businessId: string;
   businessName: string;
   mission: string;
+  vision: string | null;
+  northStar: string | null;
   registryVersion: string;
+  schemaVersion: string | null;
+  sourceRegistryVersion: string | null;
   updatedAt: string;
   sourcePath: string;
   kpis: BusinessKpiDefinition[];
   kpiSnapshots: BusinessKpiSnapshot[];
   projects: BusinessProject[];
+  pipeline: BusinessPipelineRecord[];
+  initiatives: BusinessStrategicInitiative[];
+  riskRegister: BusinessRegistryRisk[];
+  coverageGaps: BusinessCoverageGap[];
+  approvalPolicy: BusinessApprovalPolicy | null;
 }
 
 export type ApprovalClassification =
@@ -221,6 +336,7 @@ export type BusinessValueSchedulerMode = "enabled" | "paused" | "disabled";
 export type BusinessValueTriggerSource =
   | "operator"
   | "scheduler"
+  | "business-day-pulse"
   | "startup-recovery"
   | "retry";
 

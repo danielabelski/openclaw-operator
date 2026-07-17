@@ -1,0 +1,230 @@
+{
+  "schemaVersion": "1.0",
+  "operationId": "queue-admission-live-activation-20260717",
+  "recordedAt": "2026-07-17T01:49:33Z",
+  "status": "verified",
+  "dispatchClassification": "dispatched",
+  "changedState": true,
+  "approval": {
+    "text": "I approve all that’s next",
+    "scope": "Post-window operator UI build and at most one orchestrator.service restart to load the tested queue-admission and telemetry hardening.",
+    "restartApprovalConsumed": true,
+    "restartSubmissions": 1
+  },
+  "plan": {
+    "path": "artifacts/runtime/queue-admission-activation-plan-20260716.json",
+    "candidateHashCount": 20,
+    "candidateHashMismatches": 0,
+    "allPreconditionsPassed": true,
+    "forbiddenActionObserved": false
+  },
+  "auditRouting": {
+    "tools": [
+      "coding_migration_review",
+      "coding_deployment_preflight",
+      "coding_api_contract_audit"
+    ],
+    "source": "coding-agent-skills 0.2.19",
+    "changedState": false,
+    "status": "complete-with-known-adapter-limitation",
+    "limitation": "No project adapter declaration exists; the tools used generic bounded static scans, followed only by narrow plan-named core checks."
+  },
+  "validation": {
+    "postWindowNotBefore": "2026-07-17T01:30:00.000Z",
+    "postWindowStartedAt": "2026-07-17T01:31:11Z",
+    "focusedTests": {
+      "files": 4,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 105
+    },
+    "orchestratorTypecheck": "passed",
+    "operatorConsoleTypecheck": "passed",
+    "operatorConsoleTests": {
+      "passed": 33,
+      "failed": 0
+    },
+    "openApiGeneration": "passed-and-hash-matched",
+    "documentationSync": "passed",
+    "diffCheck": "passed",
+    "legacyPort3000LoadProbesRun": false
+  },
+  "scopeIsolation": {
+    "newProductionSourceOutsideCandidate": false,
+    "nonCandidateDirtyProductionSource": "All identified non-candidate orchestrator source changes predated the pre-restart active process and therefore were not newly activated by this restart.",
+    "packageInstalledOrUpdated": false,
+    "orchestratorBuildRun": false,
+    "configurationChanged": false,
+    "concurrencyChanged": false
+  },
+  "operatorUi": {
+    "build": "passed-with-already-installed-dependencies",
+    "indexSha256": "6835f64ce69b855e7076716e4a3794baf2630b11939d2563e00d6d80ca2819d1",
+    "mainAsset": "/operator/assets/index-C0i1b6y5.js",
+    "mainAssetSha256": "2f13f91640daff6d9b641705294c1c877f161daa3db8546618303894535dd8c3",
+    "contractAsset": "/operator/assets/TaskRunDetailPage-d4a2TcNi.js",
+    "contractAssetSha256": "a3fc133a2f2ff2a4724c9f863e7b728ee331fd6936ec6e22cba5dfc7418a6a49",
+    "queueAttemptContractPresent": true,
+    "liveAssetsByteMatchedLocalBuild": true
+  },
+  "preState": {
+    "capturedAt": "2026-07-17T01:44:05Z",
+    "service": {
+      "loadState": "loaded",
+      "activeState": "active",
+      "subState": "running",
+      "result": "success",
+      "nRestarts": 0,
+      "execMainStartTimestamp": "2026-07-16T08:59:40Z",
+      "activeEnterTimestamp": "2026-07-16T08:59:40Z",
+      "workingDirectory": "/home/oneclickwebsitedesignfactory/.openclaw/workspace/projects/openclaw-operator/orchestrator"
+    },
+    "socket": "127.0.0.1:3312",
+    "healthHttpStatus": 200,
+    "persistenceHttpStatus": 200,
+    "journalCursor": "s=671ea931184143a689b4da98a02ba06b;i=2bfe131;b=0b84159bb1534c4585c1ff6575fbd06f;m=e30d5af1f;t=656c4a286cb01;x=892cbe9d47742f27"
+  },
+  "postState": {
+    "capturedAt": "2026-07-17T01:46:51Z",
+    "service": {
+      "loadState": "loaded",
+      "activeState": "active",
+      "subState": "running",
+      "result": "success",
+      "nRestarts": 0,
+      "execMainStartTimestamp": "2026-07-17T01:45:49Z",
+      "activeEnterTimestamp": "2026-07-17T01:45:49Z",
+      "newerActivationTimestamp": true,
+      "workingDirectory": "/home/oneclickwebsitedesignfactory/.openclaw/workspace/projects/openclaw-operator/orchestrator"
+    },
+    "socket": "127.0.0.1:3312",
+    "health": {
+      "httpStatus": 200,
+      "status": "healthy"
+    },
+    "persistence": {
+      "httpStatus": 200,
+      "status": "healthy",
+      "store": "sqlite",
+      "database": true,
+      "coordinationStatus": "healthy",
+      "coordinationStore": "redis",
+      "redisReachable": true
+    },
+    "journal": {
+      "stopEventObserved": true,
+      "startEventObserved": true,
+      "sqliteInitializationObserved": true,
+      "listenEventObserved": true,
+      "knownStartupFailureMatches": 0,
+      "postCursor": "s=671ea931184143a689b4da98a02ba06b;i=2bfe2f8;b=0b84159bb1534c4585c1ff6575fbd06f;m=e470cb129;t=656c4b8bdcd0b;x=502b49497020e753"
+    },
+    "liveContract": {
+      "cacheBustingQuery": "cacheBust=activation-20260717T014549Z",
+      "httpStatus": 200,
+      "duplicateSuppressedEnumCount": 1,
+      "queueAttemptsPropertyCount": 1
+    },
+    "operator": {
+      "httpStatus": 200,
+      "mainAssetHashMatched": true,
+      "contractAssetHashMatched": true
+    }
+  },
+  "sqlite": {
+    "path": "/home/oneclickwebsitedesignfactory/.openclaw/workspace/orchestrator/data/operator.sqlite",
+    "mode": "sqlite3 -readonly with PRAGMA query_only=ON",
+    "preAndPost": {
+      "integrityCheck": "ok",
+      "foreignKeyViolations": 0,
+      "journalMode": "wal",
+      "orchestratorStateSections": 28,
+      "orchestratorStateArrayItems": 47097,
+      "migrationSourceDocuments": 1,
+      "migrationCollectionEvidence": 9,
+      "migrationArchiveSha256": "4266ca3452ea468533b05a50fef3047303ccc5253e7913ea0595c8cb55adb011"
+    },
+    "historicalFailureSafety": {
+      "priorAggregateAudit": "artifacts/runtime/startup-reconciliation-audit-20260716T045807Z.json",
+      "targetFailures": 732,
+      "targetAuditStatus": "all-failed-and-internally-consistent",
+      "activeWindowRowsBeforeRestart": 0,
+      "activeWindowRowsAfterRestart": 0,
+      "activeWindowNote": "The exact batch had already aged out of the retained 5,000-row active task-execution window before this activation; the prior aggregate audit and unchanged lossless migration archive remain the preservation anchors.",
+      "archiveHashUnchangedAcrossRestart": true,
+      "postActivationExecutions": {
+        "startupSuccess": 1,
+        "businessValueCycleSuccess": 1,
+        "qaVerificationSuccess": 1,
+        "docChange": 0,
+        "driftRepair": 0
+      },
+      "replayed": false,
+      "rewrittenByActivation": false
+    }
+  },
+  "adjacentConfiguration": {
+    "comparison": "byte-identical canonical record hashes before and after restart",
+    "allMatched": true,
+    "records": {
+      "commands.ownerAllowFrom": "5b04341eb2cb8034720748efbb2b0bfb480e7b46a6f586b550ba730469ef431d",
+      "commands.allowFrom": "94e10190e3c105f5244f61bfbafebc1acab69158d332498107b1f89281dae983",
+      "commands.useAccessGroups": "bf372a17b1b3c1bac8404d447bebe102fb3cab242d8c0172a90d342e4906bf4d",
+      "commands.bash": "658ca298b846962b4f33c8ba7f86c21a93356fd321e73e7c7cf73ec876a08648",
+      "commands.config": "04b8b8ea7e36417dd6b501f659826e65326d66d2ec2bc29fb4a2c409bf757091",
+      "commands.mcp": "4935c5de3aa5fc459407cf49789bcc99169198f07803055afc64e96a0cdf9d66",
+      "commands.plugins": "2304cfff58f5b92d2b29f33f3bd0a1200602779e46c05c8c90f5e80e831c58e7",
+      "commands.debug": "c3615167f3f6483a1afc09af1cbe38eccdeef376601799dc238ecd9181c2de7d",
+      "commands.restart": "46032d9cf74fbd5f6b2fb642ee3614cfec068446d8319528f638e58e55c85d49",
+      "tools.elevated": "be14f863af24e4826051965fb3acf08fbd3799ea9341da9fa26602770b7fff34",
+      "channels.telegram.dmPolicy": "63b5fbc4f40e081d82781135090b6c69d571e8902d6579d32c7fd82b9cd59d94",
+      "channels.telegram.allowFrom": "5378e4a0ca861539663a2614a26e2e840018ac78b3c3fc384f15b7369a0995e5",
+      "channels.telegram.groupPolicy": "32b8ed006ce9be506977e715408b2400df3d095307404b94a93db73b0d2fe8ea",
+      "channels.telegram.groupAllowFrom": "342de35129e95fe898407a6640de3152dcb0310863acf2b55a4572eb96c02d10",
+      "channels.telegram.configWrites": "2dcaa6a87a365314b4011239a6cdb3b65562538f7ae9dd87764565c010c4c5e3",
+      "channels.telegram.execApprovals": "7346a2566e4b53789f1f879c0489f4ff94875401799b3dc29ec10168d63f6fad",
+      "channels.telegram.commands.native": "f11903fa3dee845714121224f491cfb7364ed5135f7ee8b199a4c345e764d067",
+      "channels.telegram.commands.nativeSkills": "7aa9eb2646a3db7add288af8e82939b35645e0cb0228dac81feb92d19575621e",
+      "repoOrchestratorConfig": "bd04aceb4a03be894c494588047bcd5ebff34984ca99bf4bd7144f04120b6268",
+      "serviceUnitFragment": "f267d9bf31cb482dd9e535afd44f7a5fafba9fe2d65f5e71cafc05b51e847241"
+    }
+  },
+  "stageMatrix": {
+    "approval": "pass",
+    "postWindowSqliteGate": "pass",
+    "codingAuditRoute": "pass-with-known-adapter-limitation",
+    "candidateHashes": "pass",
+    "scopeIsolation": "pass",
+    "focusedValidation": "pass",
+    "operatorUiBuild": "pass",
+    "preState": "pass",
+    "restartDispatch": "pass",
+    "serviceLifecycle": "pass",
+    "socket": "pass",
+    "health": "pass",
+    "persistence": "pass",
+    "journal": "pass",
+    "adjacentConfiguration": "pass",
+    "liveOpenApiContract": "pass",
+    "liveOperatorBundle": "pass",
+    "postRestartSqlite": "pass",
+    "historicalFailureNoReplayOrRewrite": "pass",
+    "authenticatedLiveDuplicateTrigger": "pending"
+  },
+  "remainingUnverified": [
+    "An authenticated live duplicate-trigger request was not performed because it would require credential access and create live task state; the self-contained authenticated integration contract passed and the live OpenAPI contract is present."
+  ],
+  "forbiddenActionsNotTaken": [
+    "second restart",
+    "automatic rollback",
+    "configuration or concurrency change",
+    "Mongo access or retirement",
+    "database migration",
+    "historical replay, retry, cleanup, or rewrite",
+    "package install or update",
+    "commit, push, publish, release, provider, cloud, or gateway mutation",
+    "secret, credential, process-argument, root-config, or secret-bearing file access",
+    "legacy load probes requiring port 3000"
+  ],
+  "nextSafeStep": "Observe normal runtime behavior. Any authenticated live duplicate trigger, another service lifecycle action, configuration change, Mongo retirement, migration, cleanup, or external action requires a separate explicit authorization."
+}

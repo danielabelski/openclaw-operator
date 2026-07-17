@@ -1,0 +1,135 @@
+{
+  "operation": "mongo-to-normalized-sqlite",
+  "runId": "mongo-sqlite-cutover-c2a581c4-a441-44aa-b2ef-23606132109d",
+  "mode": "cutover",
+  "startedAt": "2026-07-16T01:20:11.034Z",
+  "completedAt": "2026-07-16T01:20:21.757Z",
+  "changedSourceState": false,
+  "source": {
+    "store": "mongo",
+    "databaseName": "orchestrator",
+    "stateKey": "orchestrator-runtime-state",
+    "collections": {
+      "metrics": 0,
+      "alerts": 0,
+      "knowledge_base": 0,
+      "consolidations": 0,
+      "snapshots": 0,
+      "system_state": 1,
+      "audit_logs": 0,
+      "concepts": 0,
+      "concept_links": 0
+    },
+    "stableAcrossTwoReads": {
+      "metrics": true,
+      "alerts": true,
+      "knowledge_base": true,
+      "consolidations": true,
+      "snapshots": true,
+      "system_state": true,
+      "audit_logs": true,
+      "concepts": true,
+      "concept_links": true
+    },
+    "coreStateSha256": "51b6e43e8de5cecaeeb4b4ab87840a28607e713f54edda3a18bdfe1ae6dec1d6"
+  },
+  "target": {
+    "store": "sqlite",
+    "path": "/home/oneclickwebsitedesignfactory/.openclaw/workspace/orchestrator/data/operator.sqlite",
+    "schemaName": "openclaw-operator-normalized",
+    "schemaVersion": 2,
+    "journalMode": "wal",
+    "integrityCheck": "ok",
+    "foreignKeyViolations": 0,
+    "stateMeta": {
+      "id": 1,
+      "version": 2,
+      "updated_at": "2026-07-16T01:20:16.984Z",
+      "payload_sha256": "51b6e43e8de5cecaeeb4b4ab87840a28607e713f54edda3a18bdfe1ae6dec1d6",
+      "payload_bytes": 41625152,
+      "section_count": 28
+    },
+    "sectionCount": 28,
+    "arrayItemCount": 47097,
+    "collections": [
+      {
+        "collection": "metrics",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "alerts",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "knowledge_base",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "consolidations",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "snapshots",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "system_state",
+        "sourceCount": 1,
+        "typedCount": 1,
+        "archiveCount": 1,
+        "sourceChecksum": "94ebe4c328218bc1838e498d4531357a66c6ad50ddffa71f614dd90e023d782d",
+        "archiveChecksum": "94ebe4c328218bc1838e498d4531357a66c6ad50ddffa71f614dd90e023d782d"
+      },
+      {
+        "collection": "audit_logs",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "concepts",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "collection": "concept_links",
+        "sourceCount": 0,
+        "typedCount": 0,
+        "archiveCount": 0,
+        "sourceChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archiveChecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "losslessSourceArchive": true
+  },
+  "rollback": {
+    "mongoChanged": false,
+    "mongoRetained": true,
+    "targetCanBeRemovedBeforeActivation": true
+  }
+}

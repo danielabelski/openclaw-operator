@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0",
+  "operationId": "queue-admission-live-activation-20260717",
+  "recordedAt": "2026-07-16T18:53:00Z",
+  "approval": {
+    "text": "I approve all that’s next",
+    "context": "Direct approval after the implemented-and-tested queue admission hardening was reported as awaiting post-SQLite-window activation.",
+    "interpretedScope": "After the scheduled SQLite post-window verification passes, build the operator UI and submit at most one orchestrator.service restart so the tested queue admission and telemetry hardening becomes live."
+  },
+  "preconditions": {
+    "notBefore": "2026-07-17T01:30:00.000Z",
+    "sqliteVerificationMustPass": true,
+    "focusedTestsAndTypechecksMustPass": true,
+    "sourceHashesMustMatch": true,
+    "serviceMustBeActiveBeforeRestart": true
+  },
+  "target": {
+    "service": "orchestrator.service",
+    "bind": "127.0.0.1:3312",
+    "expectedFinalState": "active/running with the queue admission and telemetry hardening loaded, SQLite persistence healthy, Redis coordination healthy, and the rebuilt operator UI served",
+    "maximumRestartSubmissions": 1
+  },
+  "candidateHashes": {
+    "orchestrator/src/types.ts": "8c1689e79190f4a7904c1788a4c209a8e3d663b30d308ceeff41297f0e8d56a4",
+    "orchestrator/src/taskQueue.ts": "3008e32088569bf7d36ad0e6b682b08fa9c24eebc393ecc9f2a0d49ea6098189",
+    "orchestrator/src/index.ts": "6598e23db09f0e71a0718d82e88b813fa774855dd55aac8ca354b7fe23e65825",
+    "orchestrator/src/taskHandlers.ts": "67af90aa9b48d2dc6c986c2d4c0bad23250be0ed8e613369f8efc573178e36b0",
+    "orchestrator/src/state.ts": "2e7d141bff33763d41e0504a164ccb81a5d0cb70fca9bdfc30f9a72adc0c4d1d",
+    "orchestrator/src/task-admission.ts": "981da93ad183d950d0bfaed3bfa2a40a15f196c211462007c38d7a909d306525",
+    "orchestrator/src/openapi.ts": "58e13dab9d29b86dc79ecf6c918aa060449a59bb28676b98d7b3658ae00ed10b",
+    "operator-s-console/src/types/console.ts": "fb7d3c0df7d9e768ebb6c16c497ea703fea2867b300cbb087fac2bce57bde6eb",
+    "operator-s-console/src/lib/task-runs.ts": "3011a89df73ca627dd7f255b41b01da47432f0bb74db4e0743d546c7c85795b5",
+    "operator-s-console/src/components/console/TaskRunDetailContent.tsx": "7a55705233cf9fce08dc49cb48543772c89570dcfaa25a456da72b2b8fc85d63",
+    "operator-s-console/src/test/operator-contract-surfaces.test.tsx": "86bf3163b9e4d8166571bae76718f11f9eed463807a93b42cb5a93c2457c6980",
+    "orchestrator/test/task-admission.test.ts": "b16f6a072159f30c2391031948cab9ffed7e724fe8d07a56646944eb8b1d2770",
+    "orchestrator/test/task-queue.test.ts": "11ee8d97ee00dca745c35f7acaca52cd35f28846a299268ec48bfef3daf453e6",
+    "orchestrator/test/toolgate.runtime.test.ts": "7addb344b021d50ca86c0db7a9a0c9d6b7d4e26c89e0667d99ceda464dd931d6",
+    "orchestrator/test/integration.test.ts": "3942a442a5ec9a24124013903fcb535267abf0725d04de02a42b1afd23b80cca",
+    "orchestrator/openapi.json": "bb177f2275f8565fcdfede0e7549d070091d1cb570bfe7c3e608ea6568957171",
+    "docs/reference/api.md": "bce0d16b71b50ae9cc341cd595cd51a7313d34876ca15fa6287ba3a13e39a6b2",
+    "docs/reference/task-types.md": "d66b86073dc172b02ae3192792d2dfd7da0652c366ea8ea87597c10947f425b0",
+    "docs/reference/state-schema.md": "041d17a1598c7d65cde3aa3a14359e7f0628c2281445857913987228bc288077",
+    "WORKBOARD.md": "6d2bc78d2ca774f166b37d4aaf91b5f3a250209514554a845aa3c961dc24bd66"
+  },
+  "forbiddenActions": [
+    "restart before the SQLite verification passes",
+    "submit a second restart",
+    "change configuration or concurrency",
+    "query or mutate Mongo",
+    "run a migration",
+    "replay, retry, clean up, or rewrite the 732 historical failures",
+    "install or update packages",
+    "commit, push, publish, release, or make provider/cloud changes",
+    "read secrets, credentials, process arguments, or secret-bearing configuration",
+    "perform an automatic rollback"
+  ],
+  "stopConditions": [
+    "candidate hash mismatch",
+    "SQLite integrity, foreign-key, WAL, count, or health mismatch",
+    "focused validation failure",
+    "unexpected service unit, working directory, bind, or pre-state",
+    "pre-existing service degradation",
+    "configuration snapshot cannot be captured",
+    "new production source changes outside the approved candidate"
+  ]
+}

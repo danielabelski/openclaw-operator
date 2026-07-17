@@ -19,7 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
     "docs:check-sync": "node scripts/check-doc-sync.mjs",
-    "docs:check-sync:staged": "node scripts/check-doc-sync.mjs --staged"
+    "docs:check-sync:staged": "node scripts/check-doc-sync.mjs --staged",
+    "state:sqlite:rehearse": "tsx scripts/rehearse-sqlite-state-migration.ts"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

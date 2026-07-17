@@ -1,0 +1,112 @@
+{
+  "operationId": "queue-telemetry-root-cause-20260716",
+  "sampledAt": "2026-07-16T06:27:00Z",
+  "status": "complete",
+  "scope": "Read-only root-cause trace of the failed drift-repair run that later received queue-only workflow events.",
+  "safety": {
+    "payloadsRead": false,
+    "identifiersEmitted": false,
+    "databaseReadMode": "sqlite3 -readonly with PRAGMA query_only=ON",
+    "runtimeChanged": false,
+    "databaseChanged": false,
+    "serviceChanged": false,
+    "configurationChanged": false,
+    "sourceCodeChanged": false,
+    "evidenceFilesChanged": true
+  },
+  "observedEvidence": {
+    "logicalRunsAffected": 1,
+    "originalQueueEvents": 2,
+    "laterQueueEvents": 4,
+    "distinctLaterEnqueueTaskIds": 2,
+    "laterNonQueueEvents": 0,
+    "laterTaskExecutionRows": 0,
+    "laterTaskHistoryRows": 0,
+    "retryRecoveryLinks": 0,
+    "repairLedgerLinks": 0,
+    "laterEventTimes": [
+      "2026-07-15T11:05:44.089Z",
+      "2026-07-15T11:53:18.755Z"
+    ],
+    "eventWindow": {
+      "from": "2026-07-15T11:00:00.000Z",
+      "to": "2026-07-15T16:02:42.354Z",
+      "docChangeAccepted": 1022,
+      "docChangeQueued": 1022,
+      "docChangeExecuting": 416,
+      "docChangeSuccess": 124,
+      "nextRestartReconciledDocChanges": 316
+    }
+  },
+  "sourceTrace": [
+    {
+      "path": "orchestrator/src/coordination/runtime-coordination.ts",
+      "finding": "The auto-repair idempotency key is deterministic from the normalized pending-path fingerprint."
+    },
+    {
+      "path": "orchestrator/src/taskHandlers.ts",
+      "finding": "A failed drift-repair is not active; after the 15-minute cooldown, the same path set can enqueue the same deterministic idempotency key again."
+    },
+    {
+      "path": "orchestrator/src/index.ts",
+      "finding": "ensureExecutionRecord collapses every task sharing an idempotency key onto the existing execution record regardless of terminal status."
+    },
+    {
+      "path": "orchestrator/src/index.ts",
+      "finding": "onEnqueue emits ingress/accepted and queue/queued for the new task id while attaching both events to the reused logical run id."
+    },
+    {
+      "path": "orchestrator/src/state.ts",
+      "finding": "Startup reconciliation inspects only pending and running execution rows; later enqueue task ids with no execution row are invisible to reconciliation."
+    },
+    {
+      "path": "orchestrator/src/taskQueue.ts",
+      "finding": "The queue is in-memory FIFO with concurrency two; enqueue listeners run before the task is added to p-queue."
+    }
+  ],
+  "rootCause": {
+    "proven": "Run identity and queue-attempt identity are conflated. Re-enqueueing a terminal idempotency key reuses the old failed execution row but emits fresh accepted/queued events for new task ids. Those task ids have no execution or history row, so persisted telemetry can claim queued work that has no independently reconcilable execution state.",
+    "contributingFactors": [
+      "Deterministic doc-repair keys are reused after the cooldown when the pending path fingerprint is unchanged.",
+      "Failed executions are excluded from the active-repair guard.",
+      "Queue admission and queue telemetry are not an atomic persisted operation.",
+      "FIFO queue pressure can starve repair tasks behind bulk doc-change fan-out."
+    ],
+    "highConfidenceInference": "The two later attempts remained behind queue pressure and were lost at a later process restart before processing. This is supported by the queue-only event sequence, absent execution/history rows, the large event-window backlog, later startup reconciliation, and the in-memory FIFO design. The exact removal moment cannot be proven because historical in-memory queue snapshots were not persisted."
+  },
+  "hardeningDecision": {
+    "preserveHistoricalEvidence": true,
+    "replayHistoricalRun": false,
+    "rewriteHistoricalRun": false,
+    "minimumCodeSlice": [
+      "Add a central idempotency admission result before accepted/queued telemetry is emitted.",
+      "Suppress duplicate keys for pending, running, success, and failed executions; record duplicate-suppressed telemetry instead of accepted/queued.",
+      "Permit same-key requeue only for an explicit retrying execution with a matching persisted retry-recovery record.",
+      "Persist a distinct queue-attempt identity for every admitted retry so restart reconciliation can close it deterministically.",
+      "Emit accepted/queued only after queue admission succeeds.",
+      "Re-check active repair and cooldown state after acquiring the doc-repair lock to close the known concurrent threshold race."
+    ],
+    "requiredTests": [
+      "failed terminal key is suppressed without changing the original failure",
+      "success terminal key is suppressed",
+      "pending and running duplicate keys are suppressed",
+      "explicit retrying plus persisted recovery is admitted and linked",
+      "restart reconciliation cannot leave queue-only task ids without execution or suppression evidence",
+      "concurrent doc-change threshold handlers create only one repair admission"
+    ]
+  },
+  "limitations": [
+    "Session-transcript semantic search timed out; durable memory and local evidence were used instead.",
+    "coding-agent-skills is static audit-only and could not inspect protected runtime state; narrow read-only SQLite and source inspection were required.",
+    "No historical in-memory queue snapshot exists, so the precise disposal moment is inferred rather than directly observed."
+  ],
+  "approvalBoundaries": [
+    "source implementation beyond this decision artifact",
+    "test/build execution if it materially stresses the host",
+    "service restart",
+    "database rewrite or migration",
+    "task replay or cleanup",
+    "commit, push, release, or deployment"
+  ],
+  "nextSafeStep": "Implement the bounded admission-and-telemetry test slice in the canonical project without touching retained history; review the diff and tests before any runtime restart or deployment."
+}

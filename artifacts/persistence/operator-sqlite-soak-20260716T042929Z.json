@@ -1,0 +1,113 @@
+{
+  "operationId": "operator-sqlite-soak-20260716T042929Z",
+  "parentOperationId": "operator-sqlite-cutover-20260716T0052Z",
+  "sampledAt": "2026-07-16T04:29:29.000Z",
+  "status": "healthy",
+  "scope": "read-only post-cutover soak verification",
+  "service": {
+    "health": {
+      "httpStatus": 200,
+      "status": "healthy"
+    },
+    "persistenceHealth": {
+      "httpStatus": 200,
+      "status": "healthy",
+      "database": true,
+      "store": "sqlite",
+      "collections": 9,
+      "coordination": {
+        "status": "healthy",
+        "store": "redis",
+        "redisConfigured": true,
+        "redisReachable": true
+      }
+    },
+    "protectedBusinessOverview": {
+      "httpStatus": 401,
+      "result": "expected without credentials; no credential access attempted"
+    }
+  },
+  "sqlite": {
+    "path": "/home/oneclickwebsitedesignfactory/.openclaw/workspace/orchestrator/data/operator.sqlite",
+    "databaseBytes": 61083648,
+    "walBytes": 53176872,
+    "lastObservedWriteAt": "2026-07-16T04:25:03.323568523Z",
+    "integrityCheck": "ok",
+    "foreignKeyViolations": 0,
+    "journalMode": "wal",
+    "counts": {
+      "orchestratorStateSections": 28,
+      "orchestratorStateArrayItems": 47097,
+      "migrationSourceDocuments": 1,
+      "migrationCollectionEvidence": 9
+    }
+  },
+  "continuity": {
+    "businessRegistryCompatibilityEvidence": "artifacts/business-value/startup-recovery-compatibility-2026-07-15.md",
+    "businessRegistryCompatibilityActivatedAt": "2026-07-15T08:21:46.000Z",
+    "staleWorkboardRestartWarningCorrected": true,
+    "mongoRollbackSourceQueried": false,
+    "mongoRollbackSourceDisposition": "Retain unchanged; retirement remains explicitly approval-gated."
+  },
+  "followUp": {
+    "minimumRollbackWindowEndsAt": "2026-07-17T01:21:11.000Z",
+    "scheduledVerificationAt": "2026-07-17T01:30:00.000Z",
+    "cronJobId": "ceb7d4e7-e7f2-4cab-b67b-b07befc2df39",
+    "delivery": "Telegram announcement after isolated read-only verification",
+    "deleteAfterRun": false,
+    "leastPrivilegeTools": [
+      "read",
+      "apply_patch",
+      "exec",
+      "process",
+      "memory_search",
+      "memory_get",
+      "coding_migration_review"
+    ]
+  },
+  "changedState": {
+    "runtime": false,
+    "database": false,
+    "service": false,
+    "configuration": false,
+    "concurrency": false,
+    "projectFiles": true,
+    "scheduler": true
+  },
+  "toolInvocationLedger": [
+    {
+      "requestedTask": "Do the right next thing after the normalized SQLite cutover.",
+      "workflowLane": "coding and runtime persistence verification",
+      "tool": "coding.migrationReview, coding.apiContractAudit, coding.deploymentPreflight",
+      "source": "coding-agent-skills plugin",
+      "changedState": false,
+      "evidence": "OpenClaw tool results in the originating Telegram session",
+      "limitation": "Generic static scans found the relevant SQLite and API surfaces but cannot inspect live service or database health."
+    },
+    {
+      "requestedTask": "Verify the active post-cutover service and normalized database.",
+      "workflowLane": "runtime persistence verification",
+      "tool": "core exec: curl localhost health routes; sqlite3 -readonly PRAGMA and aggregate count queries; stat",
+      "source": "core OpenClaw tool and local project commands",
+      "changedState": false,
+      "evidence": "this artifact",
+      "fallbackReason": "Core read-only checks were required because coding-agent-skills is audit-only and does not probe live endpoints or databases."
+    },
+    {
+      "requestedTask": "Durably continue monitoring through the rollback window.",
+      "workflowLane": "scheduling and post-cutover verification",
+      "tool": "cron.add",
+      "source": "core OpenClaw scheduler",
+      "changedState": true,
+      "evidence": "cron job ceb7d4e7-e7f2-4cab-b67b-b07befc2df39",
+      "nextSafeStep": "Run the isolated read-only post-window verification at 02:30 BST on 17 July 2026."
+    }
+  ],
+  "approvalBoundaries": [
+    "Mongo retirement or deletion",
+    "service restart or lifecycle change",
+    "runtime configuration or concurrency change",
+    "migration, commit, push, release, or deployment"
+  ],
+  "nextSafeStep": "Allow the scheduled read-only post-window verification to run; retain Mongo and 1/1/1 concurrency unless later evidence and explicit approval support a change."
+}

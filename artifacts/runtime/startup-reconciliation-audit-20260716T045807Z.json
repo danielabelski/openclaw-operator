@@ -1,0 +1,154 @@
+{
+  "operationId": "startup-reconciliation-audit-20260716T045807Z",
+  "sampledAt": "2026-07-16T04:58:07.000Z",
+  "status": "complete-with-minor-telemetry-inconsistency",
+  "scope": "aggregate-only read-only audit of the 732 executions reconciled during the 15 July 08:10 BST startup",
+  "database": {
+    "store": "sqlite",
+    "queryMode": "readonly with PRAGMA query_only=ON",
+    "taskPayloadsRead": false,
+    "taskIdentifiersEmitted": false,
+    "retainedExecutionWindow": 5000,
+    "exactTargetBatchFullyPresent": true
+  },
+  "targetBatch": {
+    "reconciledAt": "2026-07-15T07:10:22.434Z",
+    "total": 732,
+    "currentStatus": {
+      "failed": 732
+    },
+    "reconciliationReason": {
+      "orphanedPendingWithoutApprovalOrTerminalResult": 730,
+      "interruptedWhileRunning": 2
+    },
+    "taskTypes": {
+      "doc-change": {
+        "total": 731,
+        "orphanedPending": 729,
+        "interruptedRunning": 2
+      },
+      "drift-repair": {
+        "total": 1,
+        "orphanedPending": 1,
+        "interruptedRunning": 0
+      }
+    },
+    "lifecycle": {
+      "startedAtPresent": 2,
+      "startedAtMissing": 730,
+      "completedAtPresent": 0,
+      "attemptRange": [1, 1],
+      "maxRetriesRange": [2, 2]
+    },
+    "identifierConsistency": {
+      "distinctTaskIds": 732,
+      "distinctIdempotencyKeys": 732,
+      "missingTaskIds": 0,
+      "missingIdempotencyKeys": 0,
+      "duplicateTaskIds": 0,
+      "duplicateIdempotencyKeys": 0
+    },
+    "crossLinkConsistency": {
+      "withAnyApproval": 0,
+      "withPendingApproval": 0,
+      "withAnyTerminalWorkflowEvent": 0,
+      "laterTerminalEventContradictions": 0,
+      "laterExecutionWithSameTaskId": 0
+    },
+    "workflowEvidence": {
+      "runsWithEvents": 732,
+      "eventCount": 1470,
+      "ingressAccepted": 734,
+      "queueQueued": 734,
+      "agentExecuting": 2,
+      "resultEvents": 0
+    }
+  },
+  "minorTelemetryInconsistency": {
+    "affectedRuns": 1,
+    "taskType": "drift-repair",
+    "detail": "The failed run received two later system queue ingress/queued event pairs at 11:05:44Z and 11:53:18Z without a later execution transition or terminal result.",
+    "runtimeEffectObserved": false,
+    "repairLedgerLinkPresent": false,
+    "classification": "preserved queue telemetry inconsistency; not evidence that the task replayed or completed"
+  },
+  "subsequentRuntimeEvidence": {
+    "docChangeAfterTargetBatch": {
+      "success": 1147,
+      "failedAtLaterRestarts": 1051,
+      "currentPendingDocChanges": 0
+    },
+    "driftRepairAfterTargetBatch": {
+      "success": 6,
+      "failedAtLaterRestarts": 2
+    }
+  },
+  "broaderStartupReconciliationHistory": [
+    {
+      "reconciledAt": "2026-07-14T17:58:38.632Z",
+      "count": 443
+    },
+    {
+      "reconciledAt": "2026-07-15T04:23:04.455Z",
+      "count": 626
+    },
+    {
+      "reconciledAt": "2026-07-15T07:10:22.434Z",
+      "count": 732
+    },
+    {
+      "reconciledAt": "2026-07-15T16:02:42.354Z",
+      "count": 365
+    },
+    {
+      "reconciledAt": "2026-07-15T18:39:23.787Z",
+      "count": 761
+    },
+    {
+      "reconciledAt": "2026-07-15T21:14:31.967Z",
+      "count": 504
+    }
+  ],
+  "decision": {
+    "replay": "do not replay",
+    "cleanup": "do not clear or rewrite",
+    "reason": "The batch is internally consistent terminal history. Later successful doc-change and drift-repair work plus an empty pending-doc-change backlog remove the basis for replaying stale task identities."
+  },
+  "changedState": {
+    "runtime": false,
+    "database": false,
+    "service": false,
+    "configuration": false,
+    "concurrency": false,
+    "projectFiles": true
+  },
+  "toolInvocationLedger": [
+    {
+      "requestedTask": "Do the right next thing after the SQLite soak was durably scheduled.",
+      "workflowLane": "runtime task-execution integrity audit",
+      "tool": "coding.apiContractAudit and coding.migrationReview",
+      "source": "coding-agent-skills plugin",
+      "changedState": false,
+      "evidence": "OpenClaw tool results in the originating Telegram session",
+      "limitation": "The generic audit found the task-run and SQLite surfaces but cannot inspect live protected task state or database aggregates."
+    },
+    {
+      "requestedTask": "Audit the 732 startup-reconciled executions without replay or payload access.",
+      "workflowLane": "runtime task-execution integrity audit",
+      "tool": "core exec: sqlite3 -readonly with PRAGMA query_only and aggregate JSON-field queries; core source inspection with rg/sed",
+      "source": "core OpenClaw tool and local project commands",
+      "changedState": false,
+      "filesChanged": [],
+      "evidence": "this artifact and docs/operations/startup-reconciliation-audit-2026-07-16.md",
+      "fallbackReason": "Direct aggregate inspection was required because coding-agent-skills is static audit-only and protected API access was not bypassed with credentials."
+    }
+  ],
+  "approvalBoundaries": [
+    "replay or retry of historical executions",
+    "deletion, cleanup, or rewriting of execution/workflow evidence",
+    "runtime queue semantics change",
+    "service restart, migration, config or concurrency change",
+    "commit, push, release, or deployment"
+  ],
+  "nextSafeStep": "Preserve the batch. Keep the post-SQLite-window verification as the active integrity task; treat failed-idempotency-key re-enqueue telemetry hardening as a separate future code slice."
+}

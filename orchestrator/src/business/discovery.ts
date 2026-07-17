@@ -5,10 +5,14 @@ import { dirname, join, resolve } from "node:path";
 import type { OrchestratorConfig, OrchestratorState } from "../types.js";
 import { loadBusinessMission } from "./mission.js";
 import type {
-  BusinessKpiDefinition,
+  BusinessCoverageGap,
   BusinessKpiSnapshot,
+  BusinessOutcome,
+  BusinessPipelineRecord,
   BusinessProject,
   BusinessRegistry,
+  BusinessRegistryRisk,
+  BusinessStrategicInitiative,
   CandidateWorkItem,
   CommercialReadinessCriterion,
 } from "./types.js";
@@ -35,6 +39,33 @@ const COMMUNITY_DISCOVERY_SOURCES = [
   "SaaS communities",
 ] as const;
 
+const BUSINESS_OUTCOMES = new Set<BusinessOutcome>([
+  "qualified-leads",
+  "paying-clients",
+  "increased-revenue",
+  "recurring-revenue",
+  "faster-delivery",
+  "customer-satisfaction",
+  "search-visibility",
+  "community-value",
+  "commercial-readiness",
+  "product-quality",
+  "risk-reduction",
+  "manual-work-reduction",
+  "reusable-ip",
+  "operational-efficiency",
+]);
+
+const OUTCOME_ALIASES: Record<string, BusinessOutcome> = {
+  "revenue-growth": "increased-revenue",
+  revenue: "increased-revenue",
+  "client-value": "customer-satisfaction",
+  "client-success": "customer-satisfaction",
+  "financial-health": "operational-efficiency",
+  "market-credibility": "search-visibility",
+  "projects-nearing-commercial-readiness": "commercial-readiness",
+};
+
 function asString(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
@@ -44,6 +75,29 @@ function asString(value: unknown, fallback: string): string {
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function asBusinessOutcome(
+  value: unknown,
+  fallback: BusinessOutcome = "commercial-readiness",
+): BusinessOutcome {
+  if (typeof value !== "string") return fallback;
+  if (BUSINESS_OUTCOMES.has(value as BusinessOutcome)) return value as BusinessOutcome;
+  return OUTCOME_ALIASES[value] ?? fallback;
+}
+
+function asBusinessOutcomes(value: unknown): BusinessOutcome[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => asBusinessOutcome(item));
+}
+
+function asConfidence(value: unknown): "verified" | "estimated" | "unknown" {
+  if (value === "verified" || value === "estimated" || value === "unknown") return value;
+  if (value === "verified-goal") return "verified";
+  if (value === "coverage-gap-derived") return "estimated";
+  return "unknown";
 }
 
 function asReadinessCriteria(value: unknown): CommercialReadinessCriterion[] {
@@ -61,18 +115,109 @@ function asReadinessCriteria(value: unknown): CommercialReadinessCriterion[] {
     }));
 }
 
+function normalizeProbability(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.min(1, Math.max(0, value));
+}
+
+const PIPELINE_STAGES = new Set<BusinessPipelineRecord["stage"]>([
+  "discovered",
+  "audited",
+  "packet_ready",
+  "draft_ready",
+  "sent",
+  "waiting_reply",
+  "reply_needs_draft",
+  "hold",
+  "identified",
+  "qualified",
+  "brief-ready",
+  "draft-ready",
+  "approval-needed",
+  "approved",
+  "reply-received",
+  "won",
+  "lost",
+  "on-hold",
+]);
+
+function normalizePipelineRecord(
+  item: Record<string, unknown>,
+  businessId: string,
+): BusinessPipelineRecord {
+  const type =
+    item.type === "lead" ||
+    item.type === "opportunity" ||
+    item.type === "proposal" ||
+    item.type === "community" ||
+    item.type === "content"
+      ? item.type
+      : "opportunity";
+  const stage = PIPELINE_STAGES.has(item.stage as BusinessPipelineRecord["stage"])
+    ? item.stage as BusinessPipelineRecord["stage"]
+    : "discovered";
+  const approvalStatus =
+    item.approvalStatus === "not-required" ||
+    item.approvalStatus === "approved-and-executed" ||
+    item.approvalStatus === "needs-packet" ||
+    item.approvalStatus === "packet-ready" ||
+    item.approvalStatus === "awaiting-approval" ||
+    item.approvalStatus === "approved" ||
+    item.approvalStatus === "rejected"
+      ? item.approvalStatus
+      : "not-required";
+
+  return {
+    id: asString(item.id, "pipeline-record"),
+    type,
+    title: asString(item.title, "Pipeline record"),
+    businessId: asString(item.businessId, businessId),
+    relatedProjectId: typeof item.relatedProjectId === "string" ? item.relatedProjectId : null,
+    businessFunction: typeof item.businessFunction === "string" ? item.businessFunction : null,
+    source: asString(item.source, "business registry"),
+    stage,
+    expectedOutcome: asBusinessOutcome(item.expectedOutcome, "qualified-leads"),
+    kpiId: asString(item.kpiId, "qualified-leads"),
+    valueEstimate:
+      typeof item.valueEstimate === "number" && Number.isFinite(item.valueEstimate)
+        ? item.valueEstimate
+        : null,
+    probability: normalizeProbability(item.probability),
+    nextAction: asString(item.nextAction, "Prepare the next safe action."),
+    approvalStatus,
+    approvalAction: typeof item.approvalAction === "string" ? item.approvalAction : null,
+    followUpAt: typeof item.followUpAt === "string" ? item.followUpAt : null,
+    owner: typeof item.owner === "string" ? item.owner : null,
+    evidence: asStringArray(item.evidence),
+    draftSubject: typeof item.draftSubject === "string" ? item.draftSubject : null,
+    draftBody: typeof item.draftBody === "string" ? item.draftBody : null,
+    lastTouchAt: typeof item.lastTouchAt === "string" ? item.lastTouchAt : null,
+    notes: typeof item.notes === "string" ? item.notes : null,
+  };
+}
+
 function normalizeRegistry(raw: unknown, sourcePath: string): BusinessRegistry {
   const mission = loadBusinessMission();
   const input = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const projects = Array.isArray(input.projects) ? input.projects : [];
   const kpis = Array.isArray(input.kpis) ? input.kpis : [];
   const snapshots = Array.isArray(input.kpiSnapshots) ? input.kpiSnapshots : [];
+  const pipeline = Array.isArray(input.pipeline) ? input.pipeline : [];
+  const initiatives = Array.isArray(input.initiatives) ? input.initiatives : [];
+  const riskRegister = Array.isArray(input.riskRegister) ? input.riskRegister : [];
+  const coverageGaps = Array.isArray(input.coverageGaps) ? input.coverageGaps : [];
+  const businessId = asString(input.businessId, mission.businessId);
 
   return {
-    businessId: asString(input.businessId, mission.businessId),
+    businessId,
     businessName: asString(input.businessName, mission.businessName),
     mission: asString(input.mission, mission.mission),
+    vision: typeof input.vision === "string" ? input.vision : null,
+    northStar: typeof input.northStar === "string" ? input.northStar : null,
     registryVersion: asString(input.registryVersion, "1"),
+    schemaVersion: typeof input.schemaVersion === "string" ? input.schemaVersion : null,
+    sourceRegistryVersion:
+      typeof input.sourceRegistryVersion === "string" ? input.sourceRegistryVersion : null,
     updatedAt: asString(input.updatedAt, new Date(0).toISOString()),
     sourcePath,
     kpis: kpis
@@ -80,12 +225,9 @@ function normalizeRegistry(raw: unknown, sourcePath: string): BusinessRegistry {
       .map((item) => ({
         id: asString(item.id, "unknown-kpi"),
         label: asString(item.label, "Unknown KPI"),
-        outcome: (typeof item.outcome === "string" ? item.outcome : "commercial-readiness") as BusinessKpiDefinition["outcome"],
+        outcome: asBusinessOutcome(item.outcome),
         measurement: asString(item.measurement, "unknown"),
-        confidence:
-          item.confidence === "verified" || item.confidence === "estimated" || item.confidence === "unknown"
-            ? item.confidence
-            : "unknown",
+        confidence: asConfidence(item.confidence),
       })),
     kpiSnapshots: snapshots
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
@@ -96,10 +238,7 @@ function normalizeRegistry(raw: unknown, sourcePath: string): BusinessRegistry {
             ? item.value
             : null,
         capturedAt: asString(item.capturedAt, new Date(0).toISOString()),
-        confidence:
-          item.confidence === "verified" || item.confidence === "estimated" || item.confidence === "unknown"
-            ? item.confidence
-            : "unknown",
+        confidence: asConfidence(item.confidence),
         source: asString(item.source, sourcePath),
         notes: typeof item.notes === "string" ? item.notes : undefined,
       })) as BusinessKpiSnapshot[],
@@ -138,6 +277,73 @@ function normalizeRegistry(raw: unknown, sourcePath: string): BusinessRegistry {
         evidenceLocations: asStringArray(item.evidenceLocations),
         nextSafeAction: typeof item.nextSafeAction === "string" ? item.nextSafeAction : null,
       })),
+    pipeline: pipeline
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item) => normalizePipelineRecord(item, businessId)),
+    initiatives: initiatives
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item): BusinessStrategicInitiative => ({
+        id: asString(item.id, "initiative"),
+        title: asString(item.title, "Strategic initiative"),
+        type: asString(item.type, "strategic-initiative"),
+        status: asString(item.status, "unknown"),
+        businessFunction: typeof item.businessFunction === "string" ? item.businessFunction : null,
+        serviceLineId: typeof item.serviceLineId === "string" ? item.serviceLineId : null,
+        expectedOutcomes: asBusinessOutcomes(item.expectedOutcomes),
+        deliverables: asStringArray(item.deliverables),
+        priorityProjects: asStringArray(item.priorityProjects),
+        nextSafeAction: asString(item.nextSafeAction, "Prepare an internal evidence plan."),
+        approvalBoundaries: asStringArray(item.approvalBoundaries),
+        confidence: asConfidence(item.confidence),
+      })),
+    riskRegister: riskRegister
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item): BusinessRegistryRisk => ({
+        id: asString(item.id, "risk"),
+        title: asString(item.title, "Business risk"),
+        description: typeof item.description === "string" ? item.description : null,
+        severity: asString(item.severity, "unknown"),
+        status: asString(item.status, "open"),
+        mitigation: asString(item.mitigation, "Prepare a bounded mitigation plan."),
+        linkedProjects: asStringArray(item.linkedProjects),
+        confidence: asConfidence(item.confidence),
+      })),
+    coverageGaps: coverageGaps
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item): BusinessCoverageGap => ({
+        id: asString(item.id, "coverage-gap"),
+        area: asString(item.area, "Business evidence"),
+        coverageStatus: asString(item.coverageStatus, "unknown"),
+        missing: asStringArray(item.missing),
+        priority: asString(item.priority, "unknown"),
+        nextEvidenceNeeded: asString(item.nextEvidenceNeeded, "Authoritative evidence is required."),
+      })),
+    approvalPolicy:
+      input.approvalPolicy && typeof input.approvalPolicy === "object"
+        ? {
+            policy: asString(
+              (input.approvalPolicy as Record<string, unknown>).policy,
+              mission.approvalBoundarySummary,
+            ),
+            approvalAuthority: asString(
+              (input.approvalPolicy as Record<string, unknown>).approvalAuthority,
+              "operator",
+            ),
+            alwaysApprovalRequired: asStringArray(
+              (input.approvalPolicy as Record<string, unknown>).alwaysApprovalRequired,
+            ),
+            normallySafeWithoutAdditionalApproval: asStringArray(
+              (input.approvalPolicy as Record<string, unknown>).normallySafeWithoutAdditionalApproval,
+            ),
+            requiredApprovalRecord: asStringArray(
+              (input.approvalPolicy as Record<string, unknown>).requiredApprovalRecord,
+            ),
+            postActionRequirement: asString(
+              (input.approvalPolicy as Record<string, unknown>).postActionRequirement,
+              "Record the result and next safe action.",
+            ),
+          }
+        : null,
   };
 }
 
@@ -310,6 +516,225 @@ function communityPresenceCandidate(registry: BusinessRegistry): CandidateWorkIt
   };
 }
 
+function kpiForOutcome(outcome: BusinessOutcome): string {
+  switch (outcome) {
+    case "increased-revenue":
+      return "revenue";
+    case "customer-satisfaction":
+      return "client-satisfaction";
+    case "commercial-readiness":
+      return "projects-nearing-commercial-readiness";
+    default:
+      return outcome;
+  }
+}
+
+function strategicInitiativeCandidate(
+  registry: BusinessRegistry,
+  initiative: BusinessStrategicInitiative,
+): CandidateWorkItem {
+  const expectedOutcome = initiative.expectedOutcomes[0] ?? "commercial-readiness";
+  const evidence = [registry.sourcePath, ...initiative.priorityProjects.map((id) => `project:${id}`)];
+  return {
+    id: `strategic-initiative:${initiative.id}`,
+    kind: "operational-improvement",
+    title: initiative.title,
+    businessId: registry.businessId,
+    businessFunction: initiative.businessFunction ?? "strategy",
+    objective: initiative.nextSafeAction,
+    expectedOutcome,
+    kpiId: kpiForOutcome(expectedOutcome),
+    evidence,
+    taskType: "content-generate",
+    taskPayload: {
+      type: "operator_notice",
+      style: "strategic-initiative-brief",
+      length: "short",
+      source: {
+        name: initiative.title,
+        title: initiative.title,
+        description: initiative.nextSafeAction,
+        operatorNote:
+          "Prepare an internal evidence-backed execution brief only. Do not contact anyone, publish, deploy, install, access secrets, make legal claims, or make commercial commitments.",
+        deliverables: initiative.deliverables,
+        evidence,
+        metadata: {
+          topic: "business-strategic-initiative",
+          initiativeId: initiative.id,
+          status: initiative.status,
+          serviceLineId: initiative.serviceLineId,
+          expectedOutcomes: initiative.expectedOutcomes,
+          approvalBoundaries: initiative.approvalBoundaries,
+        },
+      },
+    },
+    approval: "safe-autonomous",
+    approvalReason:
+      "Only an internal execution brief is produced; every listed external or binding action remains gated.",
+    verification: {
+      method: "worker",
+      description:
+        "The content worker produces a claim-safe internal brief tied to registry evidence and explicit approval boundaries.",
+      expectedEvidence: ["content-generate run", "initiative brief", "approval boundary confirmation"],
+    },
+    dependencies: [],
+    acceptanceCriteria: [
+      ...initiative.deliverables.map((item) => `Brief covers ${item}.`),
+      "Unknown facts remain explicit and are not invented.",
+      "External and commercially binding actions remain approval-gated.",
+    ],
+    risk: "low: internal evidence-backed planning only",
+    effort: "low",
+    opportunity: {
+      type: "operations",
+      description: initiative.nextSafeAction,
+    },
+  };
+}
+
+function criticalCoverageGapCandidate(
+  registry: BusinessRegistry,
+  gap: BusinessCoverageGap,
+): CandidateWorkItem {
+  const evidence = [registry.sourcePath, `coverage-gap:${gap.id}`];
+  return {
+    id: `coverage-gap-plan:${gap.id}`,
+    kind: "operational-improvement",
+    title: `Prepare evidence plan for ${gap.area}`,
+    businessId: registry.businessId,
+    businessFunction: "business-intelligence",
+    objective: gap.nextEvidenceNeeded,
+    expectedOutcome: "operational-efficiency",
+    kpiId: "operational-efficiency",
+    evidence,
+    taskType: "content-generate",
+    taskPayload: {
+      type: "operator_notice",
+      style: "coverage-gap-evidence-plan",
+      length: "short",
+      source: {
+        name: gap.area,
+        title: `Evidence plan: ${gap.area}`,
+        description: gap.nextEvidenceNeeded,
+        operatorNote:
+          "Prepare a local evidence-collection plan only. Do not access credentials, financial systems, client data, production providers, or private records without separate approval.",
+        missingEvidence: gap.missing,
+        evidence,
+        metadata: {
+          topic: "business-coverage-gap",
+          gapId: gap.id,
+          priority: gap.priority,
+          coverageStatus: gap.coverageStatus,
+        },
+      },
+    },
+    approval: "safe-autonomous",
+    approvalReason:
+      "Planning is local and non-invasive; collecting private or credentialed evidence remains separately approval-gated.",
+    verification: {
+      method: "worker",
+      description:
+        "The content worker creates a bounded evidence plan that separates safe local sources from approval-gated sources.",
+      expectedEvidence: ["content-generate run", "coverage-gap evidence plan", "source boundary classification"],
+    },
+    dependencies: [],
+    acceptanceCriteria: [
+      "Every missing evidence item is classified by source and authority boundary.",
+      "The plan identifies the smallest safe next collection step.",
+      "No unknown KPI, financial, client, legal, analytics, or production value is fabricated.",
+    ],
+    risk: "low: internal evidence planning only",
+    effort: "low",
+    opportunity: {
+      type: "operations",
+      description: gap.nextEvidenceNeeded,
+    },
+  };
+}
+
+function approvalPacketCandidate(
+  registry: BusinessRegistry,
+  record: BusinessPipelineRecord,
+): CandidateWorkItem {
+  const evidence = [registry.sourcePath, ...record.evidence].filter(
+    (item, index, values) => item.length > 0 && values.indexOf(item) === index,
+  );
+  const packetTitle = `Prepare approval packet for ${record.title}`;
+  const approvalAction =
+    record.approvalAction ??
+    "Ask John to approve the next external action after reviewing the evidence.";
+
+  return {
+    id: `approval-packet:${record.id}`,
+    kind: "approval",
+    title: packetTitle,
+    businessId: registry.businessId,
+    projectId: record.relatedProjectId ?? null,
+    businessFunction: record.businessFunction ?? "sales",
+    objective: `Turn ${record.title} into a complete approval packet while preserving every external-action gate.`,
+    expectedOutcome: record.expectedOutcome,
+    kpiId: record.kpiId,
+    evidence,
+    taskType: "content-generate",
+    taskPayload: {
+      type: "operator_notice",
+      style: "approval-packet",
+      length: "short",
+      source: {
+        name: packetTitle,
+        title: packetTitle,
+        description: record.nextAction,
+        operatorNote:
+          `${approvalAction} This task prepares the packet only; it must not send, publish, submit, commit, deploy, spend, or make commitments.`,
+        draftSubject: record.draftSubject ?? null,
+        draftBody: record.draftBody ?? null,
+        evidence,
+        metadata: {
+          topic: "business-value-approval-packet",
+          pipelineId: record.id,
+          stage: record.stage,
+          approvalStatus: record.approvalStatus,
+          valueEstimate: record.valueEstimate,
+          probability: record.probability,
+          followUpAt: record.followUpAt,
+        },
+      },
+    },
+    approval: "safe-autonomous",
+    approvalReason:
+      "Internal packet preparation is safe; the described external action still needs John's explicit approval.",
+    verification: {
+      method: "worker",
+      description:
+        "The content worker prepares an evidence-grounded operator packet without taking the external action.",
+      expectedEvidence: [
+        "content-generate run",
+        "approval packet draft",
+        "full proposed draft body when available",
+        "approval boundary confirmation",
+      ],
+    },
+    dependencies: [],
+    acceptanceCriteria: [
+      "Packet states the requested approval clearly.",
+      "Packet cites current pipeline evidence and stage.",
+      "Packet includes the full proposed draft body when one exists.",
+      "Packet preserves send, publish, commit, deploy, spend, and commitment gates.",
+    ],
+    risk: "low: local packet preparation only; external action remains gated",
+    effort: "low",
+    opportunity: {
+      type:
+        record.type === "content"
+          ? "content"
+          : record.type === "community"
+            ? "marketing"
+            : "lead",
+      description: record.notes ?? `${record.stage}: ${record.nextAction}`,
+    },
+  };
+}
+
 async function discoverFounderRescueReadinessCandidate(
   registry: BusinessRegistry,
 ): Promise<CandidateWorkItem | null> {
@@ -393,6 +818,18 @@ export async function discoverBusinessCandidates(
     candidates.push(founderRescueCandidate);
   }
 
+  for (const initiative of registry.initiatives) {
+    if (!new Set(["complete", "completed", "closed"]).has(initiative.status)) {
+      candidates.push(strategicInitiativeCandidate(registry, initiative));
+    }
+  }
+
+  for (const gap of registry.coverageGaps) {
+    if (gap.priority === "critical" && gap.coverageStatus !== "complete") {
+      candidates.push(criticalCoverageGapCandidate(registry, gap));
+    }
+  }
+
   for (const project of registry.projects) {
     const missingCriteria = project.acceptanceCriteria.filter(
       (criterion) => criterion.status === "missing" || criterion.status === "unknown",
@@ -437,6 +874,20 @@ export async function discoverBusinessCandidates(
           description: project.knownRisks.join("; "),
         },
       });
+    }
+  }
+
+  for (const record of registry.pipeline) {
+    const needsPacket =
+      record.approvalStatus === "needs-packet" ||
+      record.stage === "packet_ready" ||
+      record.stage === "draft_ready" ||
+      record.stage === "reply_needs_draft" ||
+      record.stage === "brief-ready" ||
+      record.stage === "draft-ready" ||
+      record.stage === "approval-needed";
+    if (needsPacket) {
+      candidates.push(approvalPacketCandidate(registry, record));
     }
   }
 

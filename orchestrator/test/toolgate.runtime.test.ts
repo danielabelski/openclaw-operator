@@ -3080,6 +3080,105 @@ function buildPublicProofOverview() {
     expect(secondMessage).toContain('cooling down');
   });
 
+  it('serializes concurrent doc-repair admission for the same pending doc set', async () => {
+    const { resolveTaskHandler } = await import('../src/taskHandlers.ts');
+    const state = createDefaultState();
+    const queued: Array<{ type: string; payload: Record<string, unknown> }> = [];
+
+    for (let index = 0; index < 24; index += 1) {
+      state.pendingDocChanges.push(`nodes/concurrent-${index}.md`);
+    }
+
+    const affectedPaths = [
+      ...state.pendingDocChanges,
+      'nodes/concurrent-trigger.md',
+    ];
+    await clearDocRepairCooldown(affectedPaths);
+    await clearDocRepairLock(affectedPaths);
+
+    const makeTask = (id: string) => ({
+      id,
+      type: 'doc-change',
+      payload: { path: 'nodes/concurrent-trigger.md' },
+      createdAt: Date.now(),
+    });
+    const context = {
+      config: {} as any,
+      state,
+      saveState: async () => {},
+      enqueueTask: (type: string, payload: Record<string, unknown>) => {
+        queued.push({ type, payload });
+        return {
+          id: `auto-drift-repair-task-${queued.length}`,
+          type,
+          payload,
+          createdAt: Date.now(),
+        };
+      },
+      logger: console,
+    };
+
+    const first = makeTask('doc-change-concurrent-1');
+    const second = makeTask('doc-change-concurrent-2');
+    await Promise.all([
+      resolveTaskHandler(first)(first, context),
+      resolveTaskHandler(second)(second, context),
+    ]);
+
+    expect(queued).toHaveLength(1);
+    expect(state.repairRecords).toHaveLength(1);
+    expect(state.repairRecords[0]).toMatchObject({
+      repairTaskType: 'drift-repair',
+      status: 'queued',
+    });
+  });
+
+  it('does not create a queued repair record when central admission suppresses the repair', async () => {
+    const { resolveTaskHandler } = await import('../src/taskHandlers.ts');
+    const state = createDefaultState();
+
+    for (let index = 0; index < 24; index += 1) {
+      state.pendingDocChanges.push(`nodes/suppressed-${index}.md`);
+    }
+
+    const affectedPaths = [
+      ...state.pendingDocChanges,
+      'nodes/suppressed-trigger.md',
+    ];
+    await clearDocRepairCooldown(affectedPaths);
+    await clearDocRepairLock(affectedPaths);
+
+    const task = {
+      id: 'doc-change-suppressed-1',
+      type: 'doc-change',
+      payload: { path: 'nodes/suppressed-trigger.md' },
+      createdAt: Date.now(),
+    };
+    const message = await resolveTaskHandler(task)(task, {
+      config: {} as any,
+      state,
+      saveState: async () => {},
+      enqueueTask: (type, payload) => ({
+        id: 'suppressed-drift-repair-task-1',
+        type,
+        payload,
+        createdAt: Date.now(),
+        admission: {
+          admitted: false,
+          kind: 'duplicate-suppressed',
+          reason: 'duplicate-failed',
+          runId: 'doc-drift-repair-existing',
+          attemptId: 'suppressed-drift-repair-task-1',
+          existingStatus: 'failed',
+        },
+      }),
+      logger: console,
+    });
+
+    expect(state.repairRecords).toHaveLength(0);
+    expect(message).toContain('auto repair duplicate suppressed: duplicate-failed');
+  });
+
   it('agent-deploy copies the selected template into the deployment directory and records deployment state', async () => {
     const { resolveTaskHandler } = await import('../src/taskHandlers.ts');
     const fixtureRoot = await mkdtemp(join(tmpdir(), 'agent-deploy-handler-'));

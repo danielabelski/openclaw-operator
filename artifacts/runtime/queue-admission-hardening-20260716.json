@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0",
+  "recordedAt": "2026-07-16T16:38:37Z",
+  "status": "implemented-and-tested-not-activated",
+  "objective": "Prevent reused idempotency keys from producing accepted or queued telemetry without a real, durable execution attempt.",
+  "rootCauseEvidence": "artifacts/runtime/queue-telemetry-root-cause-20260716.json",
+  "implementation": {
+    "centralAdmission": true,
+    "duplicateStatusesSuppressed": [
+      "pending",
+      "running",
+      "success",
+      "failed"
+    ],
+    "persistedRetryRecoveryRequired": true,
+    "durableQueueAttemptIdentity": true,
+    "acceptedQueuedTelemetryAfterAdmissionOnly": true,
+    "restartReconciliationClosesInterruptedAttempts": true,
+    "documentRepairRecheckInsideCoordinationLock": true,
+    "operatorApiDuplicateResponse": {
+      "httpStatus": 200,
+      "status": "duplicate-suppressed"
+    },
+    "operatorRunDetailExposesQueueAttempts": true
+  },
+  "verification": {
+    "orchestratorTypecheck": "passed",
+    "focusedAdmissionQueueRepairTests": {
+      "passed": 20,
+      "failed": 0
+    },
+    "liveHttpAdmissionContract": "passed",
+    "orchestratorRegression": {
+      "passed": 366,
+      "failed": 10,
+      "failureClassification": "environment-only",
+      "failureDetail": "Legacy test/load.test.ts probes expected a separately running service at 127.0.0.1:3000; all 32 self-contained live integration tests passed."
+    },
+    "operatorConsoleTypecheck": "passed",
+    "operatorConsoleTests": {
+      "passed": 33,
+      "failed": 0
+    },
+    "openApiGeneration": "passed",
+    "documentationSync": "passed",
+    "diffCheck": "passed"
+  },
+  "historicalSafety": {
+    "startupReconciledFailureCount": 732,
+    "historyReplayed": false,
+    "historyRewritten": false,
+    "databaseChanged": false,
+    "migrationRun": false
+  },
+  "activationBoundary": {
+    "serviceRestarted": false,
+    "deployed": false,
+    "configurationChanged": false,
+    "committed": false,
+    "pushed": false,
+    "nextStep": "After the SQLite rollback window, review and explicitly approve a separate activation/deployment step if live rollout is desired."
+  }
+}

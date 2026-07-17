@@ -494,14 +494,46 @@ const components = {
       type: "object",
       required: ["status", "taskId", "type", "createdAt"],
       properties: {
-        status: { type: "string", enum: ["queued"] },
+        status: { type: "string", enum: ["queued", "duplicate-suppressed"] },
         taskId: { type: "string" },
+        runId: { type: "string" },
         type: { type: "string" },
+        existingStatus: {
+          type: "string",
+          enum: ["pending", "running", "success", "failed", "retrying"],
+          nullable: true,
+        },
+        reason: { type: "string" },
         createdAt: {
           description:
             "Queue task creation timestamp. Runtime currently returns the enqueue timestamp as a number-like value.",
           oneOf: [{ type: "number" }, { type: "string" }],
         },
+      },
+    },
+    TaskQueueAttempt: {
+      type: "object",
+      required: ["attemptId", "taskId", "attempt", "status", "admittedAt"],
+      properties: {
+        attemptId: { type: "string" },
+        taskId: { type: "string" },
+        attempt: { type: "integer", minimum: 1 },
+        status: {
+          type: "string",
+          enum: [
+            "admitted",
+            "running",
+            "awaiting-approval",
+            "coordination-blocked",
+            "success",
+            "failed",
+          ],
+        },
+        admittedAt: { type: "string", format: "date-time" },
+        startedAt: { type: "string", format: "date-time", nullable: true },
+        completedAt: { type: "string", format: "date-time", nullable: true },
+        sourceTaskId: { type: "string", nullable: true },
+        detail: { type: "string", nullable: true },
       },
     },
     CatalogTask: {
@@ -602,6 +634,10 @@ const components = {
         lastError: { type: "string", nullable: true },
         attempt: { type: "integer" },
         maxRetries: { type: "integer" },
+        queueAttempts: {
+          type: "array",
+          items: schemaRef("TaskQueueAttempt"),
+        },
         workflow: schemaRef("GenericObject"),
         approval: schemaRef("GenericObject"),
         events: {
@@ -1693,7 +1729,7 @@ export function buildOpenApiSpec(port: string | number = 3000) {
         tags: ["Operator", "Tasks"],
         summary: "Queue a task for processing",
         description:
-          "Protected task enqueue endpoint. Runtime injects `__actor`, `__role`, and `__requestId` into the queued payload before execution.",
+          "Protected task enqueue endpoint. Runtime injects `__actor`, `__role`, and `__requestId` before central admission. A reused idempotency key is reported as duplicate-suppressed and never emits accepted/queued telemetry.",
         operationId: "triggerTask",
         security: [{ bearerAuth: [] }],
         requestBody: {
@@ -1710,6 +1746,11 @@ export function buildOpenApiSpec(port: string | number = 3000) {
           "tasks.trigger.create",
         ),
         responses: {
+          "200": jsonResponse(
+            "Duplicate task suppressed before queue admission.",
+            "TaskTriggerResponse",
+            writeHeaders,
+          ),
           "202": jsonResponse(
             "Task accepted into the queue.",
             "TaskTriggerResponse",

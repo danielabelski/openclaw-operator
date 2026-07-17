@@ -1,0 +1,79 @@
+{
+  "operationId": "operator-sqlite-cutover-20260716T0052Z",
+  "goalThreadId": "019f6862-f677-7851-8d6f-289bc0269561",
+  "requestedAt": "2026-07-16T00:41:35.000Z",
+  "startedAt": "2026-07-16T00:52:05.000Z",
+  "completedAt": "2026-07-16T01:27:32.000Z",
+  "status": "complete",
+  "currentPhase": "complete",
+  "tracking": {
+    "openClawGoal": "complete",
+    "managedTaskFlow": "unavailable-without-plugin-controller",
+    "fallback": "OpenClaw goal plus this project-owned cutover record and memory-guard checkpoints"
+  },
+  "source": {
+    "coreState": "mongo:orchestrator-runtime-state",
+    "historicalStore": "mongo",
+    "collections": 9
+  },
+  "target": {
+    "kind": "sqlite",
+    "path": "/home/oneclickwebsitedesignfactory/.openclaw/workspace/orchestrator/data/operator.sqlite",
+    "schema": "normalized-v2",
+    "activation": "active",
+    "activatedAt": "2026-07-16T01:21:11.000Z",
+    "health": "healthy"
+  },
+  "phases": [
+    { "id": "baseline", "status": "complete" },
+    { "id": "implementation", "status": "complete" },
+    { "id": "snapshot-rehearsal", "status": "complete" },
+    { "id": "verification", "status": "complete" },
+    { "id": "activation", "status": "complete" },
+    { "id": "restart-recovery", "status": "complete" },
+    { "id": "rollback-window", "status": "complete" },
+    { "id": "concurrency-review", "status": "complete" },
+    { "id": "closeout", "status": "complete" }
+  ],
+  "changedState": {
+    "runtime": true,
+    "database": true,
+    "service": true,
+    "configuration": true,
+    "projectFiles": true,
+    "rehearsalDatabase": true
+  },
+  "evidence": {
+    "normalizedRehearsal": "artifacts/persistence/operator-rehearsal-normalized-20260716.json",
+    "finalMigration": "artifacts/persistence/operator-cutover-20260716.json",
+    "operationReport": "docs/operations/operator-sqlite-cutover-2026-07-16.md",
+    "migrationRunId": "mongo-sqlite-cutover-c2a581c4-a441-44aa-b2ef-23606132109d",
+    "cutoverCoreStateSha256": "51b6e43e8de5cecaeeb4b4ab87840a28607e713f54edda3a18bdfe1ae6dec1d6",
+    "postStartCoreStateSha256": "7eb5dd19a254075c7fe2160394f2aed96d6420e3325d4620a71175b6a175c952",
+    "stateSections": 28,
+    "stateArrayItems": 47097,
+    "integrityCheck": "ok",
+    "foreignKeyViolations": 0,
+    "persistenceHealth": "store=sqlite database=true collections=9 redis=healthy",
+    "typecheck": "passed",
+    "persistenceTests": "12/12 passed",
+    "documentationChecks": "passed",
+    "fullSuite": "environment-coupled live groups failed with connection errors/401; persistence and non-live groups passed"
+  },
+  "rollback": {
+    "source": "mongo:orchestrator-runtime-state",
+    "sourceRetained": true,
+    "sourceChecksumVerifiedAfterActivation": true,
+    "minimumWindowEndsAt": "2026-07-17T01:21:11.000Z",
+    "retireOnlyWithExplicitApproval": true
+  },
+  "concurrency": {
+    "main": 1,
+    "subagent": 1,
+    "cron": 1,
+    "runningTasks": 0,
+    "managedTaskFlows": 0,
+    "decision": "retain limits; no evidence supports an increase after recent memory pressure"
+  },
+  "nextSafeStep": "Monitor SQLite health through the rollback window; retain Mongo and 1/1/1 concurrency until new evidence and explicit approval support a change."
+}

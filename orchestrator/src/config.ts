@@ -50,6 +50,8 @@ const CONFIG_PATH_KEYS: Array<keyof OrchestratorConfig> = [
   "knowledgePackDir",
   "runtimeEngagementOsPath",
   "digestDir",
+  "businessRegistryPath",
+  "businessEvidenceDir",
   "businessOperationsStateFile",
 ];
 
@@ -118,6 +120,12 @@ export async function loadConfig(
   }
   if (process.env.ORCHESTRATOR_BUSINESS_VALUE_SCHEDULE?.trim()) {
     parsed.businessValueSchedule = process.env.ORCHESTRATOR_BUSINESS_VALUE_SCHEDULE.trim();
+  }
+  if (process.env.ORCHESTRATOR_BUSINESS_DAY_PULSE_SCHEDULE?.trim()) {
+    parsed.businessDayPulseSchedule = process.env.ORCHESTRATOR_BUSINESS_DAY_PULSE_SCHEDULE.trim();
+  }
+  if (process.env.ORCHESTRATOR_BUSINESS_DAY_PULSE_TIME_ZONE?.trim()) {
+    parsed.businessDayPulseTimeZone = process.env.ORCHESTRATOR_BUSINESS_DAY_PULSE_TIME_ZONE.trim();
   }
 
   for (const key of CONFIG_PATH_KEYS) {

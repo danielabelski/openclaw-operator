@@ -24,6 +24,17 @@ export interface RunRowVM {
   history: Array<Record<string, unknown>>;
   attempt: number;
   maxRetries: number;
+  queueAttempts: Array<{
+    attemptId: string;
+    taskId: string;
+    attempt: number;
+    status: string;
+    admittedAt: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    sourceTaskId: string | null;
+    detail: string | null;
+  }>;
   workflow: {
     stage: string | null;
     graphStatus: string | null;
@@ -83,6 +94,20 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function buildQueueAttempts(value: unknown): RunRowVM["queueAttempts"] {
+  return toArray<Record<string, unknown>>(value).map((attempt) => ({
+    attemptId: str(attempt.attemptId, "unknown"),
+    taskId: str(attempt.taskId, "unknown"),
+    attempt: num(attempt.attempt),
+    status: str(attempt.status, "unknown"),
+    admittedAt: toNullableString(attempt.admittedAt),
+    startedAt: toNullableString(attempt.startedAt),
+    completedAt: toNullableString(attempt.completedAt),
+    sourceTaskId: toNullableString(attempt.sourceTaskId),
+    detail: toNullableString(attempt.detail),
+  }));
 }
 
 export function buildRunOperatorPreview(result: unknown): RunOperatorPreviewVM | null {
@@ -166,6 +191,7 @@ export function buildRunRows(data: any): { runs: RunRowVM[]; total: number; hasM
     history: toArray<Record<string, unknown>>(r?.history),
     attempt: num(r?.attempt),
     maxRetries: num(r?.maxRetries),
+    queueAttempts: buildQueueAttempts(r?.queueAttempts),
     workflow: {
       stage: toNullableString(r?.workflow?.stage),
       graphStatus: toNullableString(r?.workflow?.graphStatus),
@@ -258,6 +284,7 @@ export function buildRunDetail(data: any): RunRowVM | null {
     history: toArray<Record<string, unknown>>(r?.history),
     attempt: num(r?.attempt),
     maxRetries: num(r?.maxRetries),
+    queueAttempts: buildQueueAttempts(r?.queueAttempts),
     workflow: {
       stage: toNullableString(r?.workflow?.stage),
       graphStatus: toNullableString(r?.workflow?.graphStatus),

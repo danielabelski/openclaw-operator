@@ -384,10 +384,13 @@ export interface TaskCatalogResponse {
 
 // ── Task Trigger ──
 export interface TaskTriggerResponse {
-  status: "queued";
+  status: "queued" | "duplicate-suppressed";
   taskId: string;
+  runId?: string;
   type: string;
-  createdAt: string;
+  createdAt: string | number;
+  existingStatus?: "pending" | "running" | "success" | "failed" | "retrying" | null;
+  reason?: string;
 }
 
 // ── Task Runs ──
@@ -445,6 +448,17 @@ export interface TaskRun {
   lastError?: string;
   attempt?: number;
   maxRetries?: number;
+  queueAttempts?: Array<{
+    attemptId: string;
+    taskId: string;
+    attempt: number;
+    status: "admitted" | "running" | "awaiting-approval" | "coordination-blocked" | "success" | "failed";
+    admittedAt: string;
+    startedAt?: string | null;
+    completedAt?: string | null;
+    sourceTaskId?: string | null;
+    detail?: string | null;
+  }>;
   workflow?: {
     stage?: string;
     graphStatus?: string | null;

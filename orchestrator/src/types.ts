@@ -42,6 +42,8 @@ export interface OrchestratorConfig {
   businessRegistryPath?: string;
   businessEvidenceDir?: string;
   businessValueSchedule?: string;
+  businessDayPulseSchedule?: string;
+  businessDayPulseTimeZone?: string;
   businessValueCadenceMinutes?: number;
   businessOperationsStateFile?: string;
 }
@@ -52,6 +54,31 @@ export interface DocRecord {
   lastModified: number;
 }
 
+export type TaskExecutionStatus =
+  | "pending"
+  | "running"
+  | "success"
+  | "failed"
+  | "retrying";
+
+export type TaskQueueAttemptStatus =
+  | "admitted"
+  | "running"
+  | "awaiting-approval"
+  | "coordination-blocked"
+  | "success"
+  | "failed";
+
+export interface TaskAdmissionResult {
+  admitted: boolean;
+  kind: "new" | "retry" | "duplicate-suppressed";
+  reason: string;
+  runId: string;
+  attemptId: string;
+  existingStatus?: TaskExecutionStatus;
+  sourceTaskId?: string | null;
+}
+
 export interface Task {
   id: string;
   type: string;
@@ -60,6 +87,7 @@ export interface Task {
   idempotencyKey?: string;
   attempt?: number;
   maxRetries?: number;
+  admission?: TaskAdmissionResult;
 }
 
 export interface TaskRecord {
@@ -348,7 +376,7 @@ export interface TaskExecutionRecord {
   taskId: string;
   idempotencyKey: string;
   type: string;
-  status: "pending" | "running" | "success" | "failed" | "retrying";
+  status: TaskExecutionStatus;
   attempt: number;
   maxRetries: number;
   startedAt?: string | null;
@@ -362,6 +390,19 @@ export interface TaskExecutionRecord {
   };
   businessTraceability?: TaskTraceabilityMetadata | null;
   accounting?: TaskExecutionAccounting | null;
+  queueAttempts?: TaskQueueAttemptRecord[];
+}
+
+export interface TaskQueueAttemptRecord {
+  attemptId: string;
+  taskId: string;
+  attempt: number;
+  status: TaskQueueAttemptStatus;
+  admittedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  sourceTaskId?: string | null;
+  detail?: string | null;
 }
 
 export type WorkflowEventStage =

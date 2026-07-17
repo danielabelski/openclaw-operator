@@ -1,12 +1,13 @@
 import PQueue from "p-queue";
 import { randomUUID } from "node:crypto";
-import { Task } from "./types.js";
+import type { Task, TaskAdmissionResult } from "./types.js";
 import { validateTaskType, ALLOWED_TASK_TYPES } from "./taskHandlers.js";
 
 export class TaskQueue {
   private queue = new PQueue({ concurrency: 2 });
   private listeners: Array<(task: Task) => void> = [];
   private enqueueListeners: Array<(task: Task) => void> = [];
+  private admissionHandler: ((task: Task) => TaskAdmissionResult) | null = null;
   private queuedTasks = new Map<string, Task>();
   private processingTasks = new Map<string, Task>();
 
@@ -43,6 +44,22 @@ export class TaskQueue {
       maxRetries: Number.isFinite(retryValue) && retryValue >= 0 ? Math.floor(retryValue) : 2,
     };
 
+    const admission = this.admissionHandler
+      ? this.admissionHandler(task)
+      : {
+          admitted: true,
+          kind: "new" as const,
+          reason: "no-admission-policy",
+          runId: task.idempotencyKey ?? task.id,
+          attemptId: task.id,
+          sourceTaskId: null,
+        };
+    task.admission = admission;
+
+    if (!admission.admitted) {
+      return task;
+    }
+
     for (const listener of this.enqueueListeners) {
       listener(task);
     }
@@ -72,6 +89,13 @@ export class TaskQueue {
 
   onProcess(listener: (task: Task) => Promise<void> | void) {
     this.listeners.push(listener);
+  }
+
+  setAdmissionHandler(handler: (task: Task) => TaskAdmissionResult) {
+    if (this.admissionHandler) {
+      throw new Error("Task admission handler is already configured");
+    }
+    this.admissionHandler = handler;
   }
 
   onEnqueue(listener: (task: Task) => void) {

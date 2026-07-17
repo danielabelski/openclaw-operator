@@ -13,7 +13,7 @@ Use it for one thing:
 - what is next
 - what is intentionally parked
 
-Last updated: `2026-07-14`
+Last updated: `2026-07-17`
 
 ## Current Headline
 
@@ -33,6 +33,37 @@ The public repo direction is now explicit.
   direction
 
 ## Recently Finished
+
+0. Queue admission and telemetry integrity hardening is implemented and active
+   on the retained host.
+   - one central admission decision now precedes accepted/queued telemetry
+   - terminal and in-flight idempotency-key reuse is reported as
+     `duplicate-suppressed` without creating phantom execution attempts
+   - deliberate same-key retry requires matching persisted recovery evidence
+     and receives a distinct durable queue-attempt identity
+   - document-repair admission rechecks active/cooldown state inside its shared
+     lock, and concurrent proof admits only one repair
+   - operator API and run detail now expose admission/attempt truth
+   - the condition-gated activation completed at `2026-07-17 02:45:49 BST`
+     after the SQLite rollback-window checks passed
+   - exactly one approved `orchestrator.service` restart activated the frozen
+     candidate; post-activation service, SQLite, Redis, OpenAPI, operator UI,
+     task-audit, and loopback-binding checks passed
+   - the preserved historical failure evidence was not replayed, retried,
+     cleared, or rewritten
+
+0. The retained host orchestrator completed its normalized SQLite v2 cutover.
+   - the frozen Mongo source was migrated with collection counts and checksums verified twice
+   - all 47,097 item-normalized state records, 28 top-level sections, and the lossless Mongo source archive were retained
+   - the service recovered once on SQLite; public persistence health reports `store: sqlite` with Redis coordination healthy
+   - Mongo remains unchanged as rollback evidence for at least 24 hours and until explicit retirement approval
+   - concurrency remains 1/1/1 because the active queue is empty and recent memory pressure does not justify an increase
+
+0. The expanded Tail Wagging business registry is now the canonical control-plane source.
+   - schema v2.0.1 preserves the full 12-case live pipeline while adding 29 KPIs, 7 strategic initiatives, 12 business risks, and 15 explicit coverage gaps
+   - the business planner now normalizes expanded outcomes and can turn strategic initiatives plus critical coverage gaps into bounded internal planning candidates
+   - canonical runtime path remains `business/registry.json`, so the running scheduler can load the expansion on its next cycle without a service restart
+   - internal briefs and evidence plans are safe-autonomous; outreach, publishing, deployments, private data, secrets, pricing commitments, and other external or binding actions remain approval-gated
 
 0. The governed business-value loop now covers a broader daily opportunity set.
    - discovery includes founder and vibe-coded product rescue readiness plus community-value and social-growth opportunities
@@ -190,6 +221,49 @@ The public repo direction is now explicit.
      surface
 
 ## Current Recommended Next Move
+
+The immediate business-registry integrity gate is closed:
+
+- the pre-expansion fingerprint compatibility fix was activated and verified
+  by the approved 09:21 BST restart on 15 July; no further restart is needed
+- the later normalized SQLite cutover recovery remained healthy with the fix
+  loaded
+- the separate read-only audit of the 732 executions reconciled during the
+  08:10 BST startup is complete: 731 were stale `doc-change` work and one was
+  `drift-repair`; all remain internally consistent terminal evidence
+- do not replay, retry, clear, or rewrite that batch; later successful
+  doc-change and drift-repair runs plus an empty current doc-change backlog
+  remove the basis for replay
+- preserve the historical queue-telemetry inconsistency as evidence: the
+  failed drift-repair run received two later queue-only event pairs but never
+  executed or reached a terminal result; the source hardening is now
+  implemented and tested locally without replaying or rewriting that history
+
+The SQLite rollback-window and queue-admission activation gates are now closed:
+
+- the post-window verification completed on 17 July with SQLite integrity
+  `ok`, zero foreign-key violations, WAL active, and all 28 sections plus
+  47,097 normalized array items retained
+- the activation job completed and removed its one-shot schedule; repeated
+  post-activation checks found the service healthy with SQLite and Redis
+  healthy, loopback-only exposure, and no new task-audit or warning findings
+- Mongo remains unchanged as rollback evidence and retirement is still a
+  separate explicit approval boundary
+- retain 1/1/1 concurrency until real queue and memory evidence supports a
+  separate reviewed change
+- an authenticated live duplicate-trigger proof would create task state and
+  remains separately approval-gated; the automated contract and integration
+  proofs already cover duplicate suppression without requiring that live write
+
+Reconcile the activated candidate as one reviewable change set:
+
+- keep the SQLite cutover, startup-reconciliation audit, queue-admission
+  hardening, API/operator truth, tests, and activation evidence aligned
+- preserve generated OpenAPI and operator assets only when their source
+  generators and focused contract tests agree
+- prepare an evidence-backed commit packet after the full local validation
+  gate; committing, pushing, releasing, or deploying remains a separate
+  approval boundary
 
 Stabilize the OpenClaw-front-door cutover in normal use:
 

@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { createSharedCoordinationStore } from "../../agents/shared/runtime-coordination.js";
 import * as runtimeCoordination from "../src/coordination/runtime-coordination.js";
@@ -96,6 +99,49 @@ describe("shared coordination store", () => {
 });
 
 describe("persistence health snapshot caching", () => {
+  it("uses normalized SQLite for both core and historical persistence even when Mongo is configured", async () => {
+    const root = await mkdtemp(join(tmpdir(), "openclaw-persistence-integration-sqlite-"));
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "mongodb://must-not-be-used.invalid/orchestrator";
+    try {
+      PersistenceIntegration.setCoreStateStoreTarget(`sqlite:${join(root, "operator.sqlite")}`);
+      vi.spyOn(runtimeCoordination, "getRuntimeCoordinationHealth").mockResolvedValue({
+        status: "healthy",
+        store: "redis",
+        redisConfigured: true,
+        redisReachable: true,
+        detail: "Redis-backed coordination is active.",
+        checkedAt: new Date().toISOString(),
+        disabledUntil: null,
+      });
+
+      await PersistenceIntegration.initialize();
+      const health = await PersistenceIntegration.healthCheck();
+      const summary = await PersistenceIntegration.getOperatorSummary({
+        taskExecutions: [],
+        taskHistory: [],
+        taskRetryRecoveries: [],
+      });
+
+      expect(health).toMatchObject({
+        status: "healthy",
+        database: true,
+        store: "sqlite",
+        collections: 9,
+      });
+      expect(summary).toMatchObject({
+        status: "healthy",
+        persistenceAvailable: true,
+        storage: { driver: "sqlite" },
+      });
+      await PersistenceIntegration.close();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+  });
+
   it("treats file-backed local mode as healthy when mongo is intentionally unset", async () => {
     const originalDatabaseUrl = process.env.DATABASE_URL;
     delete process.env.DATABASE_URL;

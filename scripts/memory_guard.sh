@@ -13,7 +13,7 @@ Environment overrides:
   MEMORY_GUARD_WORKSPACE_ROOT   Override detected workspace root for testing
   MEMORY_GUARD_TIMEZONE         Default: Europe/London
   MEMORY_GUARD_STATE_DIR        Default: ${TMPDIR:-/tmp}/openclaw-memory-guard
-  OPENCLAW_MEMORY_SESSION_KEY   Default: main
+  OPENCLAW_MEMORY_SESSION_KEY   Default: main; state is namespaced by workspace
 EOF
 }
 
@@ -23,7 +23,10 @@ timezone="${MEMORY_GUARD_TIMEZONE:-Europe/London}"
 state_dir="${MEMORY_GUARD_STATE_DIR:-${TMPDIR:-/tmp}/openclaw-memory-guard}"
 session_key="${OPENCLAW_MEMORY_SESSION_KEY:-main}"
 safe_session_key="$(printf '%s' "$session_key" | tr -cs 'A-Za-z0-9._-' '_')"
-state_file="$state_dir/${safe_session_key}.env"
+workspace_state_hash="$(printf '%s' "$workspace_root" | sha256sum)"
+workspace_state_hash="${workspace_state_hash%% *}"
+workspace_state_hash="${workspace_state_hash:0:12}"
+state_file="$state_dir/${safe_session_key}-${workspace_state_hash}.env"
 memory_dir="$workspace_root/memory"
 today="$(TZ="$timezone" date +%F)"
 memory_file="$memory_dir/$today.md"
@@ -82,15 +85,18 @@ load_state() {
 }
 
 save_state() {
+  local temp_state_file
   mkdir -p "$state_dir"
-  cat >"$state_file" <<EOF
-SESSION_ID='${SESSION_ID}'
-STARTED_AT='${STARTED_AT}'
-START_MTIME='${START_MTIME}'
-CHECKPOINT_COUNT='${CHECKPOINT_COUNT}'
-CLOSEOUT_WRITTEN='${CLOSEOUT_WRITTEN}'
-SESSION_MEMORY_FILE='${SESSION_MEMORY_FILE}'
-EOF
+  temp_state_file="${state_file}.$$.$RANDOM.tmp"
+  {
+    printf 'SESSION_ID=%q\n' "$SESSION_ID"
+    printf 'STARTED_AT=%q\n' "$STARTED_AT"
+    printf 'START_MTIME=%q\n' "$START_MTIME"
+    printf 'CHECKPOINT_COUNT=%q\n' "$CHECKPOINT_COUNT"
+    printf 'CLOSEOUT_WRITTEN=%q\n' "$CLOSEOUT_WRITTEN"
+    printf 'SESSION_MEMORY_FILE=%q\n' "$SESSION_MEMORY_FILE"
+  } >"$temp_state_file"
+  mv "$temp_state_file" "$state_file"
 }
 
 command="${1:-}"

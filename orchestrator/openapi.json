@@ -2,11 +2,75 @@
   "openapi": "3.0.3",
   "info": {
     "title": "OpenClaw Orchestrator API",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "Release-quality route contract for the current orchestrator-owned control plane.\n\nRuntime cutover truth:\n- `/operator` and `/operator/*` are served by orchestrator from the built `operator-s-console` bundle.\n- Public proof remains on orchestrator-owned public routes, not on the retired `openclawdbot` lane.\n\nSecurity and browser contract:\n- Protected routes require `Authorization: Bearer <token>`.\n- Browser CORS is backend-owned and deny-by-default via explicit origin allowlists.\n- Protected routes apply a pre-auth abuse guard (`300 / 60s / IP`) before role-aware limiter buckets.\n\nRate-limit buckets:\n- viewer-read: `120 / 60s` per actor/key label\n- operator-write: `30 / 60s` per actor/key label\n- admin-export: `10 / 60s` per actor/key label\n\nThis document describes the orchestrator JSON route contract; it does not model the `/operator` SPA shell itself as an API surface."
   },
   "servers": [
     {
-      "url": "http://localhost:3000"
+      "url": "http://localhost:3000",
+      "description": "Current orchestrator process"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public",
+      "description": "Unauthenticated public read surfaces."
+    },
+    {
+      "name": "Operator",
+      "description": "Bearer-protected operator/control-plane surfaces."
+    },
+    {
+      "name": "Tasks",
+      "description": "Task catalog, queueing, and run-ledger surfaces."
+    },
+    {
+      "name": "Incidents",
+      "description": "Runtime incident ledger and remediation surfaces."
+    },
+    {
+      "name": "Health",
+      "description": "Health and dashboard aggregation surfaces."
+    },
+    {
+      "name": "Agents",
+      "description": "Per-agent readiness, capability, and topology surfaces."
+    },
+    {
+      "name": "Governance",
+      "description": "Governed skill registry, policy, telemetry, and audit surfaces."
+    },
+    {
+      "name": "Knowledge",
+      "description": "Knowledge summary, query, and export surfaces."
+    },
+    {
+      "name": "Persistence",
+      "description": "Persistence health, summary, historical, and export surfaces."
+    },
+    {
+      "name": "Proof",
+      "description": "Curated public proof surfaces served by orchestrator."
+    },
+    {
+      "name": "Auth",
+      "description": "Protected auth and RBAC context surfaces."
+    },
+    {
+      "name": "Approvals",
+      "description": "Approval inbox and decision surfaces."
+    },
+    {
+      "name": "Memory",
+      "description": "Protected memory recall surfaces."
+    },
+    {
+      "name": "Contract",
+      "description": "Machine-readable contract endpoints."
+    },
+    {
+      "name": "Webhook",
+      "description": "Signed ingest routes."
     }
   ],
   "components": {
@@ -14,207 +78,6092 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "API Key"
+        "bearerFormat": "API key",
+        "description": "Protected routes require `Authorization: Bearer <token>`. Auth context is established before role enforcement."
+      },
+      "webhookSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Webhook-Signature",
+        "description": "HMAC-SHA256 signature over the canonicalized JSON request body. Prefix `sha256=` is accepted but optional."
+      }
+    },
+    "headers": {
+      "X-Request-Id": {
+        "description": "Generated request correlation id for protected routes.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "X-API-Key-Expires": {
+        "description": "Expiry timestamp for the authenticated API key on protected routes.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "Retry-After": {
+        "description": "Minimum number of seconds a client should wait before retrying.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "ratelimit-limit": {
+        "description": "Current route bucket request limit for the active window.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "ratelimit-remaining": {
+        "description": "Remaining requests in the active limiter window.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "ratelimit-reset": {
+        "description": "Seconds until the current limiter window resets.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "X-OpenClaw-Cache": {
+        "description": "Response cache result for cached read surfaces.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "hit",
+            "miss"
+          ]
+        }
+      },
+      "X-OpenClaw-Cache-Store": {
+        "description": "Backing store used for the cached response.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "redis",
+            "memory"
+          ]
+        }
+      },
+      "Cache-Control": {
+        "description": "Server-selected cache-control policy for the response.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Vary": {
+        "description": "Protected cached reads vary on Authorization and, where relevant, Origin or preflight headers.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "parameters": {
+      "RunId": {
+        "name": "runId",
+        "in": "path",
+        "required": true,
+        "description": "Task run identity. Runtime uses an explicit idempotency key when provided; otherwise the task id becomes the run id.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        }
+      },
+      "IncidentId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Stable runtime incident id.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        }
+      },
+      "ApprovalId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Approval task id from the approval ledger.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Page size.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        }
+      },
+      "Offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Zero-based page offset.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000,
+          "default": 0
+        }
+      },
+      "TaskRunType": {
+        "name": "type",
+        "in": "query",
+        "required": false,
+        "description": "Optional task type filter for task runs.",
+        "schema": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "TaskRunStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "description": "Optional execution status filter for task runs.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "running",
+            "success",
+            "failed",
+            "retrying"
+          ]
+        }
+      },
+      "IncludeInternal": {
+        "name": "includeInternal",
+        "in": "query",
+        "required": false,
+        "description": "When true, internal maintenance runs such as heartbeat and startup remain in the ledger response.",
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "IncidentStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "description": "Optional incident status filter.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "active",
+            "watching",
+            "resolved"
+          ]
+        }
+      },
+      "IncidentClassification": {
+        "name": "classification",
+        "in": "query",
+        "required": false,
+        "description": "Optional incident classification filter.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "runtime-mode",
+            "persistence",
+            "proof-delivery",
+            "repair",
+            "retry-recovery",
+            "knowledge",
+            "service-runtime",
+            "approval-backlog"
+          ]
+        }
+      },
+      "IncludeResolved": {
+        "name": "includeResolved",
+        "in": "query",
+        "required": false,
+        "description": "When true, resolved incidents remain in the list response.",
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "SkillAuditLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Audit page size.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        }
+      },
+      "DeniedOnly": {
+        "name": "deniedOnly",
+        "in": "query",
+        "required": false,
+        "description": "When true, only denied skill/tool invocations are returned.",
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "MemoryAgentId": {
+        "name": "agentId",
+        "in": "query",
+        "required": false,
+        "description": "Optional single-agent filter for memory recall.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "MemoryIncludeErrors": {
+        "name": "includeErrors",
+        "in": "query",
+        "required": false,
+        "description": "When false, error timeline entries are omitted.",
+        "schema": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "MemoryIncludeSensitive": {
+        "name": "includeSensitive",
+        "in": "query",
+        "required": false,
+        "description": "When true, default memory redaction is relaxed for the response.",
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "PersistenceDays": {
+        "name": "days",
+        "in": "query",
+        "required": false,
+        "description": "Historical persistence lookback window in days.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 30
+        }
+      },
+      "KnowledgeExportFormat": {
+        "name": "format",
+        "in": "query",
+        "required": false,
+        "description": "Knowledge export format.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "markdown",
+            "json"
+          ],
+          "default": "markdown"
+        }
+      },
+      "MilestoneLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Latest milestone page size.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      }
+    },
+    "schemas": {
+      "GenericObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "StringArray": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "ValidationIssue": {
+        "type": "object",
+        "required": [
+          "path",
+          "message"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "details"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "Validation failed"
+            ]
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            }
+          }
+        }
+      },
+      "RateLimitExceededResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "retryAfterSeconds"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "retryAfterSeconds": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "PageMetadata": {
+        "type": "object",
+        "required": [
+          "returned",
+          "offset",
+          "limit",
+          "hasMore"
+        ],
+        "properties": {
+          "returned": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "knowledge",
+          "persistence"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metrics": {
+            "type": "string",
+            "format": "uri"
+          },
+          "knowledge": {
+            "type": "string",
+            "format": "uri"
+          },
+          "persistence": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "OpenApiDocumentSummary": {
+        "type": "object",
+        "required": [
+          "openapi",
+          "info",
+          "paths",
+          "components"
+        ],
+        "properties": {
+          "openapi": {
+            "type": "string"
+          },
+          "info": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "paths": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "components": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "KnowledgeSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "stats": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "networkStats": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "PersistenceHealthResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "database": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "store": {
+            "type": "string",
+            "enum": [
+              "file",
+              "mongo"
+            ]
+          },
+          "collections": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "$ref": "#/components/schemas/GenericObject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coordination": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "disabled",
+                  "unknown"
+                ]
+              },
+              "store": {
+                "type": "string",
+                "enum": [
+                  "redis",
+                  "memory"
+                ]
+              },
+              "redisConfigured": {
+                "type": "boolean"
+              },
+              "redisReachable": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "checkedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "disabledUntil": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "AuthContextResponse": {
+        "type": "object",
+        "required": [
+          "requestId",
+          "actor",
+          "role",
+          "roles",
+          "apiKeyVersion",
+          "apiKeyLabel",
+          "apiKeyExpiresAt"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "actor": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "operator",
+              "admin"
+            ],
+            "nullable": true
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "viewer",
+                "operator",
+                "admin"
+              ]
+            }
+          },
+          "apiKeyVersion": {
+            "type": "integer",
+            "nullable": true
+          },
+          "apiKeyLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKeyExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "TaskTriggerRequest": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "drift-repair",
+              "deployment-ops",
+              "code-index",
+              "test-intelligence",
+              "compliance-review",
+              "reddit-response",
+              "security-audit",
+              "summarize-content",
+              "system-monitor",
+              "build-refactor",
+              "content-generate",
+              "integration-workflow",
+              "normalize-data",
+              "market-research",
+              "data-extraction",
+              "qa-verification",
+              "skill-audit",
+              "rss-sweep",
+              "nightly-batch",
+              "send-digest",
+              "agent-deploy",
+              "doc-sync",
+              "control-plane-brief",
+              "incident-triage",
+              "release-readiness"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "default": {}
+          }
+        }
+      },
+      "TaskTriggerResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "taskId",
+          "type",
+          "createdAt"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "duplicate-suppressed"
+            ]
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "existingStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "success",
+              "failed",
+              "retrying"
+            ],
+            "nullable": true
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "Queue task creation timestamp. Runtime currently returns the enqueue timestamp as a number-like value.",
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "TaskQueueAttempt": {
+        "type": "object",
+        "required": [
+          "attemptId",
+          "taskId",
+          "attempt",
+          "status",
+          "admittedAt"
+        ],
+        "properties": {
+          "attemptId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "admitted",
+              "running",
+              "awaiting-approval",
+              "coordination-blocked",
+              "success",
+              "failed"
+            ]
+          },
+          "admittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "sourceTaskId": {
+            "type": "string",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CatalogTask": {
+        "type": "object",
+        "required": [
+          "type",
+          "label"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "drift-repair",
+              "deployment-ops",
+              "code-index",
+              "test-intelligence",
+              "compliance-review",
+              "reddit-response",
+              "security-audit",
+              "summarize-content",
+              "system-monitor",
+              "build-refactor",
+              "content-generate",
+              "integration-workflow",
+              "normalize-data",
+              "market-research",
+              "data-extraction",
+              "qa-verification",
+              "skill-audit",
+              "rss-sweep",
+              "nightly-batch",
+              "send-digest",
+              "agent-deploy",
+              "doc-sync",
+              "control-plane-brief",
+              "incident-triage",
+              "release-readiness"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "internalOnly": {
+            "type": "boolean"
+          },
+          "publicTriggerable": {
+            "type": "boolean"
+          },
+          "approvalGated": {
+            "type": "boolean"
+          },
+          "operationalStatus": {
+            "type": "string"
+          },
+          "dependencyClass": {
+            "type": "string"
+          },
+          "baselineConfidence": {
+            "type": "number"
+          },
+          "dependencyRequirements": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "exposeInV1": {
+            "type": "boolean"
+          },
+          "caveats": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "telemetryOverlay": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "TaskCatalogResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "tasks"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogTask"
+            }
+          }
+        }
+      },
+      "PendingApprovalItem": {
+        "type": "object",
+        "required": [
+          "taskId",
+          "type",
+          "requestedAt",
+          "status"
+        ],
+        "properties": {
+          "taskId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "payloadPreview": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "PendingApprovalsResponse": {
+        "type": "object",
+        "required": [
+          "count",
+          "pending"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingApprovalItem"
+            }
+          }
+        }
+      },
+      "ApprovalDecisionRequest": {
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "actor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      },
+      "ApprovalDecisionResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "approval"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "approval": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "replayTaskId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "TaskRun": {
+        "type": "object",
+        "required": [
+          "type",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastHandledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "cost": {
+            "type": "number"
+          },
+          "latency": {
+            "type": "number",
+            "nullable": true
+          },
+          "usage": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "accounting": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastError": {
+            "type": "string",
+            "nullable": true
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "maxRetries": {
+            "type": "integer"
+          },
+          "queueAttempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskQueueAttempt"
+            }
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "workflowGraph": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "proofLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "repair": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GenericObject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {}
+        },
+        "additionalProperties": true
+      },
+      "TaskRunsResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "query",
+          "total",
+          "page",
+          "runs"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "query": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskRun"
+            }
+          }
+        }
+      },
+      "TaskRunDetailResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "run"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "run": {
+            "$ref": "#/components/schemas/TaskRun"
+          }
+        }
+      },
+      "IncidentActionRequest": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "IncidentOwnerRequest": {
+        "type": "object",
+        "required": [
+          "owner"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "actor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "IncidentRemediationRequest": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "taskType": {
+            "type": "string",
+            "enum": [
+              "drift-repair",
+              "build-refactor",
+              "qa-verification",
+              "system-monitor"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeIncident": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "classification",
+          "severity",
+          "status",
+          "truthLayer",
+          "summary",
+          "detectedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "runtime-mode",
+              "persistence",
+              "proof-delivery",
+              "repair",
+              "retry-recovery",
+              "knowledge",
+              "service-runtime",
+              "approval-backlog"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "watching",
+              "resolved"
+            ]
+          },
+          "truthLayer": {
+            "type": "string",
+            "enum": [
+              "configured",
+              "observed",
+              "public"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "detectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "firstSeenAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "acknowledgedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "acknowledgedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "owner": {
+            "type": "string",
+            "nullable": true
+          },
+          "affectedSurfaces": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "linkedServiceIds": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "linkedTaskIds": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "linkedRunIds": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "linkedRepairIds": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "linkedProofDeliveries": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "recommendedSteps": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "escalation": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "remediation": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "remediationPlan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "policyExecutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "acknowledgements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "ownershipHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "remediationTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "IncidentActionResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "incident"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "incident": {
+            "$ref": "#/components/schemas/RuntimeIncident"
+          }
+        }
+      },
+      "IncidentRemediationResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "incident"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "incident": {
+            "$ref": "#/components/schemas/RuntimeIncident"
+          },
+          "remediationTask": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "IncidentsResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "query",
+          "total",
+          "page",
+          "incidents"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "query": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          },
+          "incidents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeIncident"
+            }
+          }
+        }
+      },
+      "IncidentDetailResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "incident"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "incident": {
+            "$ref": "#/components/schemas/RuntimeIncident"
+          }
+        }
+      },
+      "IncidentHistoryResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "incidentId",
+          "history",
+          "acknowledgements",
+          "ownershipHistory",
+          "remediationTasks"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "incidentId": {
+            "type": "string"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "acknowledgements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "ownershipHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "remediationTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "DashboardOverviewResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "health",
+          "persistence",
+          "accounting",
+          "queue",
+          "approvals",
+          "selfHealing",
+          "governance",
+          "incidents",
+          "recentTasks"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "health": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "persistence": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "accounting": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "approvals": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "selfHealing": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "governance": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "incidents": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "recentTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ExtendedHealthResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "status",
+          "controlPlane",
+          "workers",
+          "repairs",
+          "dependencies",
+          "truthLayers",
+          "incidents"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "warning",
+              "degraded"
+            ]
+          },
+          "controlPlane": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "workers": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "repairs": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "dependencies": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "truthLayers": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "incidents": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "AgentOverviewItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "orchestratorTask": {
+            "type": "string"
+          },
+          "modelTier": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowedSkills": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "declared": {
+            "type": "boolean"
+          },
+          "spawnedWorkerCapable": {
+            "type": "boolean"
+          },
+          "workerValidationStatus": {
+            "type": "string"
+          },
+          "serviceAvailable": {
+            "type": "boolean"
+          },
+          "serviceExpected": {
+            "type": "boolean"
+          },
+          "lifecycleMode": {
+            "type": "string",
+            "enum": [
+              "service-expected",
+              "worker-first"
+            ]
+          },
+          "hostServiceStatus": {
+            "type": "string",
+            "enum": [
+              "running",
+              "installed-stopped",
+              "not-installed",
+              "probe-unavailable",
+              "missing-entrypoint",
+              "not-applicable"
+            ]
+          },
+          "serviceUnitName": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceInstalled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "serviceRunning": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "serviceUnitState": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceUnitSubState": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceUnitFileState": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceImplementation": {
+            "type": "string"
+          },
+          "serviceOperational": {
+            "type": "boolean"
+          },
+          "dependencySensitivity": {
+            "type": "string"
+          },
+          "frontendExposure": {
+            "type": "string"
+          },
+          "runtimeProof": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "notes": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "lastEvidenceAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidenceSources": {
+            "$ref": "#/components/schemas/StringArray"
+          },
+          "lastSuccessfulRunId": {
+            "type": "string"
+          },
+          "lastSuccessfulTaskId": {
+            "type": "string"
+          },
+          "capability": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "AgentsOverviewResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "count",
+          "agents"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentOverviewItem"
+            }
+          },
+          "topology": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "relationshipHistory": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "GovernedSkillRegistryResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "total",
+          "skills"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "GovernedSkillPolicyResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "policy"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        }
+      },
+      "GovernedSkillTelemetryResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "telemetry"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "telemetry": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        }
+      },
+      "GovernedSkillAuditResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "query",
+          "total",
+          "page",
+          "records"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "query": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "MemoryRecallResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "query",
+          "totalAgents",
+          "totalRuns",
+          "page",
+          "items"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "query": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "totalAgents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalRuns": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "KnowledgeQueryRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000,
+            "pattern": "^[a-zA-Z0-9\\s\\-\\.\\,\\?\\!\\(\\)\\:\\;'\\\"\\&]+$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "filter": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        }
+      },
+      "KnowledgeQueryResponse": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "PersistenceHistoricalResponse": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Historical persistence payload from the persistence subsystem. Shape depends on the requested aggregation."
+      },
+      "PersistenceSummaryResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "status"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "persistenceAvailable": {
+            "type": "boolean"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "collections": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "indicators": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "RuntimeFactsResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "config",
+          "controlPlane",
+          "agents"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "config": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "controlPlane": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "agents": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        },
+        "additionalProperties": true
+      },
+      "CommandCenterOverviewResponse": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CommandCenterControlResponse": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CommandCenterDemandResponse": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "MilestoneFeedResponse": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "MilestoneDeadLetterResponse": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CompanionOverviewResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "controlPlaneMode",
+          "primaryOperatorMove",
+          "pressureStory",
+          "queue",
+          "approvals",
+          "incidents",
+          "publicProof",
+          "services",
+          "freshnessTimestamp"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "controlPlaneMode": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "primaryOperatorMove": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "pressureStory": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "approvals": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "incidents": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "publicProof": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "services": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "freshnessTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CompanionCatalogResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "total",
+          "tasks"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "CompanionIncidentsResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "summary",
+          "topClassifications",
+          "topQueue"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "topClassifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "topQueue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "CompanionRunsResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "total",
+          "runs"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "CompanionApprovalsResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "count",
+          "dominantLanes",
+          "oldestWaiting",
+          "items"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dominantLanes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "oldestWaiting": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GenericObject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "WebhookAlertsRequest": {
+        "type": "object",
+        "required": [
+          "alerts"
+        ],
+        "properties": {
+          "alerts": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "required": [
+                "status",
+                "labels"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "firing",
+                    "resolved"
+                  ]
+                },
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "maxProperties": 50
+                },
+                "annotations": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "groupLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "commonLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "commonAnnotations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WebhookAcceptedResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Request validation or route-level input parsing failed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Bearer token missing, invalid, or expired, or webhook signature missing/invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated actor does not satisfy the route role requirement.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Requested resource was not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Request conflicts with current governed runtime state.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit exceeded.",
+        "headers": {
+          "Retry-After": {
+            "$ref": "#/components/headers/Retry-After"
+          },
+          "ratelimit-limit": {
+            "$ref": "#/components/headers/ratelimit-limit"
+          },
+          "ratelimit-remaining": {
+            "$ref": "#/components/headers/ratelimit-remaining"
+          },
+          "ratelimit-reset": {
+            "$ref": "#/components/headers/ratelimit-reset"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/RateLimitExceededResponse"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Unexpected server error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
       }
     }
   },
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health check",
+        "tags": [
+          "Public"
+        ],
+        "summary": "Public liveness endpoint",
+        "description": "Shallow public liveness check. This is not the authoritative operator-health contract; use `/api/health/extended` for protected operator health.",
+        "operationId": "getHealth",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "1000 requests / 60s / IP",
+          "shellContract": "Orchestrator serves `/operator` and `/operator/*` via the built operator-s-console bundle; this route remains public JSON only."
+        },
         "responses": {
           "200": {
-            "description": "Service health payload"
+            "description": "Public health payload with helper URLs.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/openapi.json": {
       "get": {
-        "summary": "OpenAPI specification",
+        "tags": [
+          "Public",
+          "Contract"
+        ],
+        "summary": "Machine-readable API contract",
+        "description": "Returns the orchestrator-owned OpenAPI document for the current runtime route surface.",
+        "operationId": "getOpenApiDocument",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
         "responses": {
           "200": {
-            "description": "OpenAPI document"
+            "description": "OpenAPI document.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenApiDocumentSummary"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/knowledge/summary": {
       "get": {
-        "summary": "Knowledge base summary",
+        "tags": [
+          "Public",
+          "Knowledge"
+        ],
+        "summary": "Public knowledge summary",
+        "description": "Read-only knowledge summary with runtime freshness, provenance, and contradiction signals.",
+        "operationId": "getKnowledgeSummary",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
         "responses": {
           "200": {
-            "description": "Knowledge summary payload"
+            "description": "Knowledge summary payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeSummaryResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/persistence/health": {
       "get": {
-        "summary": "Persistence health status",
+        "tags": [
+          "Public",
+          "Persistence"
+        ],
+        "summary": "Public persistence dependency health",
+        "description": "Lightweight public health probe for the persistence dependency layer.",
+        "operationId": "getPersistenceHealth",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "1000 requests / 60s / IP",
+          "responseCache": "public"
+        },
         "responses": {
           "200": {
-            "description": "Persistence health payload"
+            "description": "Persistence health payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersistenceHealthResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/command-center/overview": {
+      "get": {
+        "tags": [
+          "Public",
+          "Proof"
+        ],
+        "summary": "Public proof overview",
+        "description": "Curated orchestrator-owned public proof overview. This is public proof, not protected control-plane state.",
+        "operationId": "getCommandCenterOverview",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
+        "responses": {
+          "200": {
+            "description": "Public proof overview payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandCenterOverviewResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/command-center/control": {
+      "get": {
+        "tags": [
+          "Public",
+          "Proof"
+        ],
+        "summary": "Public control-lane proof cluster",
+        "description": "Curated public control-lane proof payload sourced from orchestrator runtime state.",
+        "operationId": "getCommandCenterControl",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
+        "responses": {
+          "200": {
+            "description": "Public proof control payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandCenterControlResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/command-center/demand": {
+      "get": {
+        "tags": [
+          "Public",
+          "Proof"
+        ],
+        "summary": "Public demand summary snapshot",
+        "description": "Curated public demand summary sourced from live orchestrator demand state.",
+        "operationId": "getCommandCenterDemand",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
+        "responses": {
+          "200": {
+            "description": "Public demand summary payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandCenterDemandResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/command-center/demand-live": {
+      "get": {
+        "tags": [
+          "Public",
+          "Proof"
+        ],
+        "summary": "Public live demand snapshot",
+        "description": "Live public demand snapshot sourced from current orchestrator runtime state.",
+        "operationId": "getCommandCenterDemandLive",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
+        "responses": {
+          "200": {
+            "description": "Public live demand payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandCenterDemandResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/milestones/latest": {
+      "get": {
+        "tags": [
+          "Public",
+          "Proof"
+        ],
+        "summary": "Latest public milestone feed items",
+        "description": "Curated latest milestone proof feed.",
+        "operationId": "getMilestonesLatest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MilestoneLimit"
+          }
+        ],
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
+        "responses": {
+          "200": {
+            "description": "Latest milestone feed payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestoneFeedResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/milestones/dead-letter": {
+      "get": {
+        "tags": [
+          "Public",
+          "Proof"
+        ],
+        "summary": "Public proof-risk feed",
+        "description": "Dead-letter or blocked proof-delivery items kept on the public proof side as a curated risk surface.",
+        "operationId": "getMilestonesDeadLetter",
+        "x-openclaw-access": {
+          "visibility": "public",
+          "rateLimit": "30 requests / 60s / IP",
+          "responseCache": "public"
+        },
+        "responses": {
+          "200": {
+            "description": "Public milestone dead-letter payload.",
+            "headers": {
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestoneDeadLetterResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Auth"
+        ],
+        "summary": "Resolved auth actor and role context",
+        "description": "Protected identity surface. Auth executes before role enforcement and returns the resolved actor, highest role, role set, request id, and API key metadata.",
+        "operationId": "getAuthContext",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "auth.me.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated actor and role context.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthContextResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/tasks/catalog": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Tasks"
+        ],
+        "summary": "Operator task catalog",
+        "description": "Protected task catalog that combines operator-facing task profiles with current operational metadata.",
+        "operationId": "getTaskCatalog",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "tasks.catalog.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Operator task catalog payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCatalogResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/companion/overview": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Companion"
+        ],
+        "summary": "Companion control-plane overview",
+        "description": "Bounded read-only companion view over current control-plane mode, primary operator move, pressure story, and proof posture.",
+        "operationId": "getCompanionOverview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "companion.overview.read",
+          "companionView": "status",
+          "responseCache": "protected"
+        },
+        "responses": {
+          "200": {
+            "description": "Companion overview payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionOverviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/companion/catalog": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Companion"
+        ],
+        "summary": "Companion task catalog",
+        "description": "Bounded read-only companion view over the operator task catalog with readiness, approval posture, and dependency caveats.",
+        "operationId": "getCompanionCatalog",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "companion.catalog.read",
+          "companionView": "tasks",
+          "responseCache": "protected"
+        },
+        "responses": {
+          "200": {
+            "description": "Companion catalog payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionCatalogResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/companion/incidents": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Companion"
+        ],
+        "summary": "Companion incident summary",
+        "description": "Bounded read-only companion view over incident classification pressure, acknowledgement posture, remediation posture, and the ranked queue.",
+        "operationId": "getCompanionIncidents",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "companion.incidents.read",
+          "companionView": "incidents",
+          "responseCache": "protected"
+        },
+        "responses": {
+          "200": {
+            "description": "Companion incident summary payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionIncidentsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/companion/runs": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Companion"
+        ],
+        "summary": "Companion recent run briefs",
+        "description": "Bounded read-only companion view over recent run posture, operator summaries, next actions, and freshness/watch cues.",
+        "operationId": "getCompanionRuns",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "companion.runs.read",
+          "companionView": "runs",
+          "responseCache": "protected"
+        },
+        "responses": {
+          "200": {
+            "description": "Companion recent runs payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionRunsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/companion/approvals": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Companion"
+        ],
+        "summary": "Companion approval summary",
+        "description": "Bounded read-only companion view over dominant pending approval lanes, oldest waiting posture, and top approval items.",
+        "operationId": "getCompanionApprovals",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "companion.approvals.read",
+          "companionView": "approvals",
+          "responseCache": "protected"
+        },
+        "responses": {
+          "200": {
+            "description": "Companion approvals payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionApprovalsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/tasks/trigger": {
       "post": {
+        "tags": [
+          "Operator",
+          "Tasks"
+        ],
         "summary": "Queue a task for processing",
+        "description": "Protected task enqueue endpoint. Runtime injects `__actor`, `__role`, and `__requestId` before central admission. A reused idempotency key is reported as duplicate-suppressed and never emits accepted/queued telemetry.",
+        "operationId": "triggerTask",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskTriggerRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "tasks.trigger.create"
+        },
         "responses": {
+          "200": {
+            "description": "Duplicate task suppressed before queue admission.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskTriggerResponse"
+                }
+              }
+            }
+          },
           "202": {
-            "description": "Task accepted into queue"
+            "description": "Task accepted into the queue.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskTriggerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/tasks/runs": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Tasks"
+        ],
+        "summary": "Paginated task run records",
+        "description": "Protected run ledger with workflow, approval, proof-link, and repair metadata. Internal maintenance runs are hidden by default unless `includeInternal=true`.",
+        "operationId": "listTaskRuns",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskRunType"
+          },
+          {
+            "$ref": "#/components/parameters/TaskRunStatus"
+          },
+          {
+            "$ref": "#/components/parameters/IncludeInternal"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Offset"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "tasks.runs.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Paginated task run payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRunsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/tasks/runs/{runId}": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Tasks"
+        ],
+        "summary": "Task run detail",
+        "description": "Protected task run detail by stable run id (explicit idempotency key or task id fallback).",
+        "operationId": "getTaskRun",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "tasks.run.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Task run detail payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRunDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/approvals/pending": {
       "get": {
-        "summary": "List pending approvals",
+        "tags": [
+          "Operator",
+          "Approvals"
+        ],
+        "summary": "Pending approvals ledger",
+        "description": "Protected approval inbox for approval-gated tasks and review-gated replay paths.",
+        "operationId": "getPendingApprovals",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "approvals.pending.read"
+        },
         "responses": {
           "200": {
-            "description": "Pending approvals payload"
+            "description": "Pending approvals payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingApprovalsResponse"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/approvals/{id}/decision": {
       "post": {
-        "summary": "Submit approval decision",
+        "tags": [
+          "Operator",
+          "Approvals"
+        ],
+        "summary": "Submit an approval decision",
+        "description": "Protected approval decision route. An approved decision queues a replay task with `approvedFromTaskId` set.",
+        "operationId": "submitApprovalDecision",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApprovalId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "approvals.decision.write"
+        },
         "responses": {
           "200": {
-            "description": "Decision accepted"
+            "description": "Approval decision accepted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalDecisionResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid request"
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/incidents": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Incidents"
+        ],
+        "summary": "Paginated incident ledger",
+        "description": "Protected incident list over the runtime-generated incident ledger with status/classification filtering.",
+        "operationId": "listIncidents",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IncidentStatus"
+          },
+          {
+            "$ref": "#/components/parameters/IncidentClassification"
+          },
+          {
+            "$ref": "#/components/parameters/IncludeResolved"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Offset"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "incidents.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Incident list payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/incidents/{id}": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Incidents"
+        ],
+        "summary": "Incident detail",
+        "description": "Protected incident detail by stable incident id.",
+        "operationId": "getIncident",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IncidentId"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "incident.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Incident detail payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/incidents/{id}/history": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Incidents"
+        ],
+        "summary": "Incident lifecycle history",
+        "description": "Protected incident history stream with acknowledgements, ownership history, and remediation task records.",
+        "operationId": "getIncidentHistory",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IncidentId"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "incident.history.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Incident history payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/incidents/{id}/acknowledge": {
+      "post": {
+        "tags": [
+          "Operator",
+          "Incidents"
+        ],
+        "summary": "Acknowledge an incident",
+        "description": "Protected incident acknowledgement route for operator action tracking.",
+        "operationId": "acknowledgeIncident",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IncidentId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentActionRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "incidents.acknowledge.write"
+        },
+        "responses": {
+          "200": {
+            "description": "Incident acknowledgement persisted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/incidents/{id}/owner": {
+      "post": {
+        "tags": [
+          "Operator",
+          "Incidents"
+        ],
+        "summary": "Assign or update incident owner",
+        "description": "Protected incident ownership route for manual operator assignment.",
+        "operationId": "assignIncidentOwner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IncidentId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentOwnerRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "incidents.owner.write"
+        },
+        "responses": {
+          "200": {
+            "description": "Incident owner persisted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/incidents/{id}/remediate": {
+      "post": {
+        "tags": [
+          "Operator",
+          "Incidents"
+        ],
+        "summary": "Queue manual incident remediation",
+        "description": "Protected remediation entrypoint. Creates a bounded remediation task record linked to the incident and queues the actual task when allowed by policy.",
+        "operationId": "remediateIncident",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IncidentId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentRemediationRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "incidents.remediate.write"
+        },
+        "responses": {
+          "200": {
+            "description": "Manual remediation queued or persisted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentRemediationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/dashboard/overview": {
       "get": {
-        "summary": "Dashboard overview",
+        "tags": [
+          "Operator",
+          "Health"
+        ],
+        "summary": "Protected dashboard overview",
+        "description": "Protected operator aggregation for queue, approvals, governance, self-healing, truth layers, topology, incidents, and recent tasks. This is not the authoritative system-health route.",
+        "operationId": "getDashboardOverview",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "dashboard.overview.read"
+        },
         "responses": {
           "200": {
-            "description": "Dashboard payload"
+            "description": "Dashboard overview payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardOverviewResponse"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/business/overview": {
+      "get": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Business-value loop overview",
+        "operationId": "getBusinessValueOverview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "business.overview.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Business-value overview.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/business/operations": {
+      "get": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Business-value operational state",
+        "operationId": "getBusinessValueOperations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "business.operations.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Business-value scheduler and execution state.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/business/candidates": {
+      "get": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Ranked business-value candidates",
+        "operationId": "getBusinessValueCandidates",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "business.candidates.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Ranked, approval-gated, and unsupported candidates.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/business/cycles": {
+      "get": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Business-value cycle history",
+        "operationId": "listBusinessValueCycles",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "business.cycles.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Business-value cycle history.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/business/cycles/{cycleId}": {
+      "get": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Business-value cycle detail",
+        "operationId": "getBusinessValueCycle",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cycleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "business.cycle.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Business-value cycle detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/business/cycle/trigger": {
+      "post": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Run one governed business-value cycle",
+        "operationId": "triggerBusinessValueCycle",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "business.cycle.trigger"
+        },
+        "responses": {
+          "202": {
+            "description": "Cycle task queued.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/business/scheduler": {
+      "post": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Change automatic business-cycle mode",
+        "operationId": "updateBusinessValueScheduler",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "business.scheduler.write"
+        },
+        "responses": {
+          "200": {
+            "description": "Scheduler state updated.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/business/cycles/{cycleId}/retry": {
+      "post": {
+        "tags": [
+          "Operator"
+        ],
+        "summary": "Retry a failed business-value cycle",
+        "operationId": "retryBusinessValueCycle",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cycleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "business.cycle.retry"
+        },
+        "responses": {
+          "202": {
+            "description": "Failed cycle retry queued.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/health/extended": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Health"
+        ],
+        "summary": "Authoritative protected operator health",
+        "description": "Protected control-plane health contract with control-plane, worker, repair, dependency, truth-layer, topology, and incident splits.",
+        "operationId": "getExtendedHealth",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "health.extended.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Extended health payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtendedHealthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/runtime/facts": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Runtime"
+        ],
+        "summary": "Runtime facts and effective control-plane configuration",
+        "description": "Protected runtime facts surface with effective state-store target, scheduler truth, internal/public task exposure, and resident-worker inventory.",
+        "operationId": "getRuntimeFacts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "runtime.facts.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Runtime facts payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeFactsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/agents/overview": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Agents"
+        ],
+        "summary": "Agent operational overview",
+        "description": "Protected agent readiness surface with declaration, worker/service truth, capability, topology, and relationship-history views.",
+        "operationId": "getAgentsOverview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "agents.overview.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Agent overview payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentsOverviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/skills/registry": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Governance"
+        ],
+        "summary": "Governed skill registry",
+        "description": "Protected governed-skill registry with trust posture, executability, persistence mode, executor binding, and provenance snapshot.",
+        "operationId": "getSkillsRegistry",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "skills.registry.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Governed skill registry payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernedSkillRegistryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/skills/policy": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Governance"
+        ],
+        "summary": "Governed skill policy posture",
+        "description": "Protected governed-skill policy summary derived from current orchestrator governance state.",
+        "operationId": "getSkillsPolicy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "skills.policy.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Governed skill policy payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernedSkillPolicyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/skills/telemetry": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Governance"
+        ],
+        "summary": "Governed skill telemetry summary",
+        "description": "Protected ToolGate invocation summary over governed skill traffic.",
+        "operationId": "getSkillsTelemetry",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "skills.telemetry.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Governed skill telemetry payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernedSkillTelemetryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/skills/audit": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Governance"
+        ],
+        "summary": "Governed skill audit stream",
+        "description": "Protected paginated ToolGate/governed-skill audit stream. `deniedOnly=true` filters to denied invocations.",
+        "operationId": "getSkillsAudit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SkillAuditLimit"
+          },
+          {
+            "$ref": "#/components/parameters/Offset"
+          },
+          {
+            "$ref": "#/components/parameters/DeniedOnly"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "skills.audit.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Governed skill audit payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernedSkillAuditResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/memory/recall": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Memory"
+        ],
+        "summary": "Redacted per-agent memory recall",
+        "description": "Protected memory recall across persisted per-agent memory state. Responses are redacted by default unless `includeSensitive=true` is set.",
+        "operationId": "getMemoryRecall",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MemoryAgentId"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Offset"
+          },
+          {
+            "$ref": "#/components/parameters/MemoryIncludeErrors"
+          },
+          {
+            "$ref": "#/components/parameters/MemoryIncludeSensitive"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "memory.recall.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Memory recall payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryRecallResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/knowledge/query": {
       "post": {
-        "summary": "Query knowledge base",
+        "tags": [
+          "Operator",
+          "Knowledge"
+        ],
+        "summary": "Protected knowledge query",
+        "description": "Protected knowledge query with request-body validation, knowledge index results, and runtime freshness/provenance signals.",
+        "operationId": "queryKnowledge",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeQueryRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "operator",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "operator-write",
+          "action": "knowledge.query.read"
+        },
         "responses": {
           "200": {
-            "description": "Knowledge query results"
+            "description": "Knowledge query payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeQueryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/knowledge/export": {
       "get": {
-        "summary": "Export knowledge base",
+        "tags": [
+          "Operator",
+          "Knowledge"
+        ],
+        "summary": "Admin knowledge export",
+        "description": "Admin-only knowledge export. Runtime returns markdown by default and JSON when `format=json` is requested.",
+        "operationId": "exportKnowledge",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KnowledgeExportFormat"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "admin",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "admin-export",
+          "action": "knowledge.export.read"
+        },
         "responses": {
           "200": {
-            "description": "Knowledge export payload"
+            "description": "Knowledge export payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              },
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/persistence/historical": {
       "get": {
+        "tags": [
+          "Operator",
+          "Persistence"
+        ],
         "summary": "Historical persistence metrics",
+        "description": "Protected historical persistence data. Shape varies by persistence implementation and requested aggregation.",
+        "operationId": "getPersistenceHistorical",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PersistenceDays"
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "persistence.historical.read"
+        },
         "responses": {
           "200": {
-            "description": "Historical data payload"
+            "description": "Historical persistence payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersistenceHistoricalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/persistence/summary": {
+      "get": {
+        "tags": [
+          "Operator",
+          "Persistence"
+        ],
+        "summary": "Protected persistence operator summary",
+        "description": "Protected persistence summary with storage, collection, retention, and indicator slices.",
+        "operationId": "getPersistenceSummary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "viewer",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "viewer-read",
+          "action": "persistence.summary.read"
+        },
+        "responses": {
+          "200": {
+            "description": "Persistence summary payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              },
+              "X-OpenClaw-Cache": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache"
+              },
+              "X-OpenClaw-Cache-Store": {
+                "$ref": "#/components/headers/X-OpenClaw-Cache-Store"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersistenceSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/api/persistence/export": {
       "get": {
-        "summary": "Export persistence data",
+        "tags": [
+          "Operator",
+          "Persistence"
+        ],
+        "summary": "Admin persistence export",
+        "description": "Admin-only export of persistence data from the current runtime backend.",
+        "operationId": "exportPersistenceData",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "x-openclaw-access": {
+          "auth": "bearer",
+          "requiredRole": "admin",
+          "preAuthRateLimit": "300 requests / 60s / IP",
+          "rateLimitBucket": "admin-export",
+          "action": "persistence.export.read"
+        },
         "responses": {
           "200": {
-            "description": "Persistence export payload"
+            "description": "Persistence export payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Unauthorized"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
     "/webhook/alerts": {
       "post": {
+        "tags": [
+          "Webhook"
+        ],
         "summary": "Alert ingestion webhook",
+        "description": "Signed AlertManager-style webhook. Uses HMAC verification rather than bearer authentication.",
+        "operationId": "postAlertWebhook",
+        "security": [
+          {
+            "webhookSignature": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookAlertsRequest"
+              }
+            }
+          }
+        },
+        "x-openclaw-access": {
+          "visibility": "signed-ingest",
+          "rateLimit": "100 requests / 60s / IP",
+          "verification": "X-Webhook-Signature"
+        },
         "responses": {
           "200": {
-            "description": "Webhook accepted"
+            "description": "Webhook accepted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "X-API-Key-Expires": {
+                "$ref": "#/components/headers/X-API-Key-Expires"
+              },
+              "ratelimit-limit": {
+                "$ref": "#/components/headers/ratelimit-limit"
+              },
+              "ratelimit-remaining": {
+                "$ref": "#/components/headers/ratelimit-remaining"
+              },
+              "ratelimit-reset": {
+                "$ref": "#/components/headers/ratelimit-reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "Invalid signature"
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }

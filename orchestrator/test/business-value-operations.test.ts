@@ -143,6 +143,44 @@ describe("business-value operations", () => {
     expect(decision).toMatchObject({ allowed: false, code: "unchanged" });
   });
 
+  it("fingerprints persisted pre-expansion registry state safely", () => {
+    const state = createDefaultState();
+    state.businessValue!.registry = {
+      businessId: "tail-wagging-website-design-factory",
+      businessName: "Tail Wagging Website Design Factory",
+      mission: "Create verified business value.",
+      registryVersion: "1",
+      updatedAt: "2026-07-14T00:00:00.000Z",
+      sourcePath: "business/registry.json",
+      kpis: [],
+      kpiSnapshots: [],
+      projects: [],
+    } as unknown as NonNullable<typeof state.businessValue.registry>;
+
+    expect(() => computeBusinessValueChangeFingerprint(state)).not.toThrow();
+    expect(computeBusinessValueChangeFingerprint(state)).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("allows a forced business-day pulse before the six-hour cycle is due", () => {
+    const state = createDefaultState();
+    const scheduler = setBusinessValueSchedulerMode(
+      state,
+      "enabled",
+      new Date("2026-07-14T08:00:00.000Z"),
+    );
+    scheduler.nextRunAt = "2026-07-14T14:00:00.000Z";
+    scheduler.lastChangeFingerprint = computeBusinessValueChangeFingerprint(state);
+
+    const decision = evaluateBusinessValueTrigger({
+      state,
+      source: "business-day-pulse",
+      now: new Date("2026-07-14T09:17:00.000Z"),
+      force: true,
+    });
+
+    expect(decision).toMatchObject({ allowed: true, code: "ready" });
+  });
+
   it("clears a stale lock only when no live cycle execution remains", () => {
     const state = createDefaultState();
     const scheduler = ensureBusinessValueSchedulerState(state);

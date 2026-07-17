@@ -2224,9 +2224,10 @@ const docChangeHandler: TaskHandler = async (task, context) => {
   const path = String(task.payload.path ?? "unknown");
   ensureDocChangeStored(path, context);
   let autoRepairTaskId: string | null = null;
+  let autoRepairSuppressionReason: string | null = null;
   const pendingPaths = [...context.state.pendingDocChanges];
-  const driftRepairActive = hasActiveTaskExecution("drift-repair", context);
-  const autoRepairCoolingDown =
+  let driftRepairActive = hasActiveTaskExecution("drift-repair", context);
+  let autoRepairCoolingDown =
     pendingPaths.length >= DOC_DRIFT_REPAIR_THRESHOLD &&
     !driftRepairActive &&
     (await isDocRepairCooldownActive(pendingPaths));
@@ -2245,48 +2246,69 @@ const docChangeHandler: TaskHandler = async (task, context) => {
 
     if (repairLock.acquired) {
       try {
-        const repairTask = context.enqueueTask("drift-repair", {
-          requestedBy: "auto-doc-drift-detector",
-          paths: affectedPaths,
-          targets: ["doc-specialist"],
-          notes: `auto-enqueued from doc-change ${task.id}`,
-          __repairId: repairId,
-          idempotencyKey: repairId,
-        });
+        driftRepairActive = hasActiveTaskExecution("drift-repair", context);
+        autoRepairCoolingDown = await isDocRepairCooldownActive(affectedPaths);
+        if (!driftRepairActive && !autoRepairCoolingDown) {
+          const repairTask = context.enqueueTask("drift-repair", {
+            requestedBy: "auto-doc-drift-detector",
+            paths: affectedPaths,
+            targets: ["doc-specialist"],
+            notes: `auto-enqueued from doc-change ${task.id}`,
+            __repairId: repairId,
+            idempotencyKey: repairId,
+          });
 
-        const record: RepairRecord = {
-          repairId,
-          classification: "doc-drift",
-          trigger: "pending-doc-threshold",
-          sourceTaskId: task.id,
-          sourceTaskType: task.type,
-          repairTaskType: "drift-repair",
-          repairTaskId: repairTask.id,
-          verificationMode: "knowledge-pack",
-          status: "queued",
-          detectedAt,
-          queuedAt: detectedAt,
-          affectedPaths,
-          evidence: [
-            `pending-doc-changes:${affectedPaths.length}`,
-            `source-path:${path}`,
-            `coordination-store:${repairLock.store}`,
-            `repair-fingerprint:${repairFingerprint}`,
-          ],
-        };
-        upsertRepairRecord(context.state, record);
-        await markDocRepairCooldown(
-          affectedPaths,
-          {
-            repairId,
-            sourceTaskId: task.id,
-            sourceTaskType: task.type,
-            detectedAt,
-            store: repairLock.store,
-          },
-          DOC_DRIFT_REPAIR_COOLDOWN_MS,
-        );
-        autoRepairTaskId = repairTask.id;
+          if (repairTask.admission?.admitted === false) {
+            autoRepairSuppressionReason = repairTask.admission.reason;
+            await markDocRepairCooldown(
+              affectedPaths,
+              {
+                repairId,
+                sourceTaskId: task.id,
+                sourceTaskType: task.type,
+                detectedAt,
+                store: repairLock.store,
+                suppressed: true,
+                suppressionReason: repairTask.admission.reason,
+              },
+              DOC_DRIFT_REPAIR_COOLDOWN_MS,
+            );
+          } else {
+            const record: RepairRecord = {
+              repairId,
+              classification: "doc-drift",
+              trigger: "pending-doc-threshold",
+              sourceTaskId: task.id,
+              sourceTaskType: task.type,
+              repairTaskType: "drift-repair",
+              repairTaskId: repairTask.id,
+              verificationMode: "knowledge-pack",
+              status: "queued",
+              detectedAt,
+              queuedAt: detectedAt,
+              affectedPaths,
+              evidence: [
+                `pending-doc-changes:${affectedPaths.length}`,
+                `source-path:${path}`,
+                `coordination-store:${repairLock.store}`,
+                `repair-fingerprint:${repairFingerprint}`,
+              ],
+            };
+            upsertRepairRecord(context.state, record);
+            await markDocRepairCooldown(
+              affectedPaths,
+              {
+                repairId,
+                sourceTaskId: task.id,
+                sourceTaskType: task.type,
+                detectedAt,
+                store: repairLock.store,
+              },
+              DOC_DRIFT_REPAIR_COOLDOWN_MS,
+            );
+            autoRepairTaskId = repairTask.id;
+          }
+        }
       } finally {
         await releaseDocRepairLock(affectedPaths, lockOwner);
       }
@@ -2297,6 +2319,10 @@ const docChangeHandler: TaskHandler = async (task, context) => {
 
   if (autoRepairTaskId) {
     return `queued ${context.state.pendingDocChanges.length} doc changes and auto-enqueued drift repair ${autoRepairTaskId}`;
+  }
+
+  if (autoRepairSuppressionReason) {
+    return `queued ${context.state.pendingDocChanges.length} doc changes (auto repair duplicate suppressed: ${autoRepairSuppressionReason})`;
   }
 
   if (context.state.pendingDocChanges.length >= DOC_DRIFT_REPAIR_THRESHOLD) {

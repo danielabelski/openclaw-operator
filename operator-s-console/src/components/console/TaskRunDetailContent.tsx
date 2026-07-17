@@ -1905,6 +1905,29 @@ export function TaskRunDetailContent({
           </div>
         </div>
 
+        {(run.queueAttempts ?? []).length > 0 && (
+          <div className="console-inset p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Queue Admission Attempts</p>
+              <span className="text-[10px] font-mono text-foreground">{run.queueAttempts?.length ?? 0}</span>
+            </div>
+            {(run.queueAttempts ?? []).map((attempt) => (
+              <div key={attempt.attemptId} className="flex items-start justify-between gap-3 border-t border-border/40 pt-2 first:border-t-0 first:pt-0">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-mono text-foreground truncate">
+                    Attempt {attempt.attempt} · {attempt.taskId}
+                  </p>
+                  <p className="text-[9px] font-mono text-muted-foreground mt-0.5">
+                    Admitted {attempt.admittedAt ? new Date(attempt.admittedAt).toLocaleString() : "—"}
+                    {attempt.detail ? ` · ${attempt.detail}` : ""}
+                  </p>
+                </div>
+                <StatusBadge label={attempt.status} size="sm" />
+              </div>
+            ))}
+          </div>
+        )}
+
         {run.createdAt && (
           <div className="console-inset p-2">
             <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Created</p>

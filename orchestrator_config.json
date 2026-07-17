@@ -3,6 +3,8 @@
   "cookbookPath": "./openai-cookbook",
   "logsDir": "./logs",
   "stateFile": "./orchestrator/data/orchestrator-state.json",
+  "businessRegistryPath": "../../business/registry.json",
+  "businessEvidenceDir": "../../artifacts/business-value",
   "strictPersistence": false,
   "approvalRequiredTaskTypes": [
     "agent-deploy",
