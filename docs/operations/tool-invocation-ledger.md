@@ -72,3 +72,77 @@
   authenticated duplicate trigger, Mongo retirement/query, migration,
   config/concurrency change, dependency install/update, external action, and
   destructive cleanup remain separately approval-gated.
+
+## 2026-07-22 — retained-host portability and machine-migration audit
+
+- Requested task: inventory the complete live OpenClaw setup, reconcile source
+  control and installed/source divergence, design protected runtime/credential
+  handoff, add a reproducible bootstrap check, and push only proven safe source.
+- Workflow lane: source-control portability, runtime architecture audit,
+  secret-safe documentation, and bounded GitHub handoff.
+- Tools and source:
+  - skills: `coding-audit-routing-policy`, `bounded-project-workspace`,
+    `tool-invocation-ledger-policy`, and the GitHub CLI workflow;
+  - coding-agent-skills: repository mapping, environment audit, secret audit,
+    validation-pack checks, and GitHub handoff evidence;
+  - core read-only inspection: Git status/remotes/reachability, GitHub metadata,
+    `/proc` ownership, systemd unit metadata, socket/process/cgroup facts,
+    package manifests, file names, ignore rules, SQLite file inventory, Docker
+    inspect metadata, hashes, and narrow source comparisons;
+  - local source changes: this manifest/export plan/bootstrap check, two exact
+    OpenClaw patch artifacts, documentation navigation, deployment pin, and
+    workboard/ledger updates.
+- Changed-state declaration: `true` for source-controlled documentation,
+  bootstrap, patch preservation, doc-specialist source reconciliation, and the
+  approved coherent Git operations. The existing `coding-agent-skills` commit
+  `0d899bca` was pushed to its verified public `main` remote. This audit's two
+  isolated operator commits remain local: the push to the verified public
+  `AyobamiH/openclaw-operator` `main` remote was rejected with HTTP 403 because
+  the active `OneClickPostFactory` identity lacks write permission. No remote
+  operator state changed. No service restart, package install/update,
+  scheduler/config/plugin mutation, runtime export, database write, Docker
+  change, social write, or Cloudinary write occurred.
+- Evidence/result:
+  - the active Gateway, orchestrator, Redis, specialist, evidence, tunnel, and
+    local-model paths were mapped to their executable, working tree, startup
+    owner, ports, state source, and protected input category;
+  - exact active source is not fully on GitHub: the dirty root operations
+    workspace, dirty social-agent tree, active local-only public-decision
+    service, locally changed evidence console, and unpinned personal media skill
+    trees remain blockers;
+  - the running native-hook stabilization change and the unactivated Codex
+    direct-tool change were separated into patches and reverse-apply checks
+    prove they exactly represent the audited OpenClaw working tree;
+  - the exact doc-specialist retention source used by the active specialist
+    service was reconciled into the operator repo; its two focused tests and a
+    focused TypeScript check pass;
+  - protected SQLite/Redis/social/browser/credential state has an explicit
+    consistency and secret-separation plan; no sensitive archive was created.
+- Validation evidence:
+  - focused doc-specialist retention tests: 2 passed; focused TypeScript check:
+    passed;
+  - `git diff --check`, shell syntax, both OpenClaw patch reverse-apply checks,
+    docs drift, and the 85-file Markdown link check: passed;
+  - the bootstrap check behaved fail-closed with the five documented source
+    blockers and returned the expected non-zero status;
+  - repository `verify:main`: passed — operator UI and orchestrator builds,
+    docs checks, 86 unit fixtures, 32 live middleware integration tests, 33 UI
+    tests, both typechecks, docs-site curation, and VitePress build;
+  - coding secret audit completed with no reported risks in this change set;
+    the GitHub handoff audit correctly reports remote divergence.
+- Secret posture: file names, schemas, ignore rules, loaders, and references
+  were inspected without printing values. Coding secret audits found no risk in
+  the new custom plugin/skill source and no repository-native leak scanner was
+  installed. Generic audit adapters were incomplete or failed closed on some
+  large trees, so narrow name-only and Git-index checks were used as fallback.
+- Fallback reason: coding-agent-skills has no project adapter for the root or
+  operator repository, the root environment audit hit permission boundaries,
+  and two generic secret-audit responses were not parseable. Core inspection
+  was limited to non-secret paths, key names, Git metadata, and repository-owned
+  validation; no `.env` or credential value was opened.
+- Next safe step: resolve each named source blocker as its own coherent commit
+  and rerun the bootstrap check. The operator commits require either an
+  explicitly approved GitHub identity switch to the configured `AyobamiH`
+  account or a separately chosen fork/PR handoff. Creating the sensitive
+  export, changing GitHub identity/remotes, rewriting history, stopping
+  services, or provisioning secrets remains separately approval-gated.

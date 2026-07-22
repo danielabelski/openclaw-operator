@@ -12,8 +12,15 @@ door; this repo ships the specialist orchestrator sidecar and serves the built
 ## Quick Start (user-level systemd)
 
 ### Prerequisites
-- Node.js 22.x installed
+- Node.js 24.18.0 installed (the retained-host and machine-migration pin)
 - systemd user services available (Linux systems)
+
+For a full retained-host migration, read
+[`docs/operations/machine-migration-manifest.md`](./docs/operations/machine-migration-manifest.md)
+and run `./scripts/bootstrap-machine.sh --check` before installation. Runtime
+databases, scheduler state, credentials, and browser authentication are not Git
+content; their separate boundary is documented in
+[`docs/operations/protected-runtime-export-plan.md`](./docs/operations/protected-runtime-export-plan.md).
 
 ### Installation
 

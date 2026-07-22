@@ -66,6 +66,8 @@ If a supporting or historical document conflicts with runtime code, it is not ca
 | [operations/backup-recovery.md](./operations/backup-recovery.md) | recovery guidance |
 | [operations/operator-sqlite-cutover-2026-07-16.md](./operations/operator-sqlite-cutover-2026-07-16.md) | normalized SQLite host cutover evidence and rollback window |
 | [operations/startup-reconciliation-audit-2026-07-16.md](./operations/startup-reconciliation-audit-2026-07-16.md) | read-only integrity audit and no-replay decision for the 732 startup-reconciled executions |
+| [operations/machine-migration-manifest.md](./operations/machine-migration-manifest.md) | pinned source, services, plugins, skills, configuration references, and current migration blockers |
+| [operations/protected-runtime-export-plan.md](./operations/protected-runtime-export-plan.md) | protected non-source state export/restore contract and secret separation boundary |
 
 ## Guides
 

@@ -13,7 +13,7 @@ Use it for one thing:
 - what is next
 - what is intentionally parked
 
-Last updated: `2026-07-17`
+Last updated: `2026-07-22`
 
 ## Current Headline
 
@@ -33,6 +33,19 @@ The public repo direction is now explicit.
   direction
 
 ## Recently Finished
+
+0. A retained-host portability and migration source-of-truth is now tracked.
+   - the manifest records live services, ports, source repositories, plugin and
+     skill ownership, pinned runtimes, protected state, and Docker/Redis truth
+   - the protected export plan keeps SQLite, Redis, scheduler, memory, social
+     state, credentials, browser authentication, and encryption keys outside
+     Git and requires service-consistent export
+   - the bootstrap check fails closed while active local-only source remains
+     unpublished, instead of pretending a partial clone is reproducible
+   - the active Gateway stabilization repair and the validated-but-unactivated
+     Codex exact-toolsAllow repair are preserved as separate patch artifacts
+   - no service, scheduler, runtime database, plugin installation, credential,
+     or external system was changed by this audit
 
 0. Queue admission and telemetry integrity hardening is implemented and active
    on the retained host.
@@ -225,6 +238,22 @@ The public repo direction is now explicit.
      surface
 
 ## Current Recommended Next Move
+
+Close the migration source blockers before exporting protected state:
+
+- reconcile the root operations workspace into small source-only commits and a
+  reachable intended remote, without sweeping in generated docs or private
+  evidence
+- reconcile the social-agent source separately
+- give the active public-decision-intelligence service an authoritative repo
+  and reconcile the active evidence-console source with its remote
+- pin or source-control the active personal HyperFrames/media skill bundle
+- rerun `scripts/bootstrap-machine.sh --check`; only after its source gate is
+  green should a separately approved protected runtime export be created
+
+Do not execute the protected export or claim full-machine reproducibility while
+any active source component exists only in an installed package, dirty tree,
+untracked incubation directory, or running process.
 
 The immediate business-registry integrity gate is closed:
 

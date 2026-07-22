@@ -1,0 +1,160 @@
+diff --git a/src/agents/harness/native-hook-relay.test.ts b/src/agents/harness/native-hook-relay.test.ts
+index 6a844f37..060c1415 100644
+--- a/src/agents/harness/native-hook-relay.test.ts
++++ b/src/agents/harness/native-hook-relay.test.ts
+@@ -3410,6 +3410,49 @@ describe("native hook relay registry", () => {
+ });
+
+ describe("native hook relay command builder", () => {
++  it("bypasses the source development runner to prevent per-hook build fanout", () => {
++    const existing = new Set([
++      "/workspace/openclaw/scripts/run-node.mjs",
++      "/workspace/openclaw/openclaw.mjs",
++      "/workspace/openclaw/dist/entry.js",
++    ]);
++
++    expect(
++      testing.resolveNativeHookRelayCliExecutableForTests({
++        envPath: "/workspace/openclaw/scripts/run-node.mjs",
++        packageRoot: "/workspace/openclaw",
++        argvEntry: "/workspace/openclaw/scripts/run-node.mjs",
++        exists: (candidate) => existing.has(candidate),
++      }),
++    ).toBe("/workspace/openclaw/openclaw.mjs");
++  });
++
++  it("fails closed instead of using the development runner when no stable launcher exists", () => {
++    const developmentRunner = "/workspace/openclaw/scripts/run-node.mjs";
++
++    expect(
++      testing.resolveNativeHookRelayCliExecutableForTests({
++        envPath: developmentRunner,
++        packageRoot: "/workspace/openclaw",
++        argvEntry: developmentRunner,
++        exists: (candidate) => candidate === developmentRunner,
++      }),
++    ).toBeUndefined();
++  });
++
++  it("preserves an explicit packaged CLI override", () => {
++    const packagedCli = "/opt/openclaw/openclaw.mjs";
++
++    expect(
++      testing.resolveNativeHookRelayCliExecutableForTests({
++        envPath: packagedCli,
++        packageRoot: "/workspace/openclaw",
++        argvEntry: "/workspace/openclaw/scripts/run-node.mjs",
++        exists: (candidate) => candidate === packagedCli,
++      }),
++    ).toBe(packagedCli);
++  });
++
+   it("uses the Codex hook relay command shape", () => {
+     expect(
+       buildNativeHookRelayCommand({
+diff --git a/src/agents/harness/native-hook-relay.ts b/src/agents/harness/native-hook-relay.ts
+index cf08e77f..03ce9b4b 100644
+--- a/src/agents/harness/native-hook-relay.ts
++++ b/src/agents/harness/native-hook-relay.ts
+@@ -2226,34 +2226,74 @@ function truncateText(value: string, maxLength: number): string {
+   return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+ }
+
+-function resolveOpenClawCliExecutable(): string {
+-  const envPath = process.env.OPENCLAW_CLI_PATH?.trim();
+-  if (envPath && existsSync(envPath)) {
++type NativeHookRelayCliExecutableCandidates = {
++  envPath?: string;
++  packageRoot?: string | null;
++  argvEntry?: string;
++  exists?: (candidate: string) => boolean;
++};
++
++function resolveNativeHookRelayDevelopmentRoot(executable: string): string | undefined {
++  const resolved = path.resolve(executable);
++  if (
++    path.basename(resolved) !== "run-node.mjs" ||
++    path.basename(path.dirname(resolved)) !== "scripts"
++  ) {
++    return undefined;
++  }
++  return path.dirname(path.dirname(resolved));
++}
++
++function resolveNativeHookRelayCliExecutable(
++  params: NativeHookRelayCliExecutableCandidates,
++): string | undefined {
++  const exists = params.exists ?? existsSync;
++  const envPath = params.envPath?.trim();
++  const envDevelopmentRoot =
++    envPath && exists(envPath) ? resolveNativeHookRelayDevelopmentRoot(envPath) : undefined;
++  if (envPath && exists(envPath) && !envDevelopmentRoot) {
+     return envPath;
+   }
+-  const packageRoot = resolveOpenClawPackageRootSync({
+-    moduleUrl: import.meta.url,
+-    argv1: process.argv[1],
+-    cwd: process.cwd(),
+-  });
+-  if (packageRoot) {
++
++  const roots = new Set(
++    [envDevelopmentRoot, params.packageRoot]
++      .filter((candidate): candidate is string => typeof candidate === "string" && !!candidate)
++      .map((candidate) => path.resolve(candidate)),
++  );
++  for (const root of roots) {
+     for (const candidate of [
+-      path.join(packageRoot, "openclaw.mjs"),
+-      path.join(packageRoot, "dist", "entry.js"),
+-      path.join(packageRoot, "scripts", "run-node.mjs"),
++      path.join(root, "openclaw.mjs"),
++      path.join(root, "dist", "entry.js"),
+     ]) {
+-      if (existsSync(candidate)) {
++      if (exists(candidate)) {
+         return candidate;
+       }
+     }
+   }
+-  const argvEntry = process.argv[1];
++
++  const argvEntry = params.argvEntry?.trim();
+   if (argvEntry) {
+     const resolved = path.resolve(argvEntry);
+-    if (existsSync(resolved)) {
++    if (exists(resolved) && !resolveNativeHookRelayDevelopmentRoot(resolved)) {
+       return resolved;
+     }
+   }
++  return undefined;
++}
++
++function resolveOpenClawCliExecutable(): string {
++  const executable = resolveNativeHookRelayCliExecutable({
++    envPath: process.env.OPENCLAW_CLI_PATH,
++    packageRoot: resolveOpenClawPackageRootSync({
++      moduleUrl: import.meta.url,
++      argv1: process.argv[1],
++      cwd: process.cwd(),
++    }),
++    argvEntry: process.argv[1],
++  });
++  if (executable) {
++    return executable;
++  }
+   throw new Error("Cannot resolve OpenClaw CLI executable path for native hook relay");
+ }
+
+@@ -2458,6 +2498,11 @@ export const testing = {
+   permissionRequestToolInputKeyFingerprintForTests(toolInput: Record<string, unknown>): string {
+     return permissionRequestToolInputKeyFingerprint(toolInput);
+   },
++  resolveNativeHookRelayCliExecutableForTests(
++    params: NativeHookRelayCliExecutableCandidates,
++  ): string | undefined {
++    return resolveNativeHookRelayCliExecutable(params);
++  },
+   setNativeHookRelayPermissionApprovalRequesterForTests(
+     requester: NativeHookRelayPermissionApprovalRequester,
+   ): void {

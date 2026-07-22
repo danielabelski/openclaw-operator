@@ -1,0 +1,145 @@
+diff --git a/extensions/codex/src/app-server/run-attempt.test.ts b/extensions/codex/src/app-server/run-attempt.test.ts
+index e8eb1db6..a30274a2 100644
+--- a/extensions/codex/src/app-server/run-attempt.test.ts
++++ b/extensions/codex/src/app-server/run-attempt.test.ts
+@@ -1646,6 +1646,97 @@ describe("runCodexAppServerAttempt", () => {
+     expect(crestodian).not.toHaveProperty("deferLoading");
+   });
+
++  it("materializes only an exact restricted toolsAllow name for a fresh isolated run", async () => {
++    const uploaderName = "generated_media_delivery_upload";
++    const unrelatedName = "unrelated_searchable_tool";
++    const uploader = {
++      ...createRuntimeDynamicTool(uploaderName),
++      parameters: {
++        type: "object" as const,
++        properties: {
++          dryRun: { type: "boolean" as const },
++        },
++        required: ["dryRun"],
++        additionalProperties: false,
++      },
++    };
++    const unrelatedTool = createRuntimeDynamicTool(unrelatedName);
++
++    const sessionFile = path.join(tempDir, "fresh-isolated-uploader.jsonl");
++    const workspaceDir = path.join(tempDir, "fresh-isolated-uploader-workspace");
++    const params = createParams(sessionFile, workspaceDir);
++    params.disableTools = false;
++    params.trigger = "cron";
++    params.sessionId = "fresh-isolated-uploader";
++    params.sessionKey = "agent:main:cron:fresh-isolated-uploader";
++    params.runId = "run-fresh-isolated-uploader";
++    params.toolsAllow = [uploaderName];
++    params.prompt = `Call ${uploaderName} with dryRun=true.`;
++
++    // A fresh cron run builds a new allowlisted catalog and dynamic-tool bridge;
++    // it has no prior thread or tool-search materialization to inherit.
++    const compiledTools = testing.filterCodexDynamicToolsForAllowlist(
++      [uploader, unrelatedTool],
++      params.toolsAllow,
++    );
++    expect(compiledTools.map((tool) => tool.name)).toEqual([uploaderName]);
++
++    const toolBridge = createCodexToolBridgeForTest(params, compiledTools);
++    const projectedTools = flattenSpecsWithNamespace(toolBridge.specs);
++    expect(projectedTools).toEqual([
++      expect.objectContaining({
++        name: uploaderName,
++      }),
++    ]);
++    expect(projectedTools[0]).not.toHaveProperty("namespace");
++    expect(projectedTools[0]).not.toHaveProperty("deferLoading");
++    expect(projectedTools.some((tool) => tool.name === unrelatedName)).toBe(false);
++
++    await expect(
++      toolBridge.handleToolCall({
++        threadId: "thread-1",
++        turnId: "turn-1",
++        callId: "call-uploader-dry-run",
++        namespace: null,
++        tool: uploaderName,
++        arguments: { dryRun: true },
++      }),
++    ).resolves.toMatchObject({ success: true });
++
++    expect(uploader.execute).toHaveBeenCalledTimes(1);
++    expect(uploader.execute).toHaveBeenCalledWith(
++      "call-uploader-dry-run",
++      { dryRun: true },
++      expect.any(AbortSignal),
++      undefined,
++    );
++    expect(unrelatedTool.execute).not.toHaveBeenCalled();
++  });
++
++  it("keeps wildcard and absent toolsAllow names deferred", () => {
++    const tools = [
++      createRuntimeDynamicTool("generated_media_delivery_upload"),
++      createRuntimeDynamicTool("unrelated_searchable_tool"),
++    ];
++    const workspaceDir = path.join(tempDir, "workspace");
++    const params = createParams(path.join(tempDir, "session.jsonl"), workspaceDir);
++
++    expect(testing.resolveCodexDynamicToolDirectNames(params)).toEqual([]);
++    const absentBridge = createCodexToolBridgeForTest(params, tools);
++    for (const tool of flattenSpecsWithNamespace(absentBridge.specs)) {
++      expect(tool.namespace).toBe(CODEX_OPENCLAW_DYNAMIC_TOOL_NAMESPACE);
++      expect(tool.deferLoading).toBe(true);
++    }
++
++    params.toolsAllow = ["*"];
++    expect(testing.resolveCodexDynamicToolDirectNames(params)).toEqual([]);
++    const wildcardBridge = createCodexToolBridgeForTest(params, tools);
++    for (const tool of flattenSpecsWithNamespace(wildcardBridge.specs)) {
++      expect(tool.namespace).toBe(CODEX_OPENCLAW_DYNAMIC_TOOL_NAMESPACE);
++      expect(tool.deferLoading).toBe(true);
++    }
++  });
++
+   it("keeps the heartbeat schema deferred and stable across normal and heartbeat turns", async () => {
+     testing.setOpenClawCodingToolsFactoryForTests((options) => [
+       createRuntimeDynamicTool("message"),
+diff --git a/extensions/codex/src/app-server/run-attempt.ts b/extensions/codex/src/app-server/run-attempt.ts
+index 4fd4ccc4..c8f45169 100644
+--- a/extensions/codex/src/app-server/run-attempt.ts
++++ b/extensions/codex/src/app-server/run-attempt.ts
+@@ -150,6 +150,7 @@ import {
+   createCodexDynamicToolBuildStageTracker,
+   filterCodexDynamicToolsForAllowlist,
+   formatCodexDynamicToolBuildStageSummary,
++  hasWildcardCodexToolsAllow,
+   includeForcedCodexDynamicToolAllow,
+   resolveCodexAppServerHookChannelId,
+   resolveCodexMessageToolProvider,
+@@ -3884,18 +3885,26 @@ function handleApprovalRequest(params: {
+ }
+
+ function resolveCodexDynamicToolDirectNames(params: EmbeddedRunAttemptParams): string[] {
+-  const names: string[] = [];
++  const names = new Set<string>();
+   // The ring-zero crestodian tool is the run's entire tool surface; register it
+   // directly instead of deferring it behind Codex tool_search discovery. This is
+   // structural: per-run configs cannot flip codexDynamicToolsLoading because the
+   // harness resolves plugin config from the live global config, not params.config.
+   if (params.crestodianTool) {
+-    names.push("crestodian");
++    names.add("crestodian");
+   }
+   if (params.sourceReplyDeliveryMode === "message_tool_only") {
+-    names.push("message");
++    names.add("message");
+   }
+-  return names;
++  // A restrictive runtime allowlist is already the authorization boundary for
++  // this run. Keep its exact names directly callable so a fresh one-shot turn
++  // does not need tool_search to reach the only tools it was permitted to use.
++  if (params.toolsAllow && !hasWildcardCodexToolsAllow(params.toolsAllow)) {
++    for (const name of params.toolsAllow) {
++      names.add(name);
++    }
++  }
++  return [...names];
+ }
+
+ export const testing = {
